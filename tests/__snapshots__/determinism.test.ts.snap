@@ -1,0 +1,506 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism > golden runs for the five fixtures > Bounce House 1`] = `
+[
+  {
+    "end": "lost",
+    "events": "7:end@0,5",
+    "path": "1,0,f 1,1,f 1,2,f 1,3,f 1,4,f 1,5,f 0,5,r -1,5,r",
+    "progress": [
+      0,
+      0,
+      -15,
+    ],
+    "ticks": 7,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "2:touch@1,2#sol0 2:deflect@1,2#sol0 9:touch@5,6#sol1 9:launch@5,6#sol1 23:touch@7,11#sol2 23:deflect@7,11#sol2 32:end@1,12",
+    "path": "1,0,f 1,1,f 1,2,f 2,3,f 2,4,f 2,5,f 3,5,r 4,5,r 5,5,r 5,5,f 5,4,f 5,3,f 5,2,f 6,2,f 7,2,r 7,3,f 7,4,f 7,5,f 7,6,f 7,7,f 7,8,f 7,9,f 7,10,f 7,10,f 6,9,f 6,10,f 6,11,f 6,12,f 5,12,r 4,12,r 3,12,r 2,12,r 1,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 32,
+    "v": "STANDARD",
+  },
+  {
+    "end": "lost",
+    "events": "6:end@0,5",
+    "path": "0,0,f 0,1,f 0,2,f 0,3,f 0,4,f 0,5,f -1,5,r",
+    "progress": [
+      0,
+      0,
+      -16,
+    ],
+    "ticks": 6,
+    "v": "OFFSET_L",
+  },
+  {
+    "end": "lost",
+    "events": "8:end@0,5",
+    "path": "2,0,f 2,1,f 2,2,f 2,3,f 2,4,f 2,5,f 1,5,r 0,5,r -1,5,r",
+    "progress": [
+      0,
+      0,
+      -14,
+    ],
+    "ticks": 8,
+    "v": "OFFSET_R",
+  },
+  {
+    "end": "loop",
+    "events": "2:touch@1,2#sol0 2:deflect@1,2#sol0 9:touch@5,6#sol1 9:launch@5,6#sol1 15:touch@5,6#sol1 15:launch@5,6#sol1 15:end@5,5",
+    "path": "1,0,f 1,1,f 1,2,f 2,3,f 2,4,f 2,5,f 3,5,r 4,5,r 5,5,r 5,5,f 5,4,f 5,3,f 5,3,f 5,4,f 5,5,f 5,5,f",
+    "progress": [
+      0,
+      0,
+      -11,
+    ],
+    "ticks": 15,
+    "v": "HEAVY",
+  },
+  {
+    "end": "success",
+    "events": "2:touch@1,2#sol0 2:deflect@1,2#sol0 9:touch@5,6#sol1 9:launch@5,6#sol1 25:touch@7,11#sol2 25:deflect@7,11#sol2 35:end@1,12",
+    "path": "1,0,f 1,1,f 1,2,f 2,3,f 2,4,f 2,5,f 3,5,r 4,5,r 5,5,r 5,5,f 5,4,f 5,3,f 5,2,f 5,1,f 6,1,f 6,2,f 7,2,r 7,3,f 7,4,f 7,5,f 7,6,f 7,7,f 7,8,f 7,9,f 7,10,f 7,10,f 6,9,f 5,8,f 5,9,f 5,10,f 5,11,f 5,12,f 4,12,r 3,12,r 2,12,r 1,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 35,
+    "v": "BOUNCY",
+  },
+  {
+    "end": "success",
+    "events": "2:touch@1,2#sol0 2:deflect@1,2#sol0 9:touch@5,6#sol1 9:launch@5,6#sol1 23:touch@7,11#sol2 23:deflect@7,11#sol2 32:end@1,12",
+    "path": "1,0,f 1,1,f 1,2,f 2,3,f 2,4,f 2,5,f 3,5,r 4,5,r 5,5,r 5,5,f 5,4,f 5,3,f 5,2,f 6,2,f 7,2,r 7,3,f 7,4,f 7,5,f 7,6,f 7,7,f 7,8,f 7,9,f 7,10,f 7,10,f 6,9,f 6,10,f 6,11,f 6,12,f 5,12,r 4,12,r 3,12,r 2,12,r 1,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 32,
+    "v": "REVERSE",
+  },
+  {
+    "end": "success",
+    "events": "2:touch@1,2#sol0 2:deflect@1,2#sol0 10:touch@5,6#sol1 10:launch@5,6#sol1 24:touch@7,11#sol2 24:deflect@7,11#sol2 33:end@1,12",
+    "path": "1,0,f 1,1,f 1,2,f 2,2,r 2,3,f 2,4,f 2,5,f 3,5,r 4,5,r 5,5,r 5,5,f 5,4,f 5,3,f 5,2,f 6,2,f 7,2,r 7,3,f 7,4,f 7,5,f 7,6,f 7,7,f 7,8,f 7,9,f 7,10,f 7,10,f 6,9,f 6,10,f 6,11,f 6,12,f 5,12,r 4,12,r 3,12,r 2,12,r 1,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 33,
+    "v": "SLICK",
+  },
+]
+`;
+
+exports[`determinism > golden runs for the five fixtures > First Contact 1`] = `
+[
+  {
+    "end": "lost",
+    "events": "8:end@8,2",
+    "path": "3,0,f 4,0,r 5,0,r 6,0,r 7,0,r 8,0,r 8,1,f 8,2,f 9,2,r",
+    "progress": [
+      0,
+      0,
+      -17,
+    ],
+    "ticks": 8,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@8,2#sol0 7:deflect@8,2#sol0 24:touch@1,12#sol1 24:launch@1,12#sol1 31:end@8,9",
+    "path": "3,0,f 4,0,r 5,0,r 6,0,r 7,0,r 8,0,r 8,1,f 8,2,f 7,2,r 6,2,r 5,2,r 4,2,r 3,2,r 3,3,f 3,4,f 3,5,f 2,5,r 1,5,r 1,6,f 1,7,f 1,8,f 1,9,f 1,10,f 1,11,f 1,11,f 2,10,f 3,9,f 4,9,f 5,9,f 6,9,r 7,9,r 8,9,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 31,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "8:touch@8,2#sol0 8:deflect@8,2#sol0 25:touch@1,12#sol1 25:launch@1,12#sol1 32:end@8,9",
+    "path": "2,0,f 3,0,r 4,0,r 5,0,r 6,0,r 7,0,r 8,0,r 8,1,f 8,2,f 7,2,r 6,2,r 5,2,r 4,2,r 3,2,r 3,3,f 3,4,f 3,5,f 2,5,r 1,5,r 1,6,f 1,7,f 1,8,f 1,9,f 1,10,f 1,11,f 1,11,f 2,10,f 3,9,f 4,9,f 5,9,f 6,9,r 7,9,r 8,9,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 32,
+    "v": "OFFSET_L",
+  },
+  {
+    "end": "success",
+    "events": "6:touch@8,2#sol0 6:deflect@8,2#sol0 23:touch@1,12#sol1 23:launch@1,12#sol1 30:end@8,9",
+    "path": "4,0,f 5,0,r 6,0,r 7,0,r 8,0,r 8,1,f 8,2,f 7,2,r 6,2,r 5,2,r 4,2,r 3,2,r 3,3,f 3,4,f 3,5,f 2,5,r 1,5,r 1,6,f 1,7,f 1,8,f 1,9,f 1,10,f 1,11,f 1,11,f 2,10,f 3,9,f 4,9,f 5,9,f 6,9,r 7,9,r 8,9,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 30,
+    "v": "OFFSET_R",
+  },
+  {
+    "end": "lost",
+    "events": "7:touch@8,2#sol0 7:deflect@8,2#sol0 24:touch@1,12#sol1 24:launch@1,12#sol1 35:end@8,12",
+    "path": "3,0,f 4,0,r 5,0,r 6,0,r 7,0,r 8,0,r 8,1,f 8,2,f 7,2,r 6,2,r 5,2,r 4,2,r 3,2,r 3,3,f 3,4,f 3,5,f 2,5,r 1,5,r 1,6,f 1,7,f 1,8,f 1,9,f 1,10,f 1,11,f 1,11,f 2,10,f 3,10,f 4,10,f 4,10,f 4,11,f 4,12,f 5,12,r 6,12,r 7,12,r 8,12,r 9,12,r",
+    "progress": [
+      0,
+      0,
+      -5,
+    ],
+    "ticks": 35,
+    "v": "HEAVY",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@8,2#sol0 7:deflect@8,2#sol0 24:touch@1,12#sol1 24:launch@1,12#sol1 32:end@8,9",
+    "path": "3,0,f 4,0,r 5,0,r 6,0,r 7,0,r 8,0,r 8,1,f 8,2,f 7,2,r 6,2,r 5,2,r 4,2,r 3,2,r 3,3,f 3,4,f 3,5,f 2,5,r 1,5,r 1,6,f 1,7,f 1,8,f 1,9,f 1,10,f 1,11,f 1,11,f 2,10,f 3,9,f 4,8,f 5,8,f 5,9,f 6,9,r 7,9,r 8,9,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 32,
+    "v": "BOUNCY",
+  },
+  {
+    "end": "lost",
+    "events": "16:end@0,12",
+    "path": "3,0,f 2,0,r 1,0,r 0,0,r 0,1,f 0,2,f 0,3,f 0,4,f 0,5,f 0,6,f 0,7,f 0,8,f 0,9,f 0,10,f 0,11,f 0,12,f -1,12,r",
+    "progress": [
+      0,
+      0,
+      -8,
+    ],
+    "ticks": 16,
+    "v": "REVERSE",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@8,2#sol0 7:deflect@8,2#sol0 24:touch@1,12#sol1 24:launch@1,12#sol1 31:end@8,9",
+    "path": "3,0,f 4,0,r 5,0,r 6,0,r 7,0,r 8,0,r 8,1,f 8,2,f 7,2,r 6,2,r 5,2,r 4,2,r 3,2,r 3,3,f 3,4,f 3,5,f 2,5,r 1,5,r 1,6,f 1,7,f 1,8,f 1,9,f 1,10,f 1,11,f 1,11,f 2,10,f 3,9,f 4,9,f 5,9,f 6,9,r 7,9,r 8,9,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 31,
+    "v": "SLICK",
+  },
+]
+`;
+
+exports[`determinism > golden runs for the five fixtures > Grand Tour 1`] = `
+[
+  {
+    "end": "lost",
+    "events": "7:checkpoint@2,1=1 14:end@0,5",
+    "path": "8,0,f 7,0,r 6,0,r 5,0,r 4,0,r 3,0,r 2,0,r 2,1,f 2,2,f 2,3,f 2,4,f 2,5,f 1,5,r 0,5,r -1,5,r",
+    "progress": [
+      0,
+      1,
+      -13,
+    ],
+    "ticks": 14,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "7:checkpoint@2,1=1 8:touch@2,2#sol0 8:deflect@2,2#sol0 17:touch@7,7#sol1 17:deflect@7,7#sol1 20:checkpoint@4,8=2 28:touch@0,12#sol2 28:deflect@0,12#sol2 36:end@8,12",
+    "path": "8,0,f 7,0,r 6,0,r 5,0,r 4,0,r 3,0,r 2,0,r 2,1,f 2,2,f 3,3,f 3,4,f 3,5,f 4,5,r 5,5,r 6,5,r 7,5,r 7,6,f 7,7,f 6,8,f 5,8,r 4,8,r 3,8,r 2,8,r 1,8,r 1,9,f 1,10,f 1,11,f 1,12,f 0,12,r 1,12,r 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      2,
+      -0,
+    ],
+    "ticks": 36,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "6:checkpoint@2,1=1 7:touch@2,2#sol0 7:deflect@2,2#sol0 16:touch@7,7#sol1 16:deflect@7,7#sol1 19:checkpoint@4,8=2 27:touch@0,12#sol2 27:deflect@0,12#sol2 35:end@8,12",
+    "path": "7,0,f 6,0,r 5,0,r 4,0,r 3,0,r 2,0,r 2,1,f 2,2,f 3,3,f 3,4,f 3,5,f 4,5,r 5,5,r 6,5,r 7,5,r 7,6,f 7,7,f 6,8,f 5,8,r 4,8,r 3,8,r 2,8,r 1,8,r 1,9,f 1,10,f 1,11,f 1,12,f 0,12,r 1,12,r 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      2,
+      -0,
+    ],
+    "ticks": 35,
+    "v": "OFFSET_L",
+  },
+  {
+    "end": "success",
+    "events": "7:checkpoint@2,1=1 8:touch@2,2#sol0 8:deflect@2,2#sol0 17:touch@7,7#sol1 17:deflect@7,7#sol1 20:checkpoint@4,8=2 28:touch@0,12#sol2 28:deflect@0,12#sol2 36:end@8,12",
+    "path": "8,0,f 7,0,r 6,0,r 5,0,r 4,0,r 3,0,r 2,0,r 2,1,f 2,2,f 3,3,f 3,4,f 3,5,f 4,5,r 5,5,r 6,5,r 7,5,r 7,6,f 7,7,f 6,8,f 5,8,r 4,8,r 3,8,r 2,8,r 1,8,r 1,9,f 1,10,f 1,11,f 1,12,f 0,12,r 1,12,r 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      2,
+      -0,
+    ],
+    "ticks": 36,
+    "v": "OFFSET_R",
+  },
+  {
+    "end": "success",
+    "events": "7:checkpoint@2,1=1 8:touch@2,2#sol0 8:deflect@2,2#sol0 17:touch@7,7#sol1 17:deflect@7,7#sol1 20:checkpoint@4,8=2 28:touch@0,12#sol2 28:deflect@0,12#sol2 36:end@8,12",
+    "path": "8,0,f 7,0,r 6,0,r 5,0,r 4,0,r 3,0,r 2,0,r 2,1,f 2,2,f 3,3,f 3,4,f 3,5,f 4,5,r 5,5,r 6,5,r 7,5,r 7,6,f 7,7,f 6,8,f 5,8,r 4,8,r 3,8,r 2,8,r 1,8,r 1,9,f 1,10,f 1,11,f 1,12,f 0,12,r 1,12,r 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      2,
+      -0,
+    ],
+    "ticks": 36,
+    "v": "HEAVY",
+  },
+  {
+    "end": "success",
+    "events": "7:checkpoint@2,1=1 8:touch@2,2#sol0 8:deflect@2,2#sol0 17:touch@7,7#sol1 17:deflect@7,7#sol1 20:checkpoint@4,8=2 28:touch@0,12#sol2 28:deflect@0,12#sol2 36:end@8,12",
+    "path": "8,0,f 7,0,r 6,0,r 5,0,r 4,0,r 3,0,r 2,0,r 2,1,f 2,2,f 3,3,f 3,4,f 3,5,f 4,5,r 5,5,r 6,5,r 7,5,r 7,6,f 7,7,f 6,8,f 5,8,r 4,8,r 3,8,r 2,8,r 1,8,r 1,9,f 1,10,f 1,11,f 1,12,f 0,12,r 1,12,r 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      2,
+      -0,
+    ],
+    "ticks": 36,
+    "v": "BOUNCY",
+  },
+  {
+    "end": "lost",
+    "events": "1:end@8,0",
+    "path": "8,0,f 9,0,r",
+    "progress": [
+      0,
+      0,
+      -24,
+    ],
+    "ticks": 1,
+    "v": "REVERSE",
+  },
+  {
+    "end": "stalled",
+    "events": "7:checkpoint@2,1=1 8:touch@2,2#sol0 8:deflect@2,2#sol0 11:end@2,2",
+    "path": "8,0,f 7,0,r 6,0,r 5,0,r 4,0,r 3,0,r 2,0,r 2,1,f 2,2,f 2,2,f 2,2,f 2,2,f",
+    "progress": [
+      0,
+      1,
+      -16,
+    ],
+    "ticks": 11,
+    "v": "SLICK",
+  },
+]
+`;
+
+exports[`determinism > golden runs for the five fixtures > Updraft 1`] = `
+[
+  {
+    "end": "lost",
+    "events": "14:end@0,9",
+    "path": "4,0,f 3,0,r 2,0,r 1,0,r 1,1,f 1,2,f 1,3,f 1,4,f 1,5,f 1,6,f 1,7,f 1,8,f 1,9,f 0,9,r -1,9,r",
+    "progress": [
+      0,
+      0,
+      -6,
+    ],
+    "ticks": 14,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "4:touch@1,1#sol0 4:deflect@1,1#sol0 16:touch@5,10#sol1 19:end@7,7",
+    "path": "4,0,f 3,0,r 2,0,r 1,0,r 1,1,f 2,2,f 2,3,f 2,4,f 2,5,f 2,6,f 2,7,f 2,8,f 2,9,f 3,9,r 4,9,r 5,9,r 5,8,f 5,7,f 6,7,f 7,7,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 19,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "3:touch@1,1#sol0 3:deflect@1,1#sol0 15:touch@5,10#sol1 18:end@7,7",
+    "path": "3,0,f 2,0,r 1,0,r 1,1,f 2,2,f 2,3,f 2,4,f 2,5,f 2,6,f 2,7,f 2,8,f 2,9,f 3,9,r 4,9,r 5,9,r 5,8,f 5,7,f 6,7,f 7,7,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 18,
+    "v": "OFFSET_L",
+  },
+  {
+    "end": "success",
+    "events": "5:touch@1,1#sol0 5:deflect@1,1#sol0 17:touch@5,10#sol1 20:end@7,7",
+    "path": "5,0,f 4,0,r 3,0,r 2,0,r 1,0,r 1,1,f 2,2,f 2,3,f 2,4,f 2,5,f 2,6,f 2,7,f 2,8,f 2,9,f 3,9,r 4,9,r 5,9,r 5,8,f 5,7,f 6,7,f 7,7,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 20,
+    "v": "OFFSET_R",
+  },
+  {
+    "end": "lost",
+    "events": "4:touch@1,1#sol0 4:deflect@1,1#sol0 16:touch@5,10#sol1 19:end@8,9",
+    "path": "4,0,f 3,0,r 2,0,r 1,0,r 1,1,f 2,2,f 2,3,f 2,4,f 2,5,f 2,6,f 2,7,f 2,8,f 2,9,f 3,9,r 4,9,r 5,9,r 6,9,f 7,9,r 8,9,r 9,9,r",
+    "progress": [
+      0,
+      0,
+      -4,
+    ],
+    "ticks": 19,
+    "v": "HEAVY",
+  },
+  {
+    "end": "success",
+    "events": "4:touch@1,1#sol0 4:deflect@1,1#sol0 16:touch@5,10#sol1 19:end@7,7",
+    "path": "4,0,f 3,0,r 2,0,r 1,0,r 1,1,f 2,2,f 2,3,f 2,4,f 2,5,f 2,6,f 2,7,f 2,8,f 2,9,f 3,9,r 4,9,r 5,9,r 5,8,f 5,7,f 6,7,f 7,7,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 19,
+    "v": "BOUNCY",
+  },
+  {
+    "end": "lost",
+    "events": "5:end@8,0",
+    "path": "4,0,f 5,0,r 6,0,r 7,0,r 8,0,r 9,0,r",
+    "progress": [
+      0,
+      0,
+      -16,
+    ],
+    "ticks": 5,
+    "v": "REVERSE",
+  },
+  {
+    "end": "stalled",
+    "events": "4:touch@1,1#sol0 4:deflect@1,1#sol0 7:end@1,1",
+    "path": "4,0,f 3,0,r 2,0,r 1,0,r 1,1,f 1,1,f 1,1,f 1,1,f",
+    "progress": [
+      0,
+      0,
+      -12,
+    ],
+    "ticks": 7,
+    "v": "SLICK",
+  },
+]
+`;
+
+exports[`determinism > golden runs for the five fixtures > Wind Tunnel 1`] = `
+[
+  {
+    "end": "stalled",
+    "events": "9:end@4,6",
+    "path": "4,0,f 4,1,f 4,2,f 4,3,f 4,4,f 4,5,f 4,6,f 4,6,r 4,6,r 4,6,r",
+    "progress": [
+      0,
+      0,
+      -16,
+    ],
+    "ticks": 9,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@2,6#sol0 12:touch@7,9#sol1 12:deflect@7,9#sol1 16:switch@3,10 16:gate@7,12=1 20:touch@1,12#sol2 20:deflect@1,12#sol2 27:end@8,12",
+    "path": "4,0,f 4,1,f 4,2,f 4,3,f 4,4,f 4,5,f 4,6,f 5,6,r 6,6,r 7,6,r 7,7,f 7,8,f 7,9,f 6,10,f 5,10,r 4,10,r 3,10,r 2,10,r 1,10,r 1,11,f 1,12,f 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 27,
+    "v": "STANDARD",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@2,6#sol0 13:touch@7,9#sol1 13:deflect@7,9#sol1 17:switch@3,10 17:gate@7,12=1 21:touch@1,12#sol2 21:deflect@1,12#sol2 28:end@8,12",
+    "path": "3,0,f 3,1,f 3,2,f 3,3,f 3,4,f 3,5,f 3,6,f 4,6,r 5,6,r 6,6,r 7,6,r 7,7,f 7,8,f 7,9,f 6,10,f 5,10,r 4,10,r 3,10,r 2,10,r 1,10,r 1,11,f 1,12,f 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 28,
+    "v": "OFFSET_L",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@2,6#sol0 11:touch@7,9#sol1 11:deflect@7,9#sol1 15:switch@3,10 15:gate@7,12=1 19:touch@1,12#sol2 19:deflect@1,12#sol2 26:end@8,12",
+    "path": "5,0,f 5,1,f 5,2,f 5,3,f 5,4,f 5,5,f 5,6,f 6,6,r 7,6,r 7,7,f 7,8,f 7,9,f 6,10,f 5,10,r 4,10,r 3,10,r 2,10,r 1,10,r 1,11,f 1,12,f 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 26,
+    "v": "OFFSET_R",
+  },
+  {
+    "end": "stalled",
+    "events": "9:end@4,6",
+    "path": "4,0,f 4,1,f 4,2,f 4,3,f 4,4,f 4,5,f 4,6,f 4,6,r 4,6,r 4,6,r",
+    "progress": [
+      0,
+      0,
+      -16,
+    ],
+    "ticks": 9,
+    "v": "HEAVY",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@2,6#sol0 12:touch@7,9#sol1 12:deflect@7,9#sol1 16:switch@3,10 16:gate@7,12=1 20:touch@1,12#sol2 20:deflect@1,12#sol2 27:end@8,12",
+    "path": "4,0,f 4,1,f 4,2,f 4,3,f 4,4,f 4,5,f 4,6,f 5,6,r 6,6,r 7,6,r 7,7,f 7,8,f 7,9,f 6,10,f 5,10,r 4,10,r 3,10,r 2,10,r 1,10,r 1,11,f 1,12,f 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 27,
+    "v": "BOUNCY",
+  },
+  {
+    "end": "success",
+    "events": "7:touch@2,6#sol0 12:touch@7,9#sol1 12:deflect@7,9#sol1 16:switch@3,10 16:gate@7,12=1 20:touch@1,12#sol2 20:deflect@1,12#sol2 27:end@8,12",
+    "path": "4,0,f 4,1,f 4,2,f 4,3,f 4,4,f 4,5,f 4,6,f 5,6,r 6,6,r 7,6,r 7,7,f 7,8,f 7,9,f 6,10,f 5,10,r 4,10,r 3,10,r 2,10,r 1,10,r 1,11,f 1,12,f 2,12,r 3,12,r 4,12,r 5,12,r 6,12,r 7,12,r 8,12,r",
+    "progress": [
+      1,
+      0,
+      -0,
+    ],
+    "ticks": 27,
+    "v": "REVERSE",
+  },
+  {
+    "end": "stalled",
+    "events": "7:touch@2,6#sol0 12:touch@7,9#sol1 12:deflect@7,9#sol1 15:end@7,9",
+    "path": "4,0,f 4,1,f 4,2,f 4,3,f 4,4,f 4,5,f 4,6,f 5,6,r 6,6,r 7,6,r 7,7,f 7,8,f 7,9,f 7,9,f 7,9,f 7,9,f",
+    "progress": [
+      0,
+      0,
+      -16,
+    ],
+    "ticks": 15,
+    "v": "SLICK",
+  },
+]
+`;
