@@ -97,11 +97,58 @@ function permutations<T>(arr: readonly T[]): T[][] {
   return out;
 }
 
+type Runner = (level: Level, pieces: readonly BoardPiece[], variant?: SimResult['variant']) => SimResult;
+const plainRun: Runner = (level, pieces, variant) => simulate(level, pieces, variant ? { variant } : {});
+
+/** Buildable under the rules: some placement order never lowers P (§5.3). */
+export function isBuildable(level: Level, sol: readonly BoardPiece[], run: Runner = plainRun): boolean {
+  const empty = run(level, []).progress;
+  for (const order of permutations(sol)) {
+    let prev = empty;
+    let ok = true;
+    for (let k = 1; k <= order.length && ok; k++) {
+      const p = run(level, order.slice(0, k)).progress;
+      if (compareProgress(p, prev) < 0) ok = false;
+      prev = p;
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+/** Single placements (socket × type × orientation, in stock) that deliver Ball 1 on their own. */
+export function countTrivialFixes(level: Level, inventory: Machine['inventory'], run: Runner = plainRun): number {
+  let n = 0;
+  for (let i = 0; i < W * H; i++) {
+    if (!level.socket[i]) continue;
+    const x = i % W;
+    const y = (i - x) / W;
+    for (const t of PIECE_TYPES) {
+      if ((inventory[t] ?? 0) <= 0) continue;
+      for (const d of PIECE_DIRS[t]) if (run(level, [{ id: 'probe', type: t, dir: d, x, y }]).end === 'success') n++;
+    }
+  }
+  return n;
+}
+
+export function countVariantsDelivered(level: Level, sol: readonly BoardPiece[], run: Runner = plainRun): number {
+  let n = 0;
+  for (const v of VARIANTS) if (run(level, sol, v.id).end === 'success') n++;
+  return n;
+}
+
+export function varietyProblem(history: readonly { families: string[]; startX: number }[], families: readonly string[], startX: number): string | null {
+  const fam = families.join('>');
+  for (const h of history.slice(0, 2)) if (h.families.join('>') === fam) return 'same family sequence as a recent Day';
+  if (history[0] && history[0].startX === startX) return 'same start column as yesterday';
+  return null;
+}
+
 export function validateMachine(m: Machine, opts: ValidateOptions): Validation {
   let sims = opts.simsSpent ?? 0;
-  const run = (level: Level, pieces: readonly BoardPiece[], variant?: SimResult['variant']): SimResult => {
+  const run: Runner = (level, pieces, variant) => {
     sims++;
-    return simulate(level, pieces, variant ? { variant } : {});
+    return plainRun(level, pieces, variant);
   };
 
   const st = structuralCheck(m);
@@ -116,53 +163,21 @@ export function validateMachine(m: Machine, opts: ValidateOptions): Validation {
   const solved = run(level, sol);
   if (solved.end !== 'success') return fail('solvable', `stored solution ends with ${solved.end}`, sims);
 
-  // Buildable: some placement order never lowers P (§5.3).
-  let buildable = false;
-  for (const order of permutations(sol)) {
-    let prev = empty.progress;
-    let ok = true;
-    for (let k = 1; k <= order.length; k++) {
-      const p = run(level, order.slice(0, k)).progress;
-      if (compareProgress(p, prev) < 0) {
-        ok = false;
-        break;
-      }
-      prev = p;
-    }
-    if (ok) {
-      buildable = true;
-      break;
-    }
-  }
-  if (!buildable) return fail('buildable', 'no placement order keeps P from dropping', sims);
-
-  // No trivial fix: single placements that deliver on their own.
-  let trivial = 0;
-  for (let i = 0; i < W * H; i++) {
-    if (!level.socket[i]) continue;
-    const x = i % W;
-    const y = (i - x) / W;
-    for (const t of PIECE_TYPES) {
-      if ((m.inventory[t] ?? 0) <= 0) continue;
-      for (const d of PIECE_DIRS[t]) {
-        if (run(level, [{ id: 'probe', type: t, dir: d, x, y }]).end === 'success') trivial++;
-      }
-    }
-  }
-  const allowed = opts.tier === 1 ? 1 : 0;
-  if (trivial > allowed) return fail('trivial', `${trivial} single-piece fixes (tier ${opts.tier} allows ${allowed})`, sims, { trivialFixes: trivial });
-
-  // Secret-ball headroom: solution delivers 1..4 of the 6 variants.
-  let delivered = 0;
-  for (const v of VARIANTS) if (run(level, sol, v.id).end === 'success') delivered++;
-  if (delivered < 1 || delivered > 4) return fail('headroom', `solution delivers ${delivered}/6 variants`, sims, { variantsDelivered: delivered, trivialFixes: trivial });
+  // Cheap checks first: headroom and variety before the permutation and single-piece sweeps.
+  const delivered = countVariantsDelivered(level, sol, run);
+  if (delivered < 1 || delivered > 4) return fail('headroom', `solution delivers ${delivered}/6 variants`, sims, { variantsDelivered: delivered });
 
   if (opts.history && opts.families) {
-    const fam = opts.families.join('>');
-    for (const h of opts.history.slice(0, 2)) if (h.families.join('>') === fam) return fail('variety', 'same family sequence as a recent Day', sims);
-    const y = opts.history[0];
-    if (y && y.startX === level.start.x) return fail('variety', 'same start column as yesterday', sims);
+    const v = varietyProblem(opts.history, opts.families, level.start.x);
+    if (v) return fail('variety', v, sims);
   }
+
+  if (!isBuildable(level, sol, run)) return fail('buildable', 'no placement order keeps P from dropping', sims);
+
+  const trivial = countTrivialFixes(level, m.inventory, run);
+  const allowed = opts.tier === 1 ? 1 : 0;
+  if (trivial > allowed) return fail('trivial', `${trivial} single-piece fixes (tier ${opts.tier} allows ${allowed})`, sims, { trivialFixes: trivial, variantsDelivered: delivered });
+
   if (sims > SIM_BUDGET) return fail('budget', `${sims} sims`, sims);
 
   return { ok: true, failed: null, reason: 'ok', sims, variantsDelivered: delivered, trivialFixes: trivial };

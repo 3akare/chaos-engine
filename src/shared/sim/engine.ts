@@ -14,13 +14,18 @@ const STALL_TICKS = 3;
 export type SimOptions = {
   variant?: VariantId;
   maxTicks?: number;
+  /** Generator probe: stop as soon as the ball first enters a cell with y >= stopAtRow. */
+  stopAtRow?: number;
 };
+
+/** Where the ball crossed `stopAtRow` (generator construction only). */
+export type SimExit = { x: number; y: number; dx: number; tick: number };
 
 type Step = [number, number];
 
 const dirDx = (d: string): -1 | 1 => (d === 'L' || d === 'DL' || d === 'UL' ? -1 : 1);
 
-export function simulate(level: Level, pieces: readonly BoardPiece[], opts: SimOptions = {}): SimResult {
+export function simulate(level: Level, pieces: readonly BoardPiece[], opts: SimOptions = {}): SimResult & { exit?: SimExit } {
   const variant = opts.variant ?? 'STANDARD';
   const maxTicks = opts.maxTicks ?? MAX_TICKS;
   const phys = physicsFor(variant);
@@ -47,6 +52,7 @@ export function simulate(level: Level, pieces: readonly BoardPiece[], opts: SimO
 
   let tick = 0;
   let end: EndReason | null = null;
+  let exit: SimExit | undefined;
   let minDist = 999;
 
   const inGrid = (x: number, y: number): boolean => x >= 0 && x < W && y >= 0 && y < H;
@@ -137,6 +143,11 @@ export function simulate(level: Level, pieces: readonly BoardPiece[], opts: SimO
     moved = true;
     if (!inGrid(x, y)) {
       end = 'lost';
+      return;
+    }
+    if (opts.stopAtRow !== undefined && y >= opts.stopAtRow && !exit) {
+      exit = { x, y, dx, tick };
+      end = 'timeout';
       return;
     }
     enter();
@@ -326,7 +337,7 @@ export function simulate(level: Level, pieces: readonly BoardPiece[], opts: SimO
   ev('end', endX, endY);
 
   const delivered = (end as EndReason) === 'success' ? 1 : 0;
-  return {
+  const result: SimResult & { exit?: SimExit } = {
     variant,
     end,
     ticks: tick,
@@ -335,4 +346,6 @@ export function simulate(level: Level, pieces: readonly BoardPiece[], opts: SimO
     progress: [delivered, cpNext - 1, -(delivered ? 0 : minDist)],
     touchedPieceIds: touched,
   };
+  if (exit) result.exit = exit;
+  return result;
 }
