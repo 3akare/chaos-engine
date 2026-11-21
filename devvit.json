@@ -1,0 +1,14 @@
+{
+  "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
+  "name": "chaos-engine",
+  "post": {
+    "dir": "dist/client",
+    "entrypoints": {
+      "default": { "entry": "splash.html", "height": "tall" },
+      "game": { "entry": "game.html" }
+    }
+  },
+  "server": { "dir": "dist/server", "entry": "index.cjs" },
+  "permissions": { "redis": true, "reddit": true, "http": { "enable": false, "domains": [] } },
+  "scripts": { "build": "vite build", "dev": "vite build --watch" }
+}

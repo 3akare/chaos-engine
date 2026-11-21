@@ -1,0 +1,44 @@
+{
+  "private": true,
+  "name": "chaos-engine",
+  "version": "0.1.0",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "typecheck": "tsc --build",
+    "lint": "eslint \"src/**/*.ts\" \"dev/**/*.ts\" \"tests/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "harness": "node dev/harness/run.mjs",
+    "dev": "devvit playtest",
+    "deploy": "npm run check && devvit upload",
+    "launch": "npm run deploy && devvit publish",
+    "login": "devvit login",
+    "prettier": "prettier --write ."
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@devvit/start": "0.15.4",
+    "@devvit/web": "0.15.4",
+    "@hono/node-server": "2.1.6",
+    "devvit": "0.15.4",
+    "hono": "4.13.17",
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "^24.13.3",
+    "eslint": "10.14.0",
+    "globals": "17.14.0",
+    "prettier": "3.9.10",
+    "tsx": "^4.20.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.2",
+    "vite": "8.3.7",
+    "vitest": "^4.0.0"
+  }
+}
