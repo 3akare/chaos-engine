@@ -1,22 +1,36 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "chaos-engine",
+  "name": "chaos-engine-game",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
-      "default": { "entry": "splash.html", "height": "tall" },
-      "game": { "entry": "game.html" }
+      "default": {
+        "entry": "splash.html",
+        "height": "tall"
+      },
+      "game": {
+        "entry": "game.html"
+      }
     }
   },
-  "server": { "dir": "dist/server", "entry": "index.cjs" },
+  "server": {
+    "dir": "dist/server",
+    "entry": "index.cjs"
+  },
   "permissions": {
     "redis": true,
     "reddit": true,
-    "http": { "enable": false, "domains": [] }
+    "http": {
+      "enable": false,
+      "domains": []
+    }
   },
   "scheduler": {
     "tasks": {
-      "daily-tick": { "endpoint": "/internal/cron/tick", "cron": "*/10 * * * *" }
+      "daily-tick": {
+        "endpoint": "/internal/cron/tick",
+        "cron": "*/10 * * * *"
+      }
     }
   },
   "triggers": {
@@ -25,17 +39,65 @@
   },
   "menu": {
     "items": [
-      { "label": "Chaos Engine: Seed demo day", "description": "Fill today's machine with labelled setup pieces and demo predictions", "location": "subreddit", "forUserType": "moderator", "endpoint": "/internal/menu/seed-demo" },
-      { "label": "Chaos Engine: Run now", "description": "Lock and resolve today's machine now, then open the next one", "location": "subreddit", "forUserType": "moderator", "endpoint": "/internal/menu/run-now" },
-      { "label": "Chaos Engine: New post for today", "description": "Recreate today's post if it was deleted", "location": "subreddit", "forUserType": "moderator", "endpoint": "/internal/menu/new-post" },
-      { "label": "Chaos Engine: Remove piece…", "description": "Moderation override: remove a piece by coordinate", "location": "subreddit", "forUserType": "moderator", "endpoint": "/internal/menu/remove-piece" },
-      { "label": "Chaos Engine: Regenerate upcoming", "description": "Rebuild unpinned future machines with the current generator", "location": "subreddit", "forUserType": "moderator", "endpoint": "/internal/menu/regenerate" },
-      { "label": "Chaos Engine: Show today's solution", "description": "Moderator debugging aid", "location": "subreddit", "forUserType": "moderator", "endpoint": "/internal/menu/show-solution" },
-      { "label": "Chaos Engine: Show duplicates", "description": "Duplicate posts or comments to clean up", "location": "subreddit", "forUserType": "moderator", "endpoint": "/internal/menu/show-dupes" }
+      {
+        "label": "Chaos Engine: Seed demo day",
+        "description": "Fill today's machine with labelled setup pieces and demo predictions",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/seed-demo"
+      },
+      {
+        "label": "Chaos Engine: Run now",
+        "description": "Lock and resolve today's machine now, then open the next one",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/run-now"
+      },
+      {
+        "label": "Chaos Engine: New post for today",
+        "description": "Recreate today's post if it was deleted",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/new-post"
+      },
+      {
+        "label": "Chaos Engine: Remove piece…",
+        "description": "Moderation override: remove a piece by coordinate",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/remove-piece"
+      },
+      {
+        "label": "Chaos Engine: Regenerate upcoming",
+        "description": "Rebuild unpinned future machines with the current generator",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/regenerate"
+      },
+      {
+        "label": "Chaos Engine: Show today's solution",
+        "description": "Moderator debugging aid",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/show-solution"
+      },
+      {
+        "label": "Chaos Engine: Show duplicates",
+        "description": "Duplicate posts or comments to clean up",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/show-dupes"
+      }
     ]
   },
   "forms": {
     "removePiece": "/internal/form/remove-piece"
   },
-  "scripts": { "build": "vite build", "dev": "vite build --watch" }
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dev": {
+    "subreddit": "chaos_engine_game_dev"
+  }
 }
