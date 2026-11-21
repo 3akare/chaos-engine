@@ -28,3 +28,61 @@ or where the implementation deviates from it. Newest last.
   cookie (`ce_user`), the post id a query param.
 - **Node.** Template asks for Node ≥ 24; the dev container has Node 22, which works.
   `.npmrc` sets `legacy-peer-deps` to dodge an npm arborist crash with vitest's peer graph.
+
+## Phase 1 — simulation
+
+- **Airborne horizontal motion.** With purely vertical falling, a `U` launch always falls back onto
+  its own spring and an `L`/`R` fan can never move a falling ball, so the "launch pad" and "gap"
+  families in §5.2 couldn't work. Two minimal additions:
+  - A **`U` spring** launched while the ball has `dx ≠ 0` appends one `(dx, 0)` step after the
+    three `(0, −1)` steps (it "hops up and over"). With `dx = 0` it is pure vertical (and usually
+    loops: *perpetual motion*).
+  - A ball at the **top cell of a `U` beam** slips sideways by `dx` instead of rising (it hovers and
+    stalls if `dx = 0`), so a `U` fan is a lift, not an oscillator.
+  - A **falling** ball inside an `L`/`R` beam is blown one cell sideways instead of falling.
+- **One move per tick.** Landing doesn't use up a tick (the ball lands and rolls in the same tick)
+  unless the surface fires a rule (spring launch, bumper hop). A ball rolling off a ledge falls in
+  the next tick with no hang time.
+- **Top edge is a ceiling**; the sides and bottom are the void (`lost`).
+- **Loop detection** hashes state only on ticks where the ball moved or something fired; resting
+  ticks feed the stall counter instead, so a resting ball is `stalled`, never `loop`.
+- **Variant arcs** keep a 4-column reach: `UR` is 2 up-right + 2 right; HEAVY 1 + 3; BOUNCY 3 + 1.
+  HEAVY `U` rises 2, BOUNCY 4. BOUNCY bumper hop is two diagonal steps.
+- **Touch events** fire once per contiguous contact for fans and resting-on-top; ramps, springs and
+  bumpers fire on every interaction. These feed "Most Touched".
+- **Fixtures** were hand-built against the validator (`dev/tools/check-machine.ts`); each delivers
+  3–4 of the 6 variants with zero single-piece fixes. Their golden runs are snapshot-tested.
+
+## Phase 2 — generator
+
+- **Layout.** Three bands fill rows 1–12 (heights 3–5, summing to 12) and rows 13–14 are a fixed
+  "finish tray" (floor + target). The tray can carry a fix of its own (family `finish`), so
+  tier 3's four fixes are 3 band fixes + the tray. Tier 1/2 put funnels in the unused slots (never
+  two funnels in a row).
+- **Per-band verification.** Each band is checked with the real sim twice: with its fix the ball
+  must exit the band's bottom edge within 60 ticks; without it the ball must *not*. If a family
+  can't fit at the entry column after 20 parameter rolls, other families of the same height are
+  tried before the whole machine is re-rolled.
+- **"Interesting failure" is enforced while building band 1**, not only at validation, which cut
+  the median from 19 to 9 attempts (max 46 over 100 days, ≤ 40 ms per Day).
+- **Validation order** is cheapest-first (headroom and variety before the permutation and
+  single-piece sweeps). The 5,000-sim budget is applied per validated attempt.
+- **Fan-corridor fix**: the fan sits in the dead-end direction, both blocking the ball and blowing it
+  back — no extra rule needed.
+- **Names** come from the dominant family's word list; the target is a bell or basket at random.
+
+## Phase 3 — server
+
+- **Extra key** `ce:daynum:{n} → dayId` (for "yesterday" and idempotent Day creation).
+- **Transactions.** `watch/multi/exec` covers hashes and sorted sets in Devvit, so placement writes
+  `pieces`, `inv`, `holder`, `events`, the displaced player's `inbox` and stats in one MULTI, as
+  specified. Resolve writes result, status, sub stats, user stats, leaderboard and inboxes in one
+  MULTI too, so retrying it never double-counts.
+- **Move/edit keeps the piece id and `placedAt`** (it is the same piece); `editedAt` is set.
+- **The results comment can't link tomorrow's post** (it is posted before the hand-off creates
+  it), so it says "A new machine is up now — find it in the newest post." and the run screen's
+  "Build today's machine →" button links the newest post.
+- **Inbox** shows items newer than `lastSeenTs`; `/api/inbox/ack` bumps it.
+- **Realtime** is skipped for now; the client polls `/api/state` every 15 s while visible.
+- **Demo seeding** places every solution piece except the lowest one as labelled setup pieces, so
+  Ball 1 travels most of the machine and visibly fails near the end — one piece away from a fix.

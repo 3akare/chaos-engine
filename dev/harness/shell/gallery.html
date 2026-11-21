@@ -4,9 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chaos Engine seed gallery</title>
+    <style>
+      body { margin: 0; font: 14px system-ui, sans-serif; background: #23252f; color: #eee; }
+      header { padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      header a { color: #9cc0ff; }
+      #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; padding: 0 16px 24px; }
+      .card { background: #2f323e; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+      .card.current { outline: 2px solid #f6c945; }
+      .card canvas { width: 100%; aspect-ratio: 9 / 14.6; display: block; }
+      .meta { font-size: 12px; color: #c8c8d0; line-height: 1.35; }
+      .meta b { color: #fff; }
+      .row { display: flex; gap: 6px; flex-wrap: wrap; }
+      button { font: 12px system-ui; padding: 6px 8px; border-radius: 8px; border: 0; background: #2f6fdb; color: #fff; cursor: pointer; }
+      button.alt { background: #4a4e60; }
+      .pin { color: #f6c945; }
+      #alts { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; }
+      #alts .box { background: #2f323e; padding: 16px; border-radius: 12px; max-width: 92vw; }
+      #alts .opts { display: flex; gap: 12px; flex-wrap: wrap; }
+      #alts canvas { width: 150px; height: 240px; }
+    </style>
   </head>
   <body>
-    <div id="gallery"></div>
+    <header><b>Seed gallery</b> <span id="info"></span> <a href="/">← harness</a> <label><input type="checkbox" id="showsol" /> show solutions</label></header>
+    <div id="grid"></div>
+    <div id="alts"><div class="box"><div id="altTitle"></div><div class="opts" id="altOpts"></div><p><button class="alt" id="altClose">Close</button></p></div></div>
     <script type="module" src="./gallery.ts"></script>
   </body>
 </html>

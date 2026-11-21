@@ -17,6 +17,17 @@ const CYCLE: Array<[PieceType, Dir] | null> = [
 
 const qs = new URLSearchParams(location.search);
 let fi = Number(qs.get('fixture') ?? 0);
+// ?day=N loads a stored/generated machine from the harness (seed gallery "Play solution").
+const MACHINES = [...FIXTURES];
+if (qs.get('day')) {
+  const res = await fetch(`/__harness/gallery?count=40`);
+  const data = (await res.json()) as { days: Array<{ dayNumber: number; machine: (typeof FIXTURES)[number] }> };
+  const d = data.days.find((x) => x.dayNumber === Number(qs.get('day')));
+  if (d) {
+    MACHINES.unshift({ ...d.machine, name: `Day ${d.dayNumber}: ${d.machine.name}` });
+    fi = 0;
+  }
+}
 let pieces: ScenePiece[] = [];
 let speed = 1;
 let seq = 0;
@@ -31,19 +42,22 @@ new Phaser.Game({
   banner: false,
 });
 
-for (const [i, f] of FIXTURES.entries()) $('fixture').append(new Option(f.name, String(i)));
+for (const [i, f] of MACHINES.entries()) $('fixture').append(new Option(f.name, String(i)));
 for (const v of ['STANDARD', ...VARIANTS.map((x) => x.id)]) $('variant').append(new Option(v, v));
 ($('fixture') as HTMLSelectElement).value = String(fi);
 
-const level = () => levelOf(FIXTURES[fi]!);
+const level = () => levelOf(MACHINES[fi]!);
 const show = () => {
-  scene.setBoard(level(), pieces, FIXTURES[fi]!.target ?? 'bell');
+  scene.setBoard(level(), pieces, MACHINES[fi]!.target ?? 'bell');
   const r = simulate(level(), pieces);
   scene.setGhost(undefined, r);
   $('status').textContent = `Ball 1 now: ${r.end} after ${r.ticks} ticks · P=[${r.progress.join(', ')}]`;
 };
 
-scene.onReady = show;
+scene.onReady = () => {
+  if (qs.get('solution')) pieces = solutionPieces(MACHINES[fi]!).map((p) => ({ ...p, owner: 'solution' }));
+  show();
+};
 scene.onTap = (x, y) => {
   if (!level().socket[y * 9 + x]) {
     $('status').textContent = `${cellName(x, y)} is not a socket.`;
@@ -75,7 +89,7 @@ $('speed').onclick = () => {
   $('speed').textContent = `${speed}×`;
 };
 $('solution').onclick = () => {
-  pieces = solutionPieces(FIXTURES[fi]!).map((p) => ({ ...p, owner: 'solution' }));
+  pieces = solutionPieces(MACHINES[fi]!).map((p) => ({ ...p, owner: 'solution' }));
   show();
 };
 $('clear').onclick = () => {

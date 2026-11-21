@@ -4,9 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chaos Engine harness</title>
+    <style>
+      body { margin: 0; font: 14px system-ui, sans-serif; background: #1c1d24; color: #eee; }
+      #top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #2a2c36; }
+      #top select, #top button { font: 13px system-ui; padding: 7px 10px; border-radius: 8px; border: 0; }
+      #top button { background: #2f6fdb; color: #fff; font-weight: 600; cursor: pointer; }
+      #top button.alt { background: #4a4e60; }
+      #top a { color: #9cc0ff; }
+      #main { display: flex; gap: 20px; padding: 16px; flex-wrap: wrap; }
+      .phone { width: 390px; height: 800px; border: 10px solid #000; border-radius: 28px; overflow: hidden; background: #fff; }
+      .phone.dark { background: #0b1416; }
+      .phone iframe { width: 100%; height: 100%; border: 0; }
+      #side { flex: 1; min-width: 260px; }
+      #days li { margin: 4px 0; cursor: pointer; }
+      #days li.sel { color: #f6c945; }
+      #log { font: 12px ui-monospace, monospace; white-space: pre-wrap; color: #9aa; max-height: 260px; overflow: auto; }
+    </style>
   </head>
   <body>
-    <div id="shell"></div>
+    <div id="top">
+      <b>Chaos Engine harness</b>
+      <label>User <select id="user"><option>alice</option><option>bob</option><option>carol</option><option>dave</option><option>kestrel</option></select></label>
+      <button id="seed">Seed demo</button>
+      <button id="advance">Advance day</button>
+      <button class="alt" id="reset">Reset</button>
+      <label><input type="checkbox" id="dark" /> dark</label>
+      <a href="/gallery" target="_blank">Seed gallery</a>
+      <a href="/sandbox" target="_blank">Sandbox</a>
+    </div>
+    <div id="main">
+      <div class="phone" id="phone"><iframe id="frame"></iframe></div>
+      <div id="side">
+        <h3>Posts (the history)</h3>
+        <ul id="days"></ul>
+        <div id="log"></div>
+      </div>
+    </div>
     <script type="module" src="./shell.ts"></script>
   </body>
 </html>

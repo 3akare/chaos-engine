@@ -16,6 +16,7 @@ export default defineConfig({
     sourcemap: true,
     reportCompressedSize: false,
     chunkSizeWarningLimit: 2000,
+    target: 'es2022',
     rollupOptions: {
       input: {
         splash: path.join(root, 'src/client/splash.html'),

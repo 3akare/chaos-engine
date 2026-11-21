@@ -12,6 +12,7 @@ import type { Deps, RequestCtx } from '../../src/server/core/deps';
 import { MemoryStore } from './memory-store';
 import { FakeReddit } from './fake-reddit';
 import { harnessRoutes } from './routes';
+import { install, tick } from '../../src/server/core/pipeline';
 
 const root = path.resolve(import.meta.dirname, '../..');
 const out = path.join(root, 'dist/harness');
@@ -81,3 +82,9 @@ app.get('*', async (c) => {
 });
 
 serve({ fetch: app.fetch, port }, () => console.log(`Chaos Engine harness on http://localhost:${port}`));
+
+// Open Day 1 straight away, as the install trigger would.
+void (async () => {
+  await install(deps);
+  await tick(deps);
+})();
