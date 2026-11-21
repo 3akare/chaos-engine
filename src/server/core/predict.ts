@@ -10,7 +10,7 @@ export async function predict(deps: Deps, dayId: string, userId: string, balls: 
   for (let i = 0; i < TX_RETRIES; i++) {
     const tx = await deps.store.watch(K.meta(dayId));
     const meta = await readMeta(deps.store, dayId);
-    if (!meta || meta.status !== 'OPEN') {
+    if (!meta || meta.status !== 'OPEN' || deps.now() >= meta.locksAt) {
       await tx.unwatch();
       return { error: 'LOCKED', message: 'Predictions closed when the machine locked.' };
     }

@@ -64,3 +64,4 @@ window.addEventListener('message', (e: MessageEvent<{ type: string; postId?: str
   if (e.data?.type === 'harness:navigate' && e.data.postId) show(e.data.postId.startsWith('t3_') ? e.data.postId : `t3_${e.data.postId}`, 'game');
 });
 void refresh();
+export {};

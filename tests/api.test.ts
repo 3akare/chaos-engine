@@ -87,3 +87,16 @@ describe('api', () => {
     expect((await api.post('/internal/menu/show-dupes')).json.showToast.text).toMatch(/No duplicate/);
   });
 });
+
+describe('lock deadline', () => {
+  it('refuses placements and predictions once locksAt has passed, even before the cron runs', async () => {
+    const env2 = makeDeps();
+    const id = await installWith(env2);
+    const meta = (await readMeta(env2.store, id))!;
+    env2.clock.t = meta.locksAt;
+    const c = client(env2);
+    expect((await c.post('/api/place', { socketId: 'D3', type: 'BUMPER', dir: 'L' })).json.error).toBe('LOCKED');
+    expect((await c.post('/api/predict', { balls: 1 })).json.error).toBe('LOCKED');
+    expect((await c.get('/api/state')).json.day.status).toBe('OPEN');
+  });
+});

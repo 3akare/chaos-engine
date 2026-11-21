@@ -34,9 +34,10 @@ export async function applyAction(deps: Deps, dayId: string, actor: { userId: st
       await tx.unwatch();
       return { error: 'NO_DAY', message: "This machine doesn't exist any more." };
     }
-    if (meta.status !== 'OPEN') {
+    // Lock time is the deadline even before the cron has flipped the status (§2.1).
+    if (meta.status !== 'OPEN' || deps.now() >= meta.locksAt) {
       await tx.unwatch();
-      return { error: 'LOCKED', message: 'The machine is locked — the balls have fired. Check back for the results.' };
+      return { error: 'LOCKED', message: 'The machine is locked — the balls are firing. Check back for the results.' };
     }
     const machine = await readMachine(store, meta.dayNumber);
     if (!machine) {

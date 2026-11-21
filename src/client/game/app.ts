@@ -91,7 +91,8 @@ export class GameApp {
     if (levelChanged) this.level = levelOf({ ...v.level, solution: [] });
     this.renderHud();
     const status = v.day.status;
-    if (status === 'OPEN') {
+    const pastLock = status === 'OPEN' && v.serverNow >= v.day.locksAt;
+    if (status === 'OPEN' && !pastLock) {
       this.run?.destroy();
       this.run = null;
       this.els.overlay.replaceChildren();
@@ -185,8 +186,9 @@ export class GameApp {
     if (!this.view) return;
     const left = this.view.day.locksAt - this.now();
     this.els.countdown.textContent = fmtCountdown(left);
-    if (this.view.day.status === 'OPEN' && left < -5000 && !this.busy) {
-      // Lock time passed: the cron will pick it up within minutes; reflect it.
+    if (this.view.day.status === 'OPEN' && left <= 0 && left > -1500 && !this.busy) {
+      // Lock time passed: refresh into "Firing up the machine…" until the cron resolves it.
+      closeSheet(true);
       void this.poll();
     }
   }

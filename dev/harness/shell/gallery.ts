@@ -93,3 +93,4 @@ async function alternatives(day: number): Promise<void> {
 $('altClose').onclick = () => ($('alts').style.display = 'none');
 $('showsol').onchange = () => void load();
 void load();
+export {};

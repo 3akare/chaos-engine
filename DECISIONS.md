@@ -86,3 +86,19 @@ or where the implementation deviates from it. Newest last.
 - **Realtime** is skipped for now; the client polls `/api/state` every 15 s while visible.
 - **Demo seeding** places every solution piece except the lowest one as labelled setup pieces, so
   Ball 1 travels most of the machine and visibly fails near the end — one piece away from a fix.
+
+## Phase 3–4 — client
+
+- **Run screen is a controller, not a second Phaser scene.** `src/client/game/run.ts` drives the
+  same `BoardScene` (follow camera, per-tick slow-mo, owner labels) with DOM overlays for the
+  reveal, banners, tally and results. One renderer, one set of art.
+- **Client previews use the shared rules engine** (`decide()`), so the verdict and the reason in
+  the palette are exactly what the server will say; the server still re-runs everything.
+- **The board shrinks while the palette sheet is open** so the whole ghost path stays visible.
+- **Lock deadline.** The cron runs every 10 minutes, so between `locksAt` and the next tick the Day is
+  still `OPEN`. Placements and predictions are refused once `now >= locksAt` regardless, and the
+  client shows "Firing up the machine…" in that window.
+- **Splash** draws the machine with a 2D canvas (`src/client/lib/miniBoard.ts`); it ships ~31 KB
+  of JS+CSS and never loads Phaser. The game bundle is ~1.2 MB (Phaser 3).
+- **Personal reports** appear after the reveal-and-runs sequence on resolved posts, not over it.
+- **Sound** is not implemented (optional in the plan).
