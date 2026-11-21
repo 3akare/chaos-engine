@@ -22,6 +22,7 @@ export default defineConfig({
         game: path.join(root, 'src/client/game.html'),
         shell: path.join(root, 'dev/harness/shell/index.html'),
         gallery: path.join(root, 'dev/harness/shell/gallery.html'),
+        sandbox: path.join(root, 'dev/harness/shell/sandbox.html'),
       },
     },
   },

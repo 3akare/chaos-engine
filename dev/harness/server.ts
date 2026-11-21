@@ -63,6 +63,7 @@ const types: Record<string, string> = {
 const pages: Record<string, string> = {
   '/': 'dev/harness/shell/index.html',
   '/gallery': 'dev/harness/shell/gallery.html',
+  '/sandbox': 'dev/harness/shell/sandbox.html',
   '/splash.html': 'src/client/splash.html',
   '/game.html': 'src/client/game.html',
 };
