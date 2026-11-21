@@ -87,7 +87,7 @@ export function buildDrop(c: BandCtx): BandPlan | null {
   b.clear(xe + d, yL);
   for (let y = y0; y < yL; y++) b.clear(ex, y);
   const fixKind = rng.int(4); // 0,1 ramp · 2 bumper · 3 fan
-  let fix: Fix | null = null;
+  let fix: Fix;
   if (fixKind === 3) {
     const j = rng.range(1, 2);
     const fx = ex - d * j;

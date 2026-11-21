@@ -1,0 +1,23 @@
+/** Every Redis key in one place (§6.3). Devvit Redis is installation-scoped, so no subreddit prefix. */
+export const K = {
+  cfg: 'ce:cfg',
+  level: (dayNumber: number) => `ce:level:${dayNumber}`,
+  pin: (dayNumber: number) => `ce:pin:${dayNumber}`,
+  dupes: 'ce:dupes',
+  current: 'ce:day:current',
+  meta: (dayId: string) => `ce:day:${dayId}:meta`,
+  lock: 'ce:lock:daily',
+  secret: (dayId: string) => `ce:day:${dayId}:secret`,
+  pieces: (dayId: string) => `ce:day:${dayId}:pieces`,
+  inv: (dayId: string) => `ce:day:${dayId}:inv`,
+  holder: (dayId: string) => `ce:day:${dayId}:holder`,
+  pred: (dayId: string) => `ce:day:${dayId}:pred`,
+  events: (dayId: string) => `ce:day:${dayId}:events`,
+  result: (dayId: string) => `ce:day:${dayId}:result`,
+  post: (postId: string) => `ce:post:${postId}`,
+  dayByNumber: (n: number) => `ce:daynum:${n}`,
+  userStats: (userId: string) => `ce:user:${userId}:stats`,
+  inbox: (userId: string) => `ce:user:${userId}:inbox`,
+  sub: 'ce:sub:stats',
+  lbMvps: 'ce:lb:mvps',
+} as const;
