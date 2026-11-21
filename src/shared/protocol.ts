@@ -82,8 +82,8 @@ export type DayView = {
   serverNow: number;
 };
 
-export type PlaceRequest = { postId?: string; socketId: string; type: PieceType; dir: Dir };
-export type PredictRequest = { postId?: string; balls: number };
+export type PlaceRequest = { postId?: string | undefined; socketId: string; type: PieceType; dir: Dir };
+export type PredictRequest = { postId?: string | undefined; balls: number };
 
 export type ErrorCode =
   | 'LOCKED'
