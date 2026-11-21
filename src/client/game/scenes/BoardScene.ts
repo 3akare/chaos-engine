@@ -571,7 +571,13 @@ export class BoardScene extends Phaser.Scene {
     const f = p.run.frames[p.run.frames.length - 1]!;
     const end = p.run.end;
     const done = (): void => {
-      this.cameras.main.stopFollow();
+      const cam = this.cameras.main;
+      cam.stopFollow();
+      if (p.opts.follow) {
+        // Ease back out to the whole board.
+        cam.pan(this.scale.width / 2, this.scale.height / 2, 450, 'Sine.easeInOut');
+        cam.zoomTo(1, 450, 'Sine.easeInOut');
+      }
       p.resolve();
     };
     if (end === 'success') {
