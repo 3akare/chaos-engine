@@ -5,8 +5,8 @@
 
 Every day your subreddit gets a **Build of the Day**: one machine with a ball chute and a green flag. Open the post and pick how to play:
 
-- **Solo** — your own copy of the machine with every piece it has. Place the pieces, press ▶ and three balls roll: **normal, heavy and bouncy**. Each one that reaches the flag is a ⭐. Try as often as you like; your best is saved.
-- **Team** — the same machine, but one board for the whole subreddit. The pieces are split between today's builders, nobody can make it worse, and at **02:00 UTC** the three balls roll for real. Then a new machine opens.
+- **Solo** — your own machine for the day with every piece it has. Place the pieces, press ▶ and three balls roll: **normal, heavy and bouncy**. Each one that reaches the flag is a ⭐, and coloured dots show where each ball went. Try as often as you like (hints after 3 tries); your best is saved.
+- **Team** — a different machine (so Solo answers don't spoil it), one board for the whole subreddit. The pieces are split between today's builders, nobody can make it worse, and at **02:00 UTC** the three balls roll for real. Then a new machine opens.
 
 <p align="center">
   <img src="docs/img/splash-open.png" width="380" alt="The post in the feed with Solo and Team buttons" />
@@ -20,8 +20,8 @@ Every day your subreddit gets a **Build of the Day**: one machine with a ball ch
 ## How to play
 
 1. **Get the balls to the flag.**
-2. **Tap a +** to add a piece. The tray shows the pieces today's machine has; tap the chosen piece again to turn it. The yellow dots show where the normal ball will go. Tap ✓ to place it.
-3. **Press ▶** to roll all three balls. Build so the heavy and bouncy balls make it too.
+2. **Tap a +**: a bubble shows the pieces you have. Tap one to place it; tap a placed piece to turn or remove it. There's no preview: you find out by rolling.
+3. **Press ▶** to roll all three balls. Coloured dots show where each ball went and a ✕ where it was lost. Build so the heavy and bouncy balls make it too.
 
 ### The three balls
 
@@ -31,7 +31,7 @@ Every day your subreddit gets a **Build of the Day**: one machine with a ball ch
 | ⚪ **Heavy** | Fans push it less; springs throw it lower. |
 | 🟢 **Bouncy** | Springs throw it higher. |
 
-They're the same three every day, and every machine is checked to have a build that gets all three home.
+They're the same three every day. Every machine is checked by trying every possible arrangement of its pieces: at least one gets all three home, at most 2% of arrangements win (no winning by luck), and at least 30% of builds that get the normal ball home still lose the heavy or bouncy one (so all three balls matter).
 
 ### Team play: how pieces are shared
 

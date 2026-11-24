@@ -65,6 +65,7 @@ export class BoardScene extends Phaser.Scene {
   private flag: Phaser.GameObjects.Image | null = null;
   private play: Playback | null = null;
   private ghost: { old?: SimResult | undefined; now?: SimResult | undefined } = {};
+  private trails: Array<{ run: SimResult; color: number }> = [];
   private highlights: Array<[number, number]> = [];
   private gateState: boolean[] = [];
   private fired = new Set<number>();
@@ -125,6 +126,17 @@ export class BoardScene extends Phaser.Scene {
   setGhost(old: SimResult | undefined, now: SimResult | undefined): void {
     this.ghost = { old, now };
     this.drawPath();
+  }
+
+  /** Where each ball went on the last roll, in its own colour, with a cross where it failed. */
+  setTrails(trails: Array<{ run: SimResult; color: number }>): void {
+    this.trails = trails;
+    this.drawPath();
+  }
+
+  /** Board-space cell centre in CSS pixels, for DOM overlays. */
+  cellCss(x: number, y: number): { x: number; y: number; size: number } {
+    return { x: this.px(x) / PX, y: this.py(y) / PX, size: this.cell / PX };
   }
 
   cellCenter(x: number, y: number): { x: number; y: number } {
@@ -366,10 +378,15 @@ export class BoardScene extends Phaser.Scene {
     }
   }
 
+  /** Selected / suggested cells: a yellow tile under the cell; empty spots also pulse. */
   private drawHighlights(): void {
     for (const o of this.hiObjs) o.destroy();
     this.hiObjs = [];
+    const taken = new Set(this.pieces.map((p) => p.y * W + p.x));
     for (const [x, y] of this.highlights) {
+      const base = this.img('spot', x, y, this.cell * 1.02, D.spot - 0.5).setTint(0xffc851).setAlpha(0.95);
+      this.hiObjs.push(base);
+      if (taken.has(y * W + x)) continue;
       const o = this.img('spot', x, y, this.cell * 0.8, D.mark).setTint(0xffd34d);
       this.tweens.add({ targets: o, scale: { from: o.scale, to: o.scale * 1.15 }, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       this.hiObjs.push(o);
@@ -396,6 +413,39 @@ export class BoardScene extends Phaser.Scene {
         g.fillCircle(this.px(f.x), this.py(f.y), rad);
       }
     };
+    if (this.trails.length) {
+      // Three balls can share a cell: offset each ball's dots a little so all show.
+      const off = [-0.2, 0, 0.2];
+      this.trails.forEach((t, k) => {
+        const seen = new Set<string>();
+        const rad = Math.max(2.5 * PX, s * 0.075);
+        for (const f of t.run.frames) {
+          if (f.x < 0 || f.x >= W || f.y < 0 || f.y >= H) continue;
+          const key = `${f.x},${f.y}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const cx = this.px(f.x) + off[k]! * s;
+          const cy = this.py(f.y);
+          g.fillStyle(INK, 1);
+          g.fillCircle(cx, cy, rad + Math.max(1.5 * PX, s * 0.03));
+          g.fillStyle(t.color, 1);
+          g.fillCircle(cx, cy, rad);
+        }
+        if (t.run.end !== 'success') {
+          const last = t.run.frames[t.run.frames.length - 1]!;
+          const cx = this.px(Math.max(0, Math.min(W - 1, last.x))) + off[k]! * s;
+          const cy = this.py(Math.max(0, Math.min(H - 1, last.y)));
+          const a = s * 0.17;
+          g.lineStyle(Math.max(4 * PX, s * 0.13), INK, 1);
+          g.lineBetween(cx - a, cy - a, cx + a, cy + a);
+          g.lineBetween(cx - a, cy + a, cx + a, cy - a);
+          g.lineStyle(Math.max(2 * PX, s * 0.07), t.color, 1);
+          g.lineBetween(cx - a, cy - a, cx + a, cy + a);
+          g.lineBetween(cx - a, cy + a, cx + a, cy - a);
+        }
+      });
+      return;
+    }
     if (!this.ghost.now) {
       dots(this.ghost.old, 0xffffff, 1, Math.max(3 * PX, s * 0.09));
       return;

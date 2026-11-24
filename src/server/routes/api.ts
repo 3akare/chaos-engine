@@ -6,7 +6,7 @@ import { dayIdForPost } from '../core/day';
 import { applyAction } from '../core/placement';
 import { predict } from '../core/predict';
 import { ackInbox, buildView } from '../core/state';
-import { playSolo } from '../core/solo';
+import { playSolo, soloHint } from '../core/solo';
 
 const bad = (c: Context, e: ApiError, status: 400 | 401 | 404 | 409 = 400) => c.json(e, status);
 
@@ -79,6 +79,15 @@ export function apiRoutes(env: AppEnv): Hono {
     const out = await playSolo(deps, dayId, ctx.userId ?? null, b.pieces);
     if ('error' in out) return bad(c, { error: out.error === 'NO_DAY' ? 'NO_DAY' : 'BAD_REQUEST', message: out.message });
     return c.json(out);
+  });
+
+  api.get('/solo/hint', async (c) => {
+    const ctx = await env.ctx(c.req.raw);
+    const dayId = await dayIdForPost(deps.store, c.req.query('postId') ?? ctx.postId);
+    if (!dayId) return bad(c, { error: 'NO_DAY', message: 'No machine is running here yet.' }, 404);
+    const pieces = await soloHint(deps, dayId, Number(c.req.query('n') ?? 1));
+    if (!pieces) return bad(c, { error: 'NO_DAY', message: 'No machine is running here yet.' }, 404);
+    return c.json({ pieces });
   });
 
   api.post('/inbox/ack', async (c) => {

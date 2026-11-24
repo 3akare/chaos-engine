@@ -1,5 +1,5 @@
 /** Typed fetch to /api/*. Knows nothing about the harness. */
-import type { ApiError, DayView, PlaceRequest, PredictRequest, SoloRequest, SoloResult } from '../../shared/protocol';
+import type { ApiError, DayView, PlaceRequest, PredictRequest, SoloPiece, SoloRequest, SoloResult } from '../../shared/protocol';
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
@@ -26,5 +26,6 @@ export const api = {
   remove: (postId?: string, socketId?: string) => call<{ ok: true; verdict: string; state: DayView }>('POST', '/api/remove', { postId, socketId }),
   predict: (req: PredictRequest) => call<{ ok: true; state: DayView }>('POST', '/api/predict', req),
   solo: (req: SoloRequest) => call<SoloResult>('POST', '/api/solo', req),
+  hint: (postId: string | undefined, n: number) => call<{ pieces: SoloPiece[] }>('GET', `/api/solo/hint?n=${n}${postId ? `&postId=${encodeURIComponent(postId)}` : ''}`),
   ackInbox: (postId?: string) => call<{ ok: true }>('POST', '/api/inbox/ack', { postId }),
 };

@@ -40,11 +40,12 @@ describe('generator', () => {
     const hist: DayHistory[] = [];
     const attempts: number[] = [];
     let springDays = 0;
+    let relaxed = 0;
     let fanDays = 0;
     for (let n = 1; n <= 100; n++) {
       const out = generateDay({ installSalt: 'gate', dayNumber: n, openMs: T0 + n * DAY, history: hist.slice(0, 2) });
       expect(out.fallback).toBe(false);
-      expect(out.attemptsTried).toBeLessThanOrEqual(400);
+      expect(out.attemptsTried).toBeLessThanOrEqual(600);
       // Variety: never one kind of piece, never a pile of ramps, and exactly the pieces needed.
       const types = (out.machine.solution ?? []).map((s) => s.type);
       expect(new Set(types).size).toBeGreaterThanOrEqual(2);
@@ -53,11 +54,13 @@ describe('generator', () => {
       expect(stock).toBe(types.length);
       if (types.includes('SPRING')) springDays++;
       if (types.includes('FAN')) fanDays++;
-      const v = validateMachine(out.machine, { tier: out.machine.gen!.tier, history: hist.slice(0, 2), families: out.machine.gen!.families });
+      const v = validateMachine(out.machine, { tier: out.machine.gen!.tier, history: hist.slice(0, 2), families: out.machine.gen!.families, relaxBalls: out.machine.gen!.relaxed === true });
+      if (out.machine.gen!.relaxed) relaxed++;
       expect(v.reason).toBe('ok');
       attempts.push(out.attemptsTried);
       hist.unshift(historyOf(out.machine));
     }
+    expect(relaxed).toBeLessThanOrEqual(10);
     expect(springDays).toBeGreaterThanOrEqual(25);
     expect(fanDays).toBeGreaterThanOrEqual(25);
     attempts.sort((a, b) => a - b);
@@ -67,8 +70,8 @@ describe('generator', () => {
   it('each validated attempt stays within the sim budget', () => {
     const base = baseSeedFor('budget', 3);
     let found = 0;
-    for (let a = 0; a < 60 && found < 5; a++) {
-      const r = tryAttempt(base, a, planForWeekday(5), []);
+    for (let a = 0; a < 200 && found < 3; a++) {
+      const r = tryAttempt(base, a, { ...planForWeekday(5), require: undefined }, []);
       expect(r.sims).toBeLessThanOrEqual(SIM_BUDGET);
       if (r.machine) found++;
     }
@@ -128,13 +131,13 @@ describe('§5.3 checks reject crafted failures', () => {
       inventory: { RAMP: 1, SPRING: 1, FAN: 1, BUMPER: 0 },
     });
   it('secret-ball headroom: 5 of 6 surprise balls delivering is allowed (spring days), all 6 is not', () => {
-    const v = validateMachine(single(false), { tier: 1 });
+    const v = validateMachine(single(false), { tier: 1, census: false });
     expect(v.failed).not.toBe('headroom');
     expect(v.variantsDelivered).toBe(5);
   });
   it('no trivial fix', () => {
-    expect(validateMachine(single(true), { tier: 2 }).failed).toBe('trivial');
-    expect(validateMachine(single(true), { tier: 1 }).ok).toBe(true);
+    expect(validateMachine(single(true), { tier: 2, census: false }).failed).toBe('trivial');
+    expect(validateMachine(single(true), { tier: 1, census: false }).ok).toBe(true);
     expect(countTrivialFixes(levelOf(single(true)), single(true).inventory)).toBeGreaterThan(0);
   });
   it('buildable under the rules', () => {

@@ -1,6 +1,12 @@
 /** Machine validation (§5.3). Every published machine passes every check. */
 import { idx, parseCell } from '../coords';
 import { DAY_BALLS } from '../sim/runDay';
+import { solveSpace } from './solveSpace';
+
+/** At most this share of all arrangements may win three stars. */
+export const MAX_WIN_SHARE = 0.02;
+/** At least this share of normal-ball wins must lose the heavy or bouncy ball. */
+export const MIN_TRAP_SHARE = 0.3;
 import { simulate } from '../sim/engine';
 import { LevelError, parseLevel, type Level } from '../sim/level';
 import { compareProgress, distanceField, UNREACHABLE } from '../sim/progress';
@@ -8,7 +14,7 @@ import { solutionPieces } from '../sim/board';
 import { VARIANTS } from '../sim/variants';
 import { H, PIECE_DIRS, PIECE_TYPES, W, type BoardPiece, type Machine, type SimResult } from '../types';
 
-export type CheckId = 'structural' | 'broken' | 'interesting' | 'solvable' | 'buildable' | 'trivial' | 'headroom' | 'variety' | 'budget';
+export type CheckId = 'structural' | 'broken' | 'interesting' | 'solvable' | 'buildable' | 'trivial' | 'headroom' | 'variety' | 'budget' | 'luck' | 'balls';
 
 export type Validation = {
   ok: boolean;
@@ -43,6 +49,10 @@ export type ValidateOptions = {
   simsSpent?: number;
   /** Hand-made fallback machines predate the fixed three balls; they only need the red ball. */
   redOnly?: boolean;
+  /** Skip the solution-space census (crafted test machines). */
+  census?: boolean;
+  /** Accept days where fewer normal-ball wins lose another ball (last-resort generation pass). */
+  relaxBalls?: boolean;
 };
 
 const fail = (failed: CheckId, reason: string, sims: number, extra?: Partial<Validation>): Validation => ({
@@ -182,6 +192,15 @@ export function validateMachine(m: Machine, opts: ValidateOptions): Validation {
   if (trivial > allowed) return fail('trivial', `${trivial} single-piece fixes (tier ${opts.tier} allows ${allowed})`, sims, { trivialFixes: trivial, variantsDelivered: delivered });
 
   if (sims > SIM_BUDGET) return fail('budget', `${sims} sims`, sims);
+
+  // Not winnable by luck, and the heavy and bouncy balls must matter: some builds that get the
+  // normal ball home must still lose one of the others.
+  if (!opts.redOnly && opts.census !== false) {
+    const sp = solveSpace(level, m.inventory);
+    if (sp.three === 0) return fail('headroom', 'no arrangement gets all three balls home', sims);
+    if (sp.three / sp.total > MAX_WIN_SHARE) return fail('luck', `${sp.three} of ${sp.total} arrangements win`, sims);
+    if ((sp.red - sp.three) / sp.red < (opts.relaxBalls ? 0 : MIN_TRAP_SHARE) || (opts.relaxBalls && sp.red === sp.three && sp.three > 2)) return fail('balls', `only ${sp.red - sp.three} of ${sp.red} normal-ball wins lose another ball`, sims);
+  }
 
   return { ok: true, failed: null, reason: 'ok', sims, variantsDelivered: delivered, trivialFixes: trivial };
 }

@@ -1,24 +1,43 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { FIXTURES } from '../src/shared/fixtures';
+import { K } from '../src/server/core/keys';
+import type { Machine } from '../src/shared/types';
 import { DAY_BALLS, runBalls } from '../src/shared/sim/runDay';
 import { levelOf, solutionPieces } from '../src/shared/sim/board';
 import { client, installWith, makeDeps, type TestEnv } from './server-helpers';
 
 let env: TestEnv;
 let api: ReturnType<typeof client>;
-const m = FIXTURES[0]!;
+let m: Machine;
 beforeEach(async () => {
   env = makeDeps();
-  await installWith(env, m);
+  await installWith(env, FIXTURES[0]!);
   api = client(env);
+  await api.get('/api/state'); // makes the Solo machine
+  m = JSON.parse((await env.store.get(K.soloLevel(1)))!) as Machine;
 });
 
 describe('solo play', () => {
+  it('has its own machine, different from the team one, and never sends its solution', async () => {
+    const v = await api.get('/api/state');
+    expect(v.json.soloLevel.rows).not.toEqual(v.json.level.rows);
+    expect(v.json.soloLevel.solution).toBeUndefined();
+    expect(v.text).not.toContain('"solution"');
+  });
+
+  it('gives hints one piece at a time', async () => {
+    const one = await api.get('/api/solo/hint?n=1');
+    expect(one.json.pieces).toEqual([{ socket: m.solution![0]!.socket, type: m.solution![0]!.type, dir: m.solution![0]!.dir }]);
+    const all = await api.get('/api/solo/hint?n=9');
+    expect(all.json.pieces).toHaveLength(m.solution!.length);
+  });
+
   it('rolls the three balls on your own arrangement and keeps your best', async () => {
     const expected = runBalls({ level: levelOf(m), pieces: solutionPieces(m) }, DAY_BALLS).score;
     const r = await api.post('/api/solo', { pieces: m.solution });
     expect(r.status).toBe(200);
     expect(r.json.stars).toBe(expected);
+    expect(expected).toBe(3);
     expect(r.json.best).toBe(expected);
     expect(r.json.players).toBe(1);
     // A worse try never lowers your best.

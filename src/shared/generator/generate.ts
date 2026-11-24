@@ -47,8 +47,8 @@ export function tryAttempt(baseSeed: number, attempt: number, plan: DayPlan, his
   const m = c.machine;
   const used = new Set((m.solution ?? []).map((s) => s.type));
   if (plan.require?.some((t) => !used.has(t))) return { machine: null, sims: c.sims, why: 'construct: missing featured piece' };
-  m.gen = { ...m.gen!, baseSeed, attempt, version: GENERATOR_VERSION };
-  const v = validateMachine(m, { tier: plan.tier, history, families: m.gen.families });
+  m.gen = { ...m.gen!, baseSeed, attempt, version: GENERATOR_VERSION, ...(plan.relaxBalls ? { relaxed: true } : {}) };
+  const v = validateMachine(m, { tier: plan.tier, history, families: m.gen.families, relaxBalls: plan.relaxBalls === true });
   if (!v.ok) return { machine: null, sims: c.sims + v.sims, why: `validate: ${v.failed}` };
   return { machine: m, sims: c.sims + v.sims, why: 'ok' };
 }
@@ -63,7 +63,7 @@ export function generateDay(input: GenerateInput): GenerateOutput {
   for (let a = 0; a < MAX_ATTEMPTS; a++) if (a !== input.pinAttempt) order.push(a);
   let tried = 0;
   // First pass wants the day's featured piece; the second takes any good machine.
-  for (const p of [plan, { ...plan, require: undefined }]) {
+  for (const p of [plan, { ...plan, require: undefined }, { ...plan, require: undefined, relaxBalls: true }]) {
     for (const attempt of order.slice(0, MAX_ATTEMPTS)) {
       tried++;
       const r = tryAttempt(baseSeed, attempt, p, input.history);
@@ -72,7 +72,7 @@ export function generateDay(input: GenerateInput): GenerateOutput {
       const key = r.why.split(' (')[0]!.replace(/band \d/, 'band');
       rejections[key] = (rejections[key] ?? 0) + 1;
     }
-    if (!p.require) break;
+    if (p.relaxBalls) break;
   }
   // Never fail to publish (§5.3): the next fallback fixture.
   const fx = FIXTURES[input.dayNumber % FIXTURES.length]!;

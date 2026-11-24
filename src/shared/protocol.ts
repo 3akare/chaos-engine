@@ -63,6 +63,8 @@ export type DayView = {
     title: string;
   };
   level: PublicMachine;
+  /** Solo play's own machine for this Day (with its full set of pieces). */
+  soloLevel: PublicMachine;
   pieces: StoredPiece[];
   inventory: Record<PieceType, number>;
   me: {

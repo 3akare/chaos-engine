@@ -60,11 +60,30 @@ export async function ensureMachine(deps: Deps, dayNumber: number, openMs: numbe
 }
 
 /**
+ * The Solo machine for a Day: same weekday theme, different seed, and never the same layout as
+ * that Day's Team machine (passed as history, so the variety check keeps them apart).
+ */
+export async function ensureSoloMachine(deps: Deps, dayNumber: number, openMs: number): Promise<Machine> {
+  const raw = await deps.store.get(K.soloLevel(dayNumber));
+  if (raw) return JSON.parse(raw) as Machine;
+  const cfg = await readConfig(deps);
+  const team = await readMachine(deps.store, dayNumber);
+  const out = generateDay({ installSalt: `${cfg.installSalt}:solo`, dayNumber, openMs, history: team ? [historyOf(team)] : [] });
+  if (out.fallback) deps.log('error', `generator: solo Day ${dayNumber} fell back to fixture "${out.machine.name}"`, out.rejections);
+  await deps.store.set(K.soloLevel(dayNumber), JSON.stringify(out.machine), { nx: true });
+  const stored = await deps.store.get(K.soloLevel(dayNumber));
+  return stored ? (JSON.parse(stored) as Machine) : out.machine;
+}
+
+/**
  * Make sure the next `count` Days have machines. `fromDay` is the current day number and
  * `currentLocksAt` its lock time, which is when the next Day opens (decides the weekday tier).
  */
 export async function ensureAhead(deps: Deps, fromDay: number, currentLocksAt: number, count = 2): Promise<void> {
-  for (let k = 1; k <= count; k++) await ensureMachine(deps, fromDay + k, currentLocksAt + (k - 1) * DAY_MS);
+  for (let k = 1; k <= count; k++) {
+    await ensureMachine(deps, fromDay + k, currentLocksAt + (k - 1) * DAY_MS);
+    await ensureSoloMachine(deps, fromDay + k, currentLocksAt + (k - 1) * DAY_MS);
+  }
 }
 
 /** Mod tool: clear unpinned future machines so they regenerate with the current generator. */

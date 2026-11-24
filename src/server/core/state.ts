@@ -3,7 +3,7 @@ import type { DayResult, DayView, InboxItem } from '../../shared/protocol';
 import type { Deps, RequestCtx } from './deps';
 import { currentDayId, dayIdForPost, parseInventory, parsePieces, readMachine, readMeta, readSubStats, readUserStats } from './day';
 import { K } from './keys';
-import { publicMachine } from './levels';
+import { ensureSoloMachine, publicMachine } from './levels';
 import { allowanceFor } from '../../shared/rules/placement';
 import { piecesNeeded } from './placement';
 import { soloStats } from './solo';
@@ -32,6 +32,7 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
   if (!meta) return null;
   const machine = await readMachine(store, meta.dayNumber);
   if (!machine) return null;
+  const soloMachine = await ensureSoloMachine(deps, meta.dayNumber, meta.openedAt);
   const [piecesH, invH, holderH, predH] = await Promise.all([
     store.hGetAll(K.pieces(dayId)),
     store.hGetAll(K.inv(dayId)),
@@ -83,6 +84,7 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
       title: meta.title,
     },
     level: publicMachine(machine),
+    soloLevel: publicMachine(soloMachine),
     pieces,
     inventory: parseInventory(invH),
     me: {

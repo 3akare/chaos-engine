@@ -15,7 +15,7 @@
 .ce-card .mode.team { background: #419fdd; box-shadow: inset 0 -5px 0 #366fbf; }
 .ce-card .mode:active { transform: translateY(2px); }
 .ce-card .mode .lbl { font-size: 24px; line-height: 1.1; color: #fff; -webkit-text-stroke: 5px #353541; paint-order: stroke fill; }
-.ce-card .mode .sub { font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25); white-space: nowrap; }
+.ce-card .mode .sub { font-size: 12.5px; line-height: 1.15; font-weight: 800; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25); }
 .ce-card .row { display: inline-flex; align-items: center; gap: 4px; }
 .ce-card .stars { display: inline-flex; gap: 1px; }
 .ce-card .stars img { width: 16px; height: 16px; display: block; }

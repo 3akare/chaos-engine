@@ -11,6 +11,8 @@ export type DayPlan = {
   avoidStartX?: number | undefined;
   /** Pieces the day's solution must use, so days feel different (dropped if it can't be built). */
   require?: PieceType[] | undefined;
+  /** Last-resort pass: accept days where the heavy and bouncy balls matter less. */
+  relaxBalls?: boolean | undefined;
 };
 
 export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

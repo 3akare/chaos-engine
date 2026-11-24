@@ -10,7 +10,7 @@ const steps = (): HTMLElement =>
     'div',
     { class: 'rows' },
     h('div', { class: 'row' }, spr('flag_a'), h('span', {}, h('b', {}, 'Get the balls to the flag.'))),
-    h('div', { class: 'row' }, spr('spot'), h('span', {}, 'Tap a ', h('b', {}, '+'), ' to add a ramp, spring or fan. Press ', playKey(), ' to roll.')),
+    h('div', { class: 'row' }, spr('spot'), h('span', {}, 'Tap a ', h('b', {}, '+'), ' to add a ramp, spring or fan. Press ', playKey(), ' to roll; dots show where each ball went.')),
     h('div', { class: 'row' }, threeBalls(), h('span', {}, 'Three balls roll: ', h('b', {}, 'normal, heavy, bouncy'), '. Each one that makes it is a star.')),
   );
 
@@ -18,8 +18,8 @@ const modes = (): HTMLElement =>
   h(
     'div',
     { class: 'modes' },
-    h('div', {}, h('b', {}, 'Solo'), h('span', {}, 'Your own board. Try as often as you like.')),
-    h('div', {}, h('b', {}, 'Team'), h('span', {}, 'One board for everyone. It rolls at 02:00 UTC.')),
+    h('div', {}, h('b', {}, 'Solo'), h('span', {}, 'Your own machine. Stuck? Hints after 3 tries.')),
+    h('div', {}, h('b', {}, 'Team'), h('span', {}, 'A different machine, built by everyone. Rolls at 02:00 UTC.')),
   );
 
 export function welcome(onDone: () => void): void {

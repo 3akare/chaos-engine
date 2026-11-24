@@ -9,7 +9,8 @@ import { levelOf } from '../../shared/sim/board';
 import { runBalls, DAY_BALLS } from '../../shared/sim/runDay';
 import { PIECE_DIRS, PIECE_TYPES, W, type BoardPiece, type PieceType } from '../../shared/types';
 import type { Deps } from './deps';
-import { readMachine, readMeta } from './day';
+import { readMeta } from './day';
+import { ensureSoloMachine } from './levels';
 import { K } from './keys';
 
 export type SoloError = { error: 'NO_DAY' | 'BAD_PIECE'; message: string };
@@ -22,8 +23,8 @@ export async function soloStats(deps: Deps, dayId: string, userId: string | null
 
 export async function playSolo(deps: Deps, dayId: string, userId: string | null, pieces: readonly SoloPiece[]): Promise<SoloResult | SoloError> {
   const meta = await readMeta(deps.store, dayId);
-  const machine = meta ? await readMachine(deps.store, meta.dayNumber) : null;
-  if (!meta || !machine) return { error: 'NO_DAY', message: 'No machine is running here yet.' };
+  if (!meta) return { error: 'NO_DAY', message: 'No machine is running here yet.' };
+  const machine = await ensureSoloMachine(deps, meta.dayNumber, meta.openedAt);
   const level = levelOf(machine);
   const used: Record<PieceType, number> = { RAMP: 0, SPRING: 0, FAN: 0, BUMPER: 0 };
   const seen = new Set<string>();
@@ -45,4 +46,12 @@ export async function playSolo(deps: Deps, dayId: string, userId: string | null,
   }
   const s = await soloStats(deps, dayId, userId);
   return { stars, perBall: run.balls.map((b) => b.end) as SoloResult['perBall'], best: s.best ?? stars, players: s.players, perfect: s.perfect };
+}
+
+/** A hint for Solo: the first `n` pieces of the Solo machine's solution (where and which way). */
+export async function soloHint(deps: Deps, dayId: string, n: number): Promise<SoloPiece[] | null> {
+  const meta = await readMeta(deps.store, dayId);
+  if (!meta) return null;
+  const machine = await ensureSoloMachine(deps, meta.dayNumber, meta.openedAt);
+  return (machine.solution ?? []).slice(0, Math.max(1, Math.min(n, machine.solution?.length ?? 0))).map((s) => ({ socket: s.socket, type: s.type, dir: s.dir }));
 }

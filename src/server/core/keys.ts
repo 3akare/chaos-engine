@@ -2,6 +2,8 @@
 export const K = {
   cfg: 'ce:cfg',
   level: (dayNumber: number) => `ce:level:${dayNumber}`,
+  /** Solo play has its own machine each day, so a Team screenshot can't spoil it. */
+  soloLevel: (dayNumber: number) => `ce:sololevel:${dayNumber}`,
   pin: (dayNumber: number) => `ce:pin:${dayNumber}`,
   dupes: 'ce:dupes',
   current: 'ce:day:current',

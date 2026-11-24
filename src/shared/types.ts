@@ -28,7 +28,7 @@ export type GenMeta = {
   version: number;
   tier: 1 | 2 | 3;
   families: string[];
-  fallback?: boolean;
+  fallback?: boolean; relaxed?: boolean;
 };
 
 /** Machine JSON as stored (§5.1). `solution` is stripped before reaching any client. */
