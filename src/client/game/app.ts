@@ -25,7 +25,7 @@ export class GameApp {
   view!: DayView;
   level!: Level;
   private skew = 0;
-  private speed = 1;
+  private speed = 1.4;
   private candidate: Candidate | null = null;
   private busy = false;
   private run: RunScreen | null = null;
@@ -64,16 +64,23 @@ export class GameApp {
   // ---------- shell ----------
 
   private buildShell(): void {
-    const title = h('div', { class: 'hud-title' });
-    const help = h('button', { class: 'icon-btn', 'aria-label': 'How to play', onclick: () => howToPlay() }, '?');
-    const chips = h('div', { class: 'chips' });
-    const status = h('div', { class: 'status-line', 'aria-live': 'polite' });
+    const title = h('div', { class: 'pill-title' });
+    const help = h('button', { class: 'round small', 'aria-label': 'How to play', onclick: () => howToPlay() }, '?');
+    const chips = h('div', { class: 'pill-meta' });
+    const status = h('div', { class: 'bubble', 'aria-live': 'polite' });
     const overlay = h('div', { class: 'overlay' });
-    const board = h('div', { id: 'board' }, overlay);
-    const bar = h('div', { class: 'bar' });
+    const board = h('div', { id: 'board' }, overlay, status);
+    const bar = h('div', { class: 'dock' });
     const countdown = h('span', {});
-    this.root.append(h('div', { class: 'hud' }, h('div', { class: 'hud-top' }, title, help), chips, status), board, bar);
+    this.root.append(h('header', { class: 'topbar' }, h('div', { class: 'pill' }, title, chips), help), board, bar);
     this.els = { title, chips, status, bar, board, overlay, countdown };
+    // The status bubble shows whenever its text changes, then fades.
+    let hide = 0;
+    new MutationObserver(() => {
+      status.classList.toggle('show', status.textContent !== '');
+      clearTimeout(hide);
+      hide = window.setTimeout(() => status.classList.remove('show'), 3200);
+    }).observe(status, { childList: true, characterData: true, subtree: true });
   }
 
   boardElement(): HTMLElement {
@@ -161,20 +168,18 @@ export class GameApp {
 
   private renderHud(): void {
     const v = this.view;
+    const icon = v.level.target === 'basket' ? '🧺' : '🔔';
+    this.els.title.replaceChildren(`${icon} Day ${v.day.dayNumber}`);
     const tier = v.level.gen?.tier ?? 1;
-    const level = tier === 1 ? 'Easy' : tier === 2 ? 'Medium' : 'Hard';
-    this.els.title.replaceChildren(`Day ${v.day.dayNumber} · ${v.level.name}`);
-    const open = v.day.status === 'OPEN';
-    const chips: HTMLElement[] = [h('span', { class: 'chip goal' }, this.goalText()), h('span', { class: 'chip' }, level)];
-    if (open) chips.push(h('span', { class: 'chip', title: 'Time left before the machine fires' }, '⏱ ', this.els.countdown, ' left'));
-    this.els.chips.replaceChildren(...chips);
+    const dots = h('span', { class: 'tier', 'aria-label': `Difficulty ${tier} of 3` }, ...[1, 2, 3].map((k) => h('i', { class: k <= tier ? 'on' : '' })));
+    this.els.chips.replaceChildren(dots, v.day.status === 'OPEN' ? this.els.countdown : '');
     this.tickClock();
   }
 
   private tickClock(): void {
     if (!this.view) return;
     const left = this.view.day.locksAt - this.now();
-    this.els.countdown.textContent = fmtCountdown(left);
+    this.els.countdown.textContent = left > 0 ? `${fmtCountdown(left)}` : 'firing';
     if (this.view.day.status === 'OPEN' && left <= 0 && left > -1500 && !this.busy) {
       // Lock time passed: refresh into "Firing up the machine…" until the cron resolves it.
       closeSheet(true);
@@ -230,18 +235,14 @@ export class GameApp {
   private renderBuildBar(): void {
     const me = this.view.me;
     const pred = me.prediction;
+    const left = Math.max(0, me.allowance - me.sockets.length);
     this.els.bar.replaceChildren(
-      h('button', { class: 'btn primary', 'data-act': 'test', onclick: () => void this.testRun() }, '▶ Test run', h('span', { class: 'sub', onclick: (e: Event) => this.cycleSpeed(e) }, `${this.speed}×`)),
-      h('button', { class: 'btn', 'data-act': 'place', onclick: () => this.placeHint() }, me.sockets.length >= me.allowance ? '✥ Move' : '➕ Place', h('span', { class: 'sub' }, `${me.sockets.length}/${me.allowance}`)),
-      h('button', { class: 'btn', 'data-act': 'predict', onclick: () => this.predictSheet() }, pred === null ? '🔮 Predict' : `🔮 ${pred}/3`),
+      h('button', { class: 'round side', 'data-act': 'place', 'aria-label': `Pieces: ${left} left`, onclick: () => this.placeHint() }, h('span', { class: 'glyph' }, '◆'), h('span', { class: 'lbl' }, `${left} left`)),
+      h('button', { class: 'round play', 'data-act': 'test', 'aria-label': 'Test run', onclick: () => void this.testRun() }, h('span', { class: 'playglyph' }, '▶')),
+      h('button', { class: 'round side', 'data-act': 'predict', 'aria-label': 'Guess the score', onclick: () => this.predictSheet() }, h('span', { class: 'glyph' }, pred === null ? '?' : String(pred)), h('span', { class: 'lbl' }, 'guess')),
     );
   }
 
-  private cycleSpeed(e: Event): void {
-    e.stopPropagation();
-    this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 4 : 1;
-    this.renderBuildBar();
-  }
 
   private async testRun(): Promise<void> {
     if (this.scene.isPlaying()) {
@@ -252,9 +253,9 @@ export class GameApp {
     const r = this.candidate ? this.candidateRun() ?? this.currentRun() : this.currentRun();
     this.scene.setGhost(undefined, undefined);
     const btn = this.els.bar.querySelector('[data-act="test"]');
-    if (btn) btn.firstChild!.textContent = '■ Stop ';
+    btn?.classList.add('playing');
     await this.scene.playRun(r, { speed: this.speed, showOwners: true });
-    if (btn) btn.firstChild!.textContent = '▶ Test run';
+    btn?.classList.remove('playing');
     this.els.status.textContent = r.end === 'success' ? 'The ball reaches the goal ✓' : `The ball ${describeEnd(r)}`;
     if (this.candidate) this.updatePreview();
     else this.scene.setGhost(r, undefined);
@@ -444,9 +445,9 @@ export class GameApp {
     const buttons = h(
       'div',
       { class: 'row' },
-      h('button', { class: 'btn small', onclick: () => void this.testRun() }, '▶ Preview'),
-      own && own.socket === c.socket ? h('button', { class: 'btn small', onclick: () => void this.removeMine() }, 'Remove') : null,
-      h('button', { class: 'btn go', disabled: !canConfirm || this.busy, onclick: () => void this.confirm() }, this.busy ? 'Placing…' : replacing ? 'Replace ✓' : own ? 'Move here ✓' : 'Confirm ✓'),
+      h('button', { class: 'round small', 'aria-label': 'Try it', onclick: () => void this.testRun() }, '▶'),
+      own && own.socket === c.socket ? h('button', { class: 'btn ghost', onclick: () => void this.removeMine() }, 'Remove') : null,
+      h('button', { class: 'btn go', disabled: !canConfirm || this.busy, onclick: () => void this.confirm() }, this.busy ? '…' : replacing ? 'Swap' : own ? 'Move here' : 'Place'),
     );
     // Holding several pieces: choose a new piece or which of yours moves here.
     let chooser: HTMLElement | null = null;
@@ -478,7 +479,8 @@ export class GameApp {
         ),
       );
     }
-    const content = h('div', {}, h('h3', {}, heading), h('div', { class: 'sub' }, sub), chooser, palette, verdictEl, buttons);
+    void sub;
+    const content = h('div', { class: 'palette-wrap' }, h('h3', {}, heading), chooser, palette, verdictEl, buttons);
     if (sheetOpen() && document.querySelector('.sheet.palette-sheet')) {
       document.querySelector('.sheet.palette-sheet')!.replaceChildren(h('div', { class: 'grabber' }), content);
     } else {
@@ -490,7 +492,7 @@ export class GameApp {
         this.root.style.paddingBottom = `${Math.max(0, el.getBoundingClientRect().height - barH)}px`;
       });
       // Tapping the board outside the sheet retargets; a close button sits in the grabber area.
-      el.prepend(h('button', { class: 'icon-btn', style: 'position:absolute;right:10px;top:8px;width:32px;height:32px', 'aria-label': 'Close', onclick: () => closeSheet() }, '✕'));
+      el.prepend(h('button', { class: 'round small close-x', 'aria-label': 'Close', onclick: () => closeSheet() }, '✕'));
     }
   }
 

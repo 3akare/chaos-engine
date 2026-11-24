@@ -4,19 +4,14 @@ import type { Dir, PieceType } from '../../shared/types';
 type MiniPiece = { socket: string; type: PieceType; dir: Dir };
 type Frame = { x: number; y: number };
 
-const COL = {
-  board: '#f6eedf',
-  edge: '#e2d5bd',
-  wall: '#3c4159',
-  wallTop: '#52587a',
-  socket: '#b3a387',
-  blue: '#2f6fdb',
-  orange: '#f28c28',
-  yellow: '#f6c945',
-  red: '#e5484d',
-  ink: '#2b2d3a',
-  path: '#2f6fdb',
-};
+const LIGHT = { board: '#fbf3e6', edge: '#ead9bf', wall: '#6b779f', wallTop: '#8e9ac2', socket: '#c9b597', blue: '#3d7ef0', orange: '#f28c28', yellow: '#f6c945', red: '#e5484d', ink: '#2b2d3a', path: '#3d7ef0' };
+const DARK = { board: '#1e2648', edge: '#141a36', wall: '#3b4682', wallTop: '#5867ad', socket: '#5a66a3', blue: '#4f8dff', orange: '#ffa64d', yellow: '#ffd45e', red: '#ff6b70', ink: '#e8ecff', path: '#7fb0ff' };
+const COL = { ...LIGHT };
+function pickTheme(): void {
+  const t = document.documentElement.dataset.theme;
+  const dark = t === 'dark' || (t !== 'light' && typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches);
+  Object.assign(COL, dark ? DARK : LIGHT);
+}
 
 export type MiniOptions = {
   pieces?: readonly MiniPiece[];
@@ -52,6 +47,7 @@ export function drawMini(canvas: HTMLCanvasElement, rows: readonly string[], opt
   const cssH = canvas.clientHeight || canvas.height;
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
+  pickTheme();
   const ctx = canvas.getContext('2d')!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, cssW, cssH);
@@ -84,13 +80,11 @@ export function drawMini(canvas: HTMLCanvasElement, rows: readonly string[], opt
       const cy = py + s / 2;
       const p = pieceAt.get(`${'ABCDEFGHI'[x]}${y + 1}`);
       if (ch === '#') {
+        const lift = Math.max(1, Math.round(s * 0.16));
         ctx.fillStyle = COL.wall;
-        roundRect(ctx, px + 0.5, py + 0.5, s - 1, s - 1, Math.max(1, s * 0.15));
-        ctx.fill();
-        if (rows[y - 1]?.[x] !== '#') {
-          ctx.fillStyle = COL.wallTop;
-          ctx.fillRect(px + s * 0.12, py + s * 0.1, s * 0.76, Math.max(1, s * 0.14));
-        }
+        ctx.fillRect(px, py, s, s);
+        ctx.fillStyle = COL.wallTop;
+        ctx.fillRect(px, py - (rows[y - 1]?.[x] === '#' ? 0 : lift), s, rows[y + 1]?.[x] === '#' ? s + lift : s - lift + (rows[y - 1]?.[x] === '#' ? lift : 0));
       } else if (ch === 'o' && !p) {
         ctx.strokeStyle = COL.socket;
         ctx.lineWidth = Math.max(1, s * 0.06);

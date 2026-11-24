@@ -6,9 +6,12 @@ import * as Phaser from 'phaser';
 import { cellName } from '../../../shared/coords';
 import type { Level } from '../../../shared/sim/level';
 import { H, W, type BoardPiece, type SimEvent, type SimResult } from '../../../shared/types';
-import { C, FONT, TICK_MS } from '../theme';
+import { applyTheme, C, FONT, TICK_MS } from '../theme';
 import {
-  drawBall,
+  depth,
+  makeBallTextures,
+  pieceShadow,
+  shadowRect,
   drawCheckpoint,
   drawFanBlades,
   drawGate,
@@ -41,6 +44,7 @@ type Playback = {
   resolve: () => void;
   trail: Array<{ x: number; y: number }>;
   shownOwners: Set<string>;
+  lift?: number;
 };
 
 const DPR = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
@@ -55,7 +59,11 @@ export class BoardScene extends Phaser.Scene {
   private gutter = 16;
   showLabels = false;
 
+  private floorG!: Phaser.GameObjects.Graphics;
+  private shadowG!: Phaser.GameObjects.Graphics;
   private staticG!: Phaser.GameObjects.Graphics;
+  private ballShadow!: Phaser.GameObjects.Image;
+  private ballImg!: Phaser.GameObjects.Image;
   private beamG!: Phaser.GameObjects.Graphics;
   private ghostG!: Phaser.GameObjects.Graphics;
   private trailG!: Phaser.GameObjects.Graphics;
@@ -86,6 +94,9 @@ export class BoardScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+    applyTheme();
+    this.floorG = this.add.graphics();
+    this.shadowG = this.add.graphics();
     this.staticG = this.add.graphics();
     this.beamG = this.add.graphics();
     this.hiG = this.add.graphics();
@@ -96,6 +107,14 @@ export class BoardScene extends Phaser.Scene {
     this.ball.add(this.ballG);
     this.ball.setDepth(50);
     this.ball.setVisible(false);
+    this.ballShadow = this.add.image(0, 0, '__WHITE').setDepth(45).setVisible(false);
+    // Follow the device theme live.
+    if (typeof matchMedia !== 'undefined') {
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        applyTheme();
+        this.redraw();
+      });
+    }
     this.fx = this.add.container(0, 0).setDepth(60);
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
       if (p.getDistance() > 12) return;
@@ -157,6 +176,7 @@ export class BoardScene extends Phaser.Scene {
     const p = this.play;
     this.play = null;
     this.ball.setVisible(false);
+    this.ballShadow.setVisible(false);
     this.trailG.clear();
     this.cameras.main.stopFollow();
     this.cameras.main.setZoom(1);
@@ -180,6 +200,8 @@ export class BoardScene extends Phaser.Scene {
       this.ball.setAlpha(1);
       this.ball.setAngle(0);
       this.ball.setVisible(true);
+      this.ballShadow.setVisible(true);
+      this.placeShadow(this.ball.x, this.ball.y, 0);
       const cam = this.cameras.main;
       if (opts.follow) {
         cam.setZoom(1.35);
@@ -194,10 +216,10 @@ export class BoardScene extends Phaser.Scene {
   private layout(): void {
     const w = this.scale.width;
     const h = this.scale.height;
-    this.gutter = this.showLabels ? Math.max(14, Math.round(Math.min(w, h) * 0.04)) : 4;
-    const cw = Math.floor((w - this.gutter - 6) / W);
-    const ch = Math.floor((h - this.gutter - 6) / H);
-    this.cell = Math.max(16, Math.min(cw, ch, 64));
+    this.gutter = this.showLabels ? Math.max(14, Math.round(Math.min(w, h) * 0.04)) : 0;
+    const cw = Math.floor((w - this.gutter - 8) / W);
+    const ch = Math.floor((h - this.gutter - 8) / H);
+    this.cell = Math.max(16, Math.min(cw, ch, 72));
     const bw = this.cell * W;
     const bh = this.cell * H;
     this.ox = Math.round((w - bw + this.gutter) / 2);
@@ -230,26 +252,63 @@ export class BoardScene extends Phaser.Scene {
     this.drawHighlights();
     this.drawGhost();
     this.ballG.clear();
-    drawBall(this.ballG, this.cell);
+    makeBallTextures(this, this.cell);
+    this.ballImg?.destroy();
+    this.ballImg = this.add.image(0, 0, 'ce-ball');
+    this.ball.add(this.ballImg);
+    this.ballShadow.setTexture('ce-ballshadow');
+  }
+
+  /** The ball's shadow stays on the floor; it drifts and fades as the ball lifts. */
+  private placeShadow(x: number, y: number, lift: number): void {
+    const s = this.cell;
+    this.ballShadow.setPosition(x + s * (0.12 + lift * 0.25), y + s * (0.28 + lift * 0.35));
+    this.ballShadow.setAlpha(Math.max(0.25, 0.85 - lift * 0.5));
+    this.ballShadow.setScale(1 + lift * 0.25);
+  }
+
+  private drawShadows(): void {
+    const g = this.shadowG;
+    if (!g || !this.level) return;
+    g.clear();
+    g.setAlpha(C.shadowAlpha);
+    g.fillStyle(C.shadow, 1);
+    const s = this.cell;
+    const sx = s * 0.18;
+    const sy = s * 0.22;
+    for (let i = 0; i < W * H; i++) {
+      const k = this.level.kinds[i];
+      if (k !== 'solid' && !(k === 'gate' && !this.gateState[i])) continue;
+      const x = i % W;
+      const y = Math.floor(i / W);
+      g.translateCanvas(this.px(x), this.py(y));
+      shadowRect(g, s, sx, sy);
+      g.translateCanvas(-this.px(x), -this.py(y));
+    }
+    for (const p of this.pieces) {
+      g.translateCanvas(this.px(p.x), this.py(p.y));
+      pieceShadow(g, p.type, p.dir, s, sx, sy);
+      g.translateCanvas(-this.px(p.x), -this.py(p.y));
+    }
   }
 
   private drawStatic(): void {
     const g = this.staticG;
     g.clear();
+    const fg = this.floorG;
+    fg.clear();
     for (const t of this.labels) t.destroy();
     this.labels = [];
     const s = this.cell;
     const bw = s * W;
     const bh = s * H;
-    // Board surface with a soft shadow, so it reads on light and dark themes.
-    g.fillStyle(0x000000, 0.18);
-    g.fillRoundedRect(this.ox - 4, this.oy + 2, bw + 8, bh + 8, 12);
-    g.fillStyle(C.boardEdge, 1);
-    g.fillRoundedRect(this.ox - 5, this.oy - 5, bw + 10, bh + 10, 12);
-    g.fillStyle(C.board, 1);
-    g.fillRoundedRect(this.ox - 2, this.oy - 2, bw + 4, bh + 4, 10);
-    g.fillStyle(C.dot, 1);
-    for (let y = 1; y < H; y++) for (let x = 1; x < W; x++) g.fillCircle(this.ox + x * s, this.oy + y * s, Math.max(1, s * 0.035));
+    // The floor: one soft slab with a faint dot grid.
+    fg.fillStyle(C.shadow, C.shadowAlpha * 0.6);
+    fg.fillRoundedRect(this.ox - 2, this.oy + 4, bw + 4, bh + 4, 18);
+    fg.fillStyle(C.floor, 1);
+    fg.fillRoundedRect(this.ox - 4, this.oy - 4, bw + 8, bh + 8, 18);
+    fg.fillStyle(C.floorDot, 1);
+    for (let y = 1; y < H; y++) for (let x = 1; x < W; x++) fg.fillCircle(this.ox + x * s, this.oy + y * s, Math.max(1, s * 0.04));
     // Edge labels are off by default: players found coordinates noise.
     const fs = Math.max(10, Math.min(13, Math.round(s * 0.34)));
     const style = { fontFamily: FONT, fontSize: `${fs}px`, color: '#8b7f6a', fontStyle: 'bold' };
@@ -270,14 +329,15 @@ export class BoardScene extends Phaser.Scene {
         const cx = this.px(x);
         const cy = this.py(y);
         if (k === 'solid') {
-          const above = y > 0 && L.kinds[i - W] === 'solid';
-          this.withOffset(g, cx, cy, () => drawWall(g, s, !above));
+          const solid = (xx: number, yy: number) => xx >= 0 && xx < W && yy >= 0 && yy < H && L.kinds[yy * W + xx] === 'solid';
+          const n = { up: solid(x, y - 1), down: solid(x, y + 1), left: solid(x - 1, y), right: solid(x + 1, y) };
+          this.withOffset(g, cx, cy, () => drawWall(g, s, n));
         } else if (k === 'start') {
           this.withOffset(g, cx, cy, () => drawStart(g, s, L.start.dx));
         } else if (k === 'target') {
           this.withOffset(g, cx, cy, () => drawTarget(g, s, this.targetKind));
         } else if (L.socket[i]) {
-          this.withOffset(g, cx, cy, () => drawSocket(g, s));
+          this.withOffset(fg, cx, cy, () => drawSocket(fg, s));
         }
       }
     }
@@ -310,7 +370,7 @@ export class BoardScene extends Phaser.Scene {
         const n = L.cp[i]!;
         drawCheckpoint(g, s, n <= this.cpDone);
         const t = this.add
-          .text(this.px(x), this.py(y), String(n), { fontFamily: FONT, fontSize: `${Math.round(s * 0.36)}px`, color: n <= this.cpDone ? '#ffffff' : '#1f4fa8', fontStyle: 'bold' })
+          .text(this.px(x), this.py(y), String(n), { fontFamily: FONT, fontSize: `${Math.round(s * 0.36)}px`, color: n <= this.cpDone ? '#ffffff' : `#${C.blue.toString(16).padStart(6, '0')}`, fontStyle: 'bold' })
           .setOrigin(0.5)
           .setResolution(DPR)
           .setDepth(5);
@@ -333,21 +393,22 @@ export class BoardScene extends Phaser.Scene {
       if (p.type === 'FAN') {
         const bg = this.add.graphics();
         drawFanBlades(bg, s, p.dir, p.ghost ? 0.75 : 1);
-        bg.setPosition(-s * 0.05, -s * 0.05);
+        bg.setPosition(0, -depth(s));
         c.add(bg);
         this.blades.push({ g: bg, id: p.id });
       }
       if (p.mine) {
         const m = this.add.graphics();
-        m.lineStyle(Math.max(2, s * 0.07), C.yellow, 1);
-        m.strokeRoundedRect(-s * 0.48, -s * 0.48, s * 0.96, s * 0.96, s * 0.18);
-        c.addAt(m, 0);
+        m.lineStyle(Math.max(2, s * 0.06), C.yellow, 0.95);
+        m.strokeRoundedRect(-s * 0.5, -s * 0.5 - depth(s), s, s, s * 0.22);
+        c.add(m);
       }
       if (p.ghost) {
         this.tweens.add({ targets: c, alpha: { from: 0.55, to: 1 }, duration: 600, yoyo: true, repeat: -1 });
       }
       this.pieceObjs.set(p.id, c);
     }
+    this.drawShadows();
   }
 
   /** Faint particle stripes in each fan's beam (initial gate states, standard range). */
@@ -421,8 +482,8 @@ export class BoardScene extends Phaser.Scene {
         g.fillCircle(this.px(last.x), this.py(last.y), s * 0.16);
       }
     };
-    line(this.ghost.old, C.ghostOld, 0.45, Math.max(2, s * 0.1), true);
-    line(this.ghost.now, C.ghostNew, 0.85, Math.max(3, s * 0.13), true);
+    line(this.ghost.old, C.pathOld, 0.55, Math.max(2, s * 0.09), true);
+    line(this.ghost.now, C.pathNew, 0.9, Math.max(3, s * 0.12), true);
   }
 
   // ---------- playback ----------
@@ -460,14 +521,18 @@ export class BoardScene extends Phaser.Scene {
     let x = this.px(a.x + (b.x - a.x) * e);
     let y = this.py(a.y + (b.y - a.y) * e);
     // Flights arc slightly for a smoother launch.
-    if (b.mode === 'fly' || a.mode === 'fly') y -= Math.sin(frac * Math.PI) * this.cell * 0.12;
+    const groundY = y;
+    const flying = b.mode === 'fly' || a.mode === 'fly';
+    if (flying) y -= Math.sin(frac * Math.PI) * this.cell * 0.12;
+    // Lift eases in and out so the shadow drifts smoothly under a jumping ball.
+    p.lift = (p.lift ?? 0) + ((flying ? 1 : 0) - (p.lift ?? 0)) * Math.min(1, delta / 90);
     if (a.x === b.x && a.y === b.y) {
       x = this.px(a.x);
       y = this.py(a.y);
     }
-    this.ball.setPosition(x, y);
-    // Rolling spin and squash on landing.
-    if (b.x !== a.x) this.ball.angle += (b.x - a.x) * delta * 0.9 * speed;
+    this.ball.setPosition(x, y - (p.lift ?? 0) * this.cell * 0.18);
+    this.placeShadow(x, groundY, p.lift ?? 0);
+    // Squash on landing.
     if (a.mode === 'fall' && b.mode === 'roll' && frac < 0.4) this.ball.setScale(1 + (0.4 - frac) * 0.5, 1 - (0.4 - frac) * 0.5);
     else this.ball.setScale(1);
     // Trail.
@@ -476,7 +541,7 @@ export class BoardScene extends Phaser.Scene {
     const tg = this.trailG;
     tg.clear();
     p.trail.forEach((pt, i) => {
-      tg.fillStyle(C.ball, (i / p.trail.length) * 0.18);
+      tg.fillStyle(C.pathNew, (i / p.trail.length) * 0.16);
       tg.fillCircle(pt.x, pt.y, this.cell * 0.22 * (i / p.trail.length));
     });
   }
@@ -495,6 +560,7 @@ export class BoardScene extends Phaser.Scene {
         if (!silent) this.pop(g, 1.15);
       }
       this.drawBeams();
+      this.drawShadows();
     } else if (e.kind === 'switch') {
       this.fired.add(i);
       const g = this.dynamic.get(i);
@@ -565,6 +631,7 @@ export class BoardScene extends Phaser.Scene {
   }
 
   private finish(): void {
+    this.tweens.add({ targets: this.ballShadow, alpha: 0, duration: 260 });
     const p = this.play;
     if (!p) return;
     this.play = null;

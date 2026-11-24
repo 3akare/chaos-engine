@@ -21,7 +21,7 @@ export class RunScreen {
   private run!: DayRun;
   private result!: DayResult;
   private ball = 0;
-  private speed = 1;
+  private speed = 1.2;
   private skip = false;
   private dead = false;
   private banner: HTMLElement;
@@ -212,21 +212,21 @@ export class RunScreen {
       { class: 'seg', role: 'tablist' },
       ...[0, 1, 2].map((i) => {
         const b = this.run.balls[i]!;
-        return h('button', { class: i === this.ball ? 'on' : '', role: 'tab', 'aria-label': this.ballTitle(i), onclick: () => void this.replay(i) }, `${b.end === 'success' ? '✓' : '✗'} ${i + 1}`);
+        return h(
+          'button',
+          { class: `${i === this.ball ? 'on' : ''} ${b.end === 'success' ? 'ok' : 'no'}`, role: 'tab', 'aria-label': this.ballTitle(i), onclick: () => void this.replay(i) },
+          h('i', { class: 'dotball' }),
+          h('span', {}, b.end === 'success' ? '✓' : '✗'),
+        );
       }),
     );
     this.bar.replaceChildren(
-      h('button', { class: 'btn small primary', onclick: () => void this.replay(this.ball) }, '▶ Replay', h('span', { class: 'sub', onclick: (e: Event) => this.cycleSpeed(e) }, `${this.speed}×`)),
+      h('button', { class: 'round side', 'aria-label': 'Replay', onclick: () => void this.replay(this.ball) }, h('span', { class: 'glyph' }, '↻'), h('span', { class: 'lbl' }, 'replay')),
       seg,
-      h('button', { class: 'btn small', onclick: () => this.showResults() }, 'Results'),
+      h('button', { class: 'round side', 'aria-label': 'Results', onclick: () => this.showResults() }, h('span', { class: 'glyph' }, '★'), h('span', { class: 'lbl' }, 'results')),
     );
   }
 
-  private cycleSpeed(e: Event): void {
-    e.stopPropagation();
-    this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 4 : 1;
-    this.renderBar();
-  }
 
   private async replay(i: number, startTick = 0): Promise<void> {
     closeSheet(true);
@@ -268,7 +268,7 @@ export class RunScreen {
       const touched = this.run.balls.map((b, i) => (b.touchedPieceIds.includes(mine.pieceId) ? i + 1 : 0)).filter(Boolean);
       myLines.push(touched.length ? `Your ${pieceName(mine.type)} helped steer ${touched.length === 1 ? '1 ball' : `${touched.length} balls`}.` : `No ball touched your ${pieceName(mine.type)}.`);
       if (r.awards.mvp?.pieceId === mine.pieceId) myLines.push('🏆 It was the MVP!');
-    } else if (v.me.userId) myLines.push('You didn’t place a piece this time.');
+    }
     if (v.me.prediction !== null) myLines.push(v.me.prediction === r.score ? `🔮 You guessed ${v.me.prediction}. Spot on!` : `🔮 You guessed ${v.me.prediction}. It was ${r.score}.`);
     const total = r.predictions.reduce((a, b) => a + b, 0);
     const hist = h(
@@ -292,15 +292,15 @@ export class RunScreen {
         'div',
         { class: 'results' },
         h('h3', {}, `Day ${v.day.dayNumber}: ${r.score} of 3 balls made it`),
-        h('div', { class: 'sub' }, `${r.builders} ${r.builders === 1 ? 'player' : 'players'} built it · ${r.streak} ${r.streak === 1 ? 'day' : 'days'} in a row with a ball in`),
+        r.streak > 1 ? h('div', { class: 'sub' }, `🔥 ${r.streak} days in a row with a ball in`) : null,
         ballsRow,
         goNext,
-        award('🏆', 'Most useful piece', r.awards.mvp, ''),
-        award('👆', 'Busiest piece', r.awards.mostTouched, r.awards.mostTouched ? ` · hit ${r.awards.mostTouched.value} times` : ''),
-        award('⏱', 'Last-minute save', r.awards.clutch, r.awards.clutch ? ` · ${minutesBefore(r.lockedAt - r.awards.clutch.at)}` : ''),
+        r.awards.mvp ? award('🏆', 'Most useful piece', r.awards.mvp, '') : null,
+        r.awards.mostTouched && r.awards.mostTouched.pieceId !== r.awards.mvp?.pieceId ? award('👆', 'Busiest piece', r.awards.mostTouched, ` · hit ${r.awards.mostTouched.value} times`) : null,
+        r.awards.clutch ? award('⏱', 'Last-minute save', r.awards.clutch, ` · ${minutesBefore(r.lockedAt - r.awards.clutch.at)}`) : null,
         myLines.length ? h('div', { class: 'card' }, h('div', { class: 'k' }, 'You'), ...myLines.map((l) => h('div', {}, l))) : null,
-        h('div', { class: 'card' }, h('div', { class: 'k' }, 'Predictions'), hist),
-        h('div', { class: 'k', style: 'margin-top:8px' }, 'Jump to a key moment'),
+        total > 0 ? h('div', { class: 'card' }, h('div', { class: 'k' }, 'Guesses'), hist) : null,
+        h('div', { class: 'k', style: 'margin-top:8px' }, 'Watch a moment'),
         moments,
       ),
       { modal: false },
