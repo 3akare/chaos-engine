@@ -66,3 +66,12 @@
   .ce-card .none { font-size: 13px; }
   .ce-card .play { height: 50px; font-size: 22px; }
 }
+
+/* Narrow cards: smaller headline and numbers so names keep their room. */
+@container (max-width: 340px) {
+  .ce-card .hook { font-size: 17px; }
+  .ce-card .hi .v { font-size: 38px; }
+  .ce-card .logo b { font-size: 26px; }
+  .ce-card .sb { padding: 8px 9px; }
+  .ce-card .chasers li b:first-child { display: none; }
+}

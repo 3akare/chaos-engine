@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { datan2, dcos, dsin, withDetMath } from '../src/shared/pour/detmath';
-import { buildKey, cleanBuild, parseBuildKey, snap } from '../src/shared/pour/build';
+import { buildKey, cleanBuild, fitPiece, parseBuildKey, snap } from '../src/shared/pour/build';
 import { Pour, runPour } from '../src/shared/pour/sim';
 import { machineForDay, mirror, PACK } from '../src/shared/pour/pack';
 import { generateMachine } from '../src/shared/pour/generate';
@@ -64,6 +64,14 @@ describe('builds', () => {
     expect(cleanBuild(TEST_MACHINE, [{ type: 'spring', x: 1, y: 1, a: 0 }])).toBeNull();
     expect(cleanBuild(TEST_MACHINE, [{ type: 'ramp', x: NaN, y: 1, a: 0 }])).toBeNull();
     expect(cleanBuild(TEST_MACHINE, 'nope')).toBeNull();
+  });
+  it('moves pieces out of the chute mouth, and only those', () => {
+    const sp = TEST_MACHINE.spawn;
+    const under = fitPiece(TEST_MACHINE, { type: 'ramp', x: sp.x, y: 40, a: 80 });
+    expect(under.y).toBe(sp.y + 12 + 42);
+    expect(fitPiece(TEST_MACHINE, under)).toEqual(under);
+    expect(fitPiece(TEST_MACHINE, { type: 'ramp', x: sp.x + 120, y: 40, a: 0 }).y).toBe(40);
+    expect(cleanBuild(TEST_MACHINE, [{ type: 'bumper', x: sp.x, y: 41, a: 0 }])![0]!.y).toBe(sp.y + 12 + 17);
   });
   it('round-trips through its stored form', () => {
     const b: Piece[] = [{ type: 'ramp', x: 100, y: 200, a: 40 }];

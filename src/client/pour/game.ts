@@ -2,7 +2,7 @@
  * The game screen: place pieces on today's machine, pour 100 balls, climb the leaderboard.
  * Physics runs here at a fixed 1/60 s step with the same code the server uses to check scores.
  */
-import { snap } from '../../shared/pour/build';
+import { fitPiece, snap } from '../../shared/pour/build';
 import { Pour } from '../../shared/pour/sim';
 import { BALLS, H, type Machine, type Piece, type Tool, TOOL_NAME, TOOLS, TURN, W } from '../../shared/pour/types';
 import type { DayView, Entry, PourResult, Totals } from '../../shared/protocol';
@@ -86,7 +86,7 @@ export class Game {
   private loadBuild(): Piece[] {
     try {
       const raw = store(this.buildKey());
-      if (raw) return (JSON.parse(raw) as Piece[]).filter((p) => TOOLS.includes(p.type));
+      if (raw) return (JSON.parse(raw) as Piece[]).filter((p) => TOOLS.includes(p.type)).map((p) => fitPiece(this.machine, snap(p)));
     } catch {
       /* ignore */
     }
@@ -203,7 +203,7 @@ export class Game {
       // A tap: turn it.
       const i = this.pieces.indexOf(d.piece);
       if (TURN[d.piece.type] && i >= 0) {
-        this.pieces[i] = snap({ ...d.piece, a: d.piece.a + TURN[d.piece.type] });
+        this.pieces[i] = fitPiece(this.machine, snap({ ...d.piece, a: d.piece.a + TURN[d.piece.type] }));
         this.selected = this.pieces[i]!;
         sfx.tick();
         this.say('Turned. Tap again to keep turning', 1400);
@@ -224,7 +224,7 @@ export class Game {
       this.renderBar();
       return;
     }
-    const placed = snap(d.piece);
+    const placed = fitPiece(this.machine, snap(d.piece));
     if (d.fresh) this.pieces.push(placed);
     else this.pieces[this.pieces.indexOf(d.piece)] = placed;
     this.selected = placed;
@@ -411,11 +411,13 @@ export class Game {
     const v = this.v;
     const rows = v.board.map((e) => boardRow(e, e.username === v.me.username));
     if (v.me.rank && v.me.best !== null && !v.board.some((e) => e.username === v.me.username)) rows.push(h('li', { class: 'gap' }, '⋯'), boardRow({ rank: v.me.rank, username: v.me.username ?? 'you', score: v.me.best, at: 0 }, true));
+    const list = h('ol', { class: 'board' }, ...rows);
+    requestAnimationFrame(() => list.querySelector('.me')?.scrollIntoView({ block: 'nearest' }));
     const closed = this.closed();
     const foot = closed ? (v.result?.winner ? `Build of the Day: u/${v.result.winner.username}` : 'This machine has closed.') : `Builds are revealed when the day closes in ${until(v.day.locksAt - Date.now() - this.skew)}.`;
     this.card(
       h('h2', {}, closed ? 'Final board' : "Today's board"),
-      rows.length ? h('ol', { class: 'board' }, ...rows) : h('p', {}, 'Nobody has poured yet. Be the first!'),
+      rows.length ? list : h('p', {}, 'Nobody has poured yet. Be the first!'),
       meter(v.result?.totals ?? v.totals),
       h('p', { class: 'foot' }, foot),
       h('div', { class: 'row' }, h('button', { class: 'btn b', onclick: () => this.closeCard() }, 'Close')),

@@ -17,6 +17,21 @@ export function snap(p: Piece): Piece {
   };
 }
 
+/** How far each piece reaches from its centre. */
+const REACH: Record<Tool, number> = { ramp: 42, spring: 34, bumper: 17, fan: 15 };
+
+/**
+ * Keep pieces out of the chute's mouth: a piece there would make new balls appear inside it.
+ * A piece too close is moved straight down until it clears. Same rule on phone and server.
+ */
+export function fitPiece(machine: Machine, p: Piece): Piece {
+  const sp = machine.spawn;
+  const r = REACH[p.type];
+  if (Math.abs(p.x - sp.x) >= r + 14) return p;
+  const minY = sp.y + 12 + r;
+  return p.y >= minY ? p : { ...p, y: minY };
+}
+
 /** A valid build for this machine, or null. Never trusts the client: snaps and counts everything. */
 export function cleanBuild(machine: Machine, raw: unknown): Piece[] | null {
   if (!Array.isArray(raw) || raw.length > MAX_PIECES) return null;
@@ -29,7 +44,7 @@ export function cleanBuild(machine: Machine, raw: unknown): Piece[] | null {
     if (![x, y, a].every(Number.isFinite)) return null;
     used[type] = (used[type] ?? 0) + 1;
     if (used[type]! > (machine.tools[type] ?? 0)) return null;
-    out.push(snap({ type, x, y, a }));
+    out.push(fitPiece(machine, snap({ type, x, y, a })));
   }
   return out;
 }

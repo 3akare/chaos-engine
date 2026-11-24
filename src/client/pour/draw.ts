@@ -16,7 +16,7 @@ export function img(name: string): HTMLImageElement {
   }
   return i;
 }
-export const ART = ['fan', 'fan_blades', 'spring', 'spring_out', 'flag_a', 'flag_b', ...BALL_LOOKS];
+export const ART = ['fan', 'fan_blades', 'spring', 'spring_out', ...BALL_LOOKS];
 export const artReady = (): Promise<void> =>
   Promise.all(ART.map((n) => (img(n).complete ? Promise.resolve() : new Promise<void>((r) => ((img(n).onload = () => r()), (img(n).onerror = () => r())))))).then(() => undefined);
 
@@ -162,7 +162,7 @@ export function drawPiece(c: CanvasRenderingContext2D, p: Piece, t: number, alph
   c.globalAlpha = 1;
 }
 
-function drawBucket(c: CanvasRenderingContext2D, bk: Machine['bucket'], glow: number, now: number): void {
+function drawBucket(c: CanvasRenderingContext2D, bk: Machine['bucket'], glow: number): void {
   const x = bk.x - bk.w / 2 - 8;
   const y = bk.y - 32;
   const w = bk.w + 16;
@@ -180,8 +180,6 @@ function drawBucket(c: CanvasRenderingContext2D, bk: Machine['bucket'], glow: nu
   c.stroke();
   c.fillStyle = '#e39b1f';
   c.fillRect(x + 5, y + h - 14, w - 10, 8);
-  const flagLeft = bk.x > W - 70;
-  c.drawImage(img(Math.floor(now / 380) % 2 ? 'flag_a' : 'flag_b'), flagLeft ? x - 34 : x + w - 6, y - 40, 40, 40);
 }
 
 function drawChute(c: CanvasRenderingContext2D, sp: Machine['spawn']): void {
@@ -254,7 +252,7 @@ export class View {
     for (const b of m.blocks) drawBlock(c, b);
     for (const [x, y] of m.pegs) drawPeg(c, x, y);
     m.spinners.forEach((sp, i) => {
-      const angle = s.pour ? s.pour.spinners[i]!.body.angle : (s.now / (1000 / 60)) * sp.speed;
+      const angle = s.pour ? s.pour.spinners[i]!.body.angle : 0; // at rest in the pose every pour starts from
       withRot(c, sp.x, sp.y, angle, () => {
         drawPlank(c, sp.len, 12);
         c.beginPath();
@@ -266,7 +264,7 @@ export class View {
         c.stroke();
       });
     });
-    drawBucket(c, m.bucket, s.flashes.get('bucket') ?? 0, s.now);
+    drawBucket(c, m.bucket, s.flashes.get('bucket') ?? 0);
     s.pieces.forEach((p, i) => {
       if (p !== s.drag?.piece) drawPiece(c, p, t, 1, s.flashes.get(i) ?? 0);
     });
