@@ -1,7 +1,7 @@
 /** Browser playtest: a fake subreddit feed and the real game, with the real server running in-page. */
 import type { DayView } from '../../src/shared/protocol';
-import { rememberMode, renderCard } from '../../src/client/splash/card';
-import { boot, call, nextDay, now, persist, reddit, resetAll, seedDemo, state } from './backend';
+import { renderCard } from '../../src/client/splash/card';
+import { boot, call, fillBoard, nextDay, now, persist, reddit, resetAll, state } from './backend';
 import { openPost } from './devvit-client';
 import { icon } from '../../src/client/assets';
 import './demo.css';
@@ -50,10 +50,7 @@ const advance = async (): Promise<void> => {
   note(stages ? 'The machine fired. A new one is open.' : 'Nothing to resolve yet.');
   // Watch the results on the post that just resolved.
   const prev = reddit.posts.length >= 2 ? reddit.posts[reddit.posts.length - 2]!.id : undefined;
-  if (prev && stages) {
-    rememberMode('team');
-    openPost(prev);
-  }
+  if (prev && stages) openPost(prev);
   else location.reload();
 };
 
@@ -65,7 +62,10 @@ async function renderFeed(): Promise<void> {
       'header',
       { class: 'feed-head' },
       h('div', { class: 'sub-name' }, 'Chaos Engine playtest'),
-      h('div', { class: 'demo-controls' }, playerPicker(), button('Next day', advance, 'primary'), button('Seed demo', async () => note(await seedDemo())), button('Start over', () => {
+      h('div', { class: 'demo-controls' }, playerPicker(), button('Next day', advance, 'primary'), button('Fill board', async () => {
+        note(await fillBoard());
+        location.reload();
+      }), button('Start over', () => {
         resetAll();
         location.reload();
       })),
@@ -81,10 +81,7 @@ async function renderFeed(): Promise<void> {
     list.append(wrap);
     const res = await call('GET', `/api/state?postId=${p.id}`);
     if (res.ok)
-      renderCard(card, (await res.json()) as DayView, (_e, mode) => {
-        rememberMode(mode);
-        openPost(p.id);
-      });
+      renderCard(card, (await res.json()) as DayView, () => openPost(p.id));
 
   }
 }
@@ -98,6 +95,7 @@ function ago(ms: number): string {
 }
 
 async function renderGame(): Promise<void> {
+  document.body.classList.add('demo-game');
   document.body.append(h('div', { id: 'app' }));
   await import('../../src/client/game/main');
   // Two small demo-only keys: back to the feed, and skip to the next day.

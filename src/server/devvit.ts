@@ -82,6 +82,8 @@ const store: StorePort = {
     if (m.length) await redis.zRem(k, m);
   },
   zCard: (k) => redis.zCard(k),
+  zRank: async (k, m) => (await redis.zRank(k, m)) ?? undefined,
+  zScore: async (k, m) => (await redis.zScore(k, m)) ?? undefined,
   watch: async (...k) => tx(await redis.watch(...k)),
 };
 

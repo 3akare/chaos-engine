@@ -1,121 +1,63 @@
-/** Wire types shared by client and server. Nothing here may contain a solution or an unrevealed secret. */
-import type { Awards } from './awards';
-import type { Dir, EndReason, Machine, PieceType, Progress, VariantId } from './types';
+/** Wire types shared by client and server. */
+import type { Machine, Piece } from './pour/types';
 
 export type DayStatus = 'CREATING' | 'OPEN' | 'LOCKED' | 'RESOLVED' | 'COMMENTED' | 'HANDED_OFF';
 
-/** A piece on the board, as stored and as sent to clients (§6.3). */
-export type StoredPiece = {
-  pieceId: string;
-  socket: string;
-  type: PieceType;
-  dir: Dir;
-  userId: string;
-  username: string;
-  placedAt: number;
-  editedAt?: number;
-  /** Set when this piece displaced someone else's. */
-  replaced?: { userId: string; username: string; type: PieceType };
-  /** Setup pieces (seed / demo tool) — labelled u/chaos-engine (setup), replaceable under the improve rule. */
-  setup?: boolean;
-};
+/** A machine as clients see it (without the generator's own best build). */
+export type PublicMachine = Omit<Machine, 'gen'>;
 
-/** Machine without its solution — the only form a client ever sees. */
-export type PublicMachine = Omit<Machine, 'solution'>;
+export type Entry = { rank: number; username: string; score: number; at: number };
 
-export type BallSummary = { variant: VariantId; end: EndReason; progress: Progress; ticks: number };
+export type Totals = { players: number; pours: number; balls: number; hundreds: number; goal: number };
 
 export type DayResult = {
-  score: number;
-  checkpoints: number;
-  variants: [VariantId, VariantId, VariantId];
-  perBall: [BallSummary, BallSummary, BallSummary];
-  awards: Awards;
-  revealedSecret: string;
-  lockedAt: number;
-  /** Prediction distribution at lock: index = predicted balls (0..3). */
-  predictions: [number, number, number, number];
-  builders: number;
-  /** Community streak after this Day. */
+  top: Entry[];
+  /** Build of the Day: the top build, revealed once the day closes. */
+  winner: { username: string; score: number; at: number; build: Piece[] } | null;
+  totals: Totals;
+  goalMet: boolean;
+  /** Days in a row the subreddit hit its goal, after this one. */
   streak: number;
+  lockedAt: number;
 };
 
-export type InboxItem = {
-  id: string;
-  at: number;
-  kind: 'replaced' | 'removed' | 'mvp' | 'touched' | 'prediction';
-  text: string;
-  dayNumber: number;
-};
-
-export type SubStats = { streak: number; bestStreak: number; perfectDays: number; totalDays: number };
-export type UserStats = { placed: number; touchedInFinal: number; mvps: number; predStreak: number; predBest: number };
+export type SubStats = { streak: number; bestStreak: number; goalDays: number; totalDays: number };
+export type UserStats = { days: number; hundreds: number; wins: number; podiums: number };
 
 export type DayView = {
-  day: {
-    dayId: string;
-    dayNumber: number;
-    status: DayStatus;
-    openedAt: number;
-    locksAt: number;
-    commitHash: string;
-    postId: string | null;
-    title: string;
-  };
-  level: PublicMachine;
-  /** Solo play's own machine for this Day (with its full set of pieces). */
-  soloLevel: PublicMachine;
-  pieces: StoredPiece[];
-  inventory: Record<PieceType, number>;
+  day: { dayId: string; dayNumber: number; status: DayStatus; openedAt: number; locksAt: number; postId: string | null; title: string };
+  machine: PublicMachine;
   me: {
     userId: string | null;
     username: string | null;
-    /** First of your pieces (kept for older clients). */
-    socket: string | null;
-    /** All sockets you hold. */
-    sockets: string[];
-    /** Pieces you may hold right now (solo: the whole fix; busy days: one each). */
-    allowance: number;
-    /** Pieces today's fix needs. */
-    piecesNeeded: number;
-    prediction: number | null;
-    inbox: InboxItem[];
+    /** Your best score today and the build that got it. */
+    best: number | null;
+    build: Piece[] | null;
+    rank: number | null;
+    pours: number;
     stats: UserStats;
   };
-  counts: { builders: number; predictors: number; histogram: [number, number, number, number] | null };
-  /** Solo play on this Day: your best stars, how many played, how many got all three. */
-  solo: { best: number | null; players: number; perfect: number };
+  /** Live top of today's leaderboard. */
+  board: Entry[];
+  totals: Totals;
   result: DayResult | null;
   sub: SubStats;
-  /** The newest Day's post, for "Build today's machine →". */
+  /** The newest Day's post, for "Play today's machine". */
   current: { dayNumber: number; postId: string | null; url: string | null };
-  yesterday: { dayNumber: number; score: number } | null;
+  yesterday: { dayNumber: number; winner: string | null; score: number } | null;
   serverNow: number;
 };
 
-/** Solo play: a whole arrangement on your own copy of the machine. */
-export type SoloPiece = { socket: string; type: PieceType; dir: Dir };
-export type SoloRequest = { postId?: string | undefined; pieces: SoloPiece[] };
-export type SoloResult = { stars: number; perBall: [EndReason, EndReason, EndReason]; best: number; players: number; perfect: number };
+export type PourRequest = { postId?: string | undefined; build: Piece[]; claimed: number };
+export type PourResult = {
+  /** The official score (the server re-runs any pour that would raise your best). */
+  score: number;
+  best: number;
+  improved: boolean;
+  rank: number | null;
+  board: Entry[];
+  totals: Totals;
+};
 
-export type PlaceRequest = { postId?: string | undefined; socketId: string; type: PieceType; dir: Dir; from?: string | undefined };
-export type PredictRequest = { postId?: string | undefined; balls: number };
-
-export type ErrorCode =
-  | 'LOCKED'
-  | 'NOT_A_SOCKET'
-  | 'NOT_REPLACEABLE'
-  | 'WOULD_HURT'
-  | 'MUST_IMPROVE'
-  | 'OUT_OF_STOCK'
-  | 'NO_PIECE'
-  | 'BAD_PIECE'
-  | 'NO_CHANGE'
-  | 'LIMIT'
-  | 'NOT_LOGGED_IN'
-  | 'NO_DAY'
-  | 'BUSY'
-  | 'BAD_REQUEST';
-
+export type ErrorCode = 'LOCKED' | 'NOT_LOGGED_IN' | 'NO_DAY' | 'BUSY' | 'TOO_FAST' | 'BAD_REQUEST';
 export type ApiError = { error: ErrorCode; message: string };
-export type ApiOk<T> = T & { error?: undefined };

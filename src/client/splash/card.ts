@@ -1,81 +1,58 @@
-/** The feed card: an inline render of a Day for the splash and the browser demo. No Phaser. */
+/** The post in the feed: today's machine, the top three, your rank, the shared goal, and Play. */
 import type { DayView } from '../../shared/protocol';
-import { sprite } from '../assets';
-import { drawMini } from '../lib/miniBoard';
+import { icon } from '../assets';
+import { artReady, drawStill } from '../pour/draw';
 import './card.css';
 
-export const el = (tag: string, cls: string, ...kids: Array<Node | string>): HTMLElement => {
+export const el = (tag: string, cls: string, ...kids: Array<Node | string | null>): HTMLElement => {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  e.append(...kids);
+  for (const k of kids) if (k !== null) e.append(k);
   return e;
 };
+const fmt = (n: number): string => n.toLocaleString('en-US');
 
-export type OpenMode = 'solo' | 'team';
-
-/** Remember which mode to open (the game screen reads it), then open the game. */
-export function rememberMode(mode: OpenMode): void {
-  try {
-    localStorage.setItem('ce_mode', mode);
-  } catch {
-    /* private mode */
-  }
+function top3(v: DayView): HTMLElement {
+  const list = v.result ? v.result.top : v.board;
+  if (!list.length) return el('div', 'empty', v.result ? 'Nobody poured on this one.' : 'Nobody has poured yet. Be the first!');
+  return el(
+    'ol',
+    'top3',
+    ...list.slice(0, 3).map((e) => el('li', e.username === v.me.username ? 'me' : '', el('span', `medal m${e.rank}`, String(e.rank)), el('span', 'who', `u/${e.username}`), el('b', '', String(e.score)))),
+  );
 }
 
-const starImgs = (n: number | null): HTMLElement =>
-  el(
-    'span',
-    'stars',
-    ...[0, 1, 2].map((i) => {
-      const img = document.createElement('img');
-      img.src = sprite('star');
-      img.alt = '';
-      if (n === null || i >= n) img.className = 'miss';
-      return img;
-    }),
-  );
+function meter(v: DayView): HTMLElement {
+  const t = v.result?.totals ?? v.totals;
+  const pct = Math.min(100, Math.round((t.balls / Math.max(1, t.goal)) * 100));
+  const fill = el('div', 'fill');
+  fill.style.width = `${pct}%`;
+  return el('div', `meter${pct >= 100 ? ' full' : ''}`, el('div', 'lbl', el('span', '', 'Together'), el('b', '', `${fmt(t.balls)} / ${fmt(t.goal)}`)), el('div', 'track', fill));
+}
 
-/** The post in the feed: the game's name, today's machine, and two ways to play. */
-export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode: OpenMode) => void): void {
+export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => void): void {
   root.classList.add('ce-card');
   const canvas = document.createElement('canvas');
   const mini = el('div', 'mini', canvas);
-  mini.addEventListener('click', (e) => open(e, 'solo'));
-
-  const btn = (mode: OpenMode, label: string, sub: Node | string): HTMLElement => {
-    const b = el('button', `mode ${mode}`, el('span', 'lbl', label), el('span', 'sub', sub));
-    b.setAttribute('aria-label', `${label} play`);
-    b.addEventListener('click', (e) => open(e, mode));
-    return b;
-  };
-  const best = v.solo?.best ?? null;
-  const soloSub: Node | string = best === null ? 'Build it yourself' : el('span', 'row', 'Your best ', starImgs(best));
-  let teamSub: Node | string;
-  if (v.result) teamSub = el('span', 'row', 'Team got ', starImgs(v.result.score));
-  else if (v.day.status !== 'OPEN') teamSub = 'Rolling now…';
-  else {
-    const n = v.counts.builders;
-    const hrs = Math.max(0, Math.floor((v.day.locksAt - v.serverNow) / 3_600_000));
-    teamSub = n === 0 ? `Rolls in ${hrs}h` : `${n} building · ${hrs}h left`;
-  }
-  const info = el(
-    'div',
-    'info',
-    el('div', 'title hud', 'Chaos Engine'),
-    el('div', 'kicker', `Build of the Day #${v.day.dayNumber}`),
-    el('div', 'spacer'),
-    btn('solo', 'Solo', soloSub),
-    btn('team', 'Team', teamSub),
-  );
+  mini.addEventListener('click', open);
+  const closed = !!v.result || v.day.status !== 'OPEN';
+  const me = v.me.best !== null ? el('div', 'mine', 'Your best ', el('b', '', String(v.me.best)), v.me.rank ? ` · #${v.me.rank}` : '') : null;
+  const play = el('button', 'play', el('img', ''), closed ? (v.result?.winner ? 'Watch the winner' : 'See the board') : v.me.best === null ? 'Play' : 'Beat it');
+  (play.firstChild as HTMLImageElement).src = icon(closed ? 'trophy' : 'right');
+  (play.firstChild as HTMLImageElement).alt = '';
+  play.addEventListener('click', open);
+  const kicker = el('div', 'kicker', `Day ${v.day.dayNumber} · ${v.machine.name}`);
+  const info = el('div', 'info', el('div', 'title hud', 'Chaos Engine'), kicker, el('div', 'sub', closed ? 'Final board' : 'Catch all 100 balls'), top3(v), me, el('div', 'spacer'), meter(v), play);
   root.replaceChildren(mini, info);
-  // Size the preview from the card's height (CSS aspect-ratio collapses inside a flex row here).
   const fit = (): void => {
-    const hgt = mini.clientHeight || root.clientHeight - 32;
-    mini.style.width = `${Math.min(root.clientWidth * 0.46, Math.floor((hgt * 9) / 14))}px`;
+    const hgt = mini.clientHeight || root.clientHeight - 28;
+    mini.style.width = `${Math.min(root.clientWidth * 0.42, Math.floor((hgt * 3) / 5))}px`;
   };
   fit();
-  requestAnimationFrame(() => {
-    fit();
-    drawMini(canvas, v.level.rows, { target: v.level.target ?? 'bell' });
-  });
+  void artReady().then(() =>
+    requestAnimationFrame(() => {
+      fit();
+      drawStill(canvas, v.machine, v.result?.winner?.build ?? []);
+    }),
+  );
 }

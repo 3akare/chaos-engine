@@ -1,22 +1,34 @@
-/* Feed card: the sky, a small board, the day and one button. Same art and font as the game. */
+/* Feed card: the sky, the machine, the top three and one button. Same art and fonts as the game. */
 @import '../lib/font.css';
 .ce-card, .ce-card * { box-sizing: border-box; }
-.ce-card { height: 100%; display: flex; gap: 16px; padding: 14px 16px; color: #353541; background: url(../assets/bg_clouds.png) repeat-x left bottom / 160px 160px, linear-gradient(180deg, #3d9df2 0%, #6cbcf7 50%, #bfe3ff 100%); font: 800 16px/1.2 'Nunito Variable', 'Nunito', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-.ce-card .mini { flex: 0 0 auto; height: 100%; max-width: 52%; cursor: pointer; }
+.ce-card { height: 100%; display: flex; gap: 12px; padding: 14px; color: #353541; background: url(../assets/bg_clouds.png) repeat-x left bottom / 160px 160px, linear-gradient(180deg, #3d9df2 0%, #6cbcf7 50%, #bfe3ff 100%); font: 800 14px/1.2 'Nunito Variable', 'Nunito', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+.ce-card .mini { flex: 0 0 auto; height: 100%; max-width: 44%; cursor: pointer; }
 .ce-card .mini canvas { width: 100%; height: 100%; display: block; }
-.ce-card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 4px 0 2px; }
-.ce-card .hud, .ce-card .mode .lbl { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; }
+.ce-card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.ce-card .hud, .ce-card .play, .ce-card b, .ce-card .medal { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; }
 .ce-card .hud { color: #fff; -webkit-text-stroke: 6px #353541; paint-order: stroke fill; }
-.ce-card .title { font-size: 34px; line-height: 0.95; }
-.ce-card .kicker { align-self: flex-start; padding: 3px 10px; border-radius: 12px; background: #fff; border: 3px solid #353541; font-size: 12.5px; line-height: 1.2; }
-.ce-card .spacer { flex: 1; }
-.ce-card .mode { display: flex; flex-direction: column; align-items: flex-start; gap: 0; width: 100%; padding: 6px 14px 9px; border-radius: 16px; border: 4px solid #353541; cursor: pointer; color: #353541; text-align: left; }
-.ce-card .mode.solo { background: #2ecc71; box-shadow: inset 0 -5px 0 #1aa074; }
-.ce-card .mode.team { background: #419fdd; box-shadow: inset 0 -5px 0 #366fbf; }
-.ce-card .mode:active { transform: translateY(2px); }
-.ce-card .mode .lbl { font-size: 24px; line-height: 1.1; color: #fff; -webkit-text-stroke: 5px #353541; paint-order: stroke fill; }
-.ce-card .mode .sub { font-size: 12.5px; line-height: 1.15; font-weight: 800; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25); }
-.ce-card .row { display: inline-flex; align-items: center; gap: 4px; }
-.ce-card .stars { display: inline-flex; gap: 1px; }
-.ce-card .stars img { width: 16px; height: 16px; display: block; }
-.ce-card .stars img.miss { filter: grayscale(1) brightness(1.5) opacity(0.6); }
+.ce-card .title { font-size: 30px; line-height: 0.95; }
+.ce-card .kicker { align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 10px; border-radius: 12px; background: #fff; border: 3px solid #353541; font-size: 12.5px; }
+.ce-card .sub { color: #fff; font-size: 13px; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); }
+.ce-card .top3 { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.ce-card .top3 li { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.92); }
+.ce-card .top3 li.me { box-shadow: inset 0 0 0 3px #ffc851; }
+.ce-card .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.ce-card .top3 b { font-size: 17px; }
+.ce-card .medal { width: 22px; height: 22px; border-radius: 11px; border: 2.5px solid #353541; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; -webkit-text-stroke: 2.5px #353541; paint-order: stroke fill; flex: none; }
+.ce-card .medal.m1 { background: #ffc851; }
+.ce-card .medal.m2 { background: #c9d6e2; }
+.ce-card .medal.m3 { background: #e0915a; }
+.ce-card .empty { padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.92); font-size: 13px; }
+.ce-card .mine { font-size: 13px; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); }
+.ce-card .mine b { font-size: 16px; }
+.ce-card .spacer { flex: 1; min-height: 0; }
+.ce-card .meter { display: flex; flex-direction: column; gap: 3px; }
+.ce-card .meter .lbl { display: flex; justify-content: space-between; font-size: 12px; color: #353541; }
+.ce-card .meter .track { height: 13px; border-radius: 7px; border: 3px solid #353541; background: #fff; overflow: hidden; }
+.ce-card .meter .fill { height: 100%; background: #2ecc71; }
+.ce-card .meter.full .fill { background: #ffc851; }
+.ce-card .play { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 52px; border-radius: 16px; border: 4px solid #353541; background: #2ecc71; box-shadow: inset 0 -5px 0 #1aa074; color: #fff; font-size: 22px; -webkit-text-stroke: 5px #353541; paint-order: stroke fill; cursor: pointer; flex: none; }
+.ce-card .play img { width: 26px; height: 26px; display: block; }
+.ce-card .play:active { transform: translateY(2px); }
+@media (max-height: 300px) { .ce-card .top3 li:nth-child(n + 3), .ce-card .sub { display: none; } }

@@ -1,27 +1,25 @@
-/** Every Redis key in one place (§6.3). Devvit Redis is installation-scoped, so no subreddit prefix. */
+/** Every Redis key in one place. Devvit Redis is installation-scoped, so no subreddit prefix. */
 export const K = {
   cfg: 'ce:cfg',
+  /** The machine for a day number, stored when it is first needed so it never changes after. */
   level: (dayNumber: number) => `ce:level:${dayNumber}`,
-  /** Solo play has its own machine each day, so a Team screenshot can't spoil it. */
-  soloLevel: (dayNumber: number) => `ce:sololevel:${dayNumber}`,
-  pin: (dayNumber: number) => `ce:pin:${dayNumber}`,
   dupes: 'ce:dupes',
   current: 'ce:day:current',
   meta: (dayId: string) => `ce:day:${dayId}:meta`,
   lock: 'ce:lock:daily',
-  secret: (dayId: string) => `ce:day:${dayId}:secret`,
-  pieces: (dayId: string) => `ce:day:${dayId}:pieces`,
-  inv: (dayId: string) => `ce:day:${dayId}:inv`,
-  holder: (dayId: string) => `ce:day:${dayId}:holder`,
-  pred: (dayId: string) => `ce:day:${dayId}:pred`,
-  /** Solo best stars per user: hash userId → 0..3. */
-  solo: (dayId: string) => `ce:day:${dayId}:solo`,
-  events: (dayId: string) => `ce:day:${dayId}:events`,
+  /** Leaderboard: zset userId → rank score (balls, then earliest). */
+  board: (dayId: string) => `ce:day:${dayId}:board`,
+  /** Each player's best: hash userId → JSON BestRec. */
+  best: (dayId: string) => `ce:day:${dayId}:best`,
+  /** Pours per player: hash userId → count. */
+  pours: (dayId: string) => `ce:day:${dayId}:pours`,
+  /** Subreddit totals for the day: hash balls / pours / hundreds. */
+  totals: (dayId: string) => `ce:day:${dayId}:totals`,
+  /** Short cooldown between submitted pours. */
+  cool: (dayId: string, userId: string) => `ce:day:${dayId}:cool:${userId}`,
   result: (dayId: string) => `ce:day:${dayId}:result`,
   post: (postId: string) => `ce:post:${postId}`,
   dayByNumber: (n: number) => `ce:daynum:${n}`,
   userStats: (userId: string) => `ce:user:${userId}:stats`,
-  inbox: (userId: string) => `ce:user:${userId}:inbox`,
   sub: 'ce:sub:stats',
-  lbMvps: 'ce:lb:mvps',
 } as const;

@@ -1,20 +1,18 @@
 /**
- * The daily pipeline (§2.1): OPEN → LOCKED → RESOLVED → COMMENTED → HANDED_OFF.
+ * The daily pipeline: OPEN → LOCKED → RESOLVED → COMMENTED → HANDED_OFF.
  * Every stage commits its own state and is safe to retry. The cron tick, the mod
  * "Run now" action and the install trigger all go through `tick`.
  */
 import { dayId as makeDayId, dayTitle, nextLockAt } from '../../shared/day';
-import { FIXTURES } from '../../shared/fixtures';
 import type { DayResult } from '../../shared/protocol';
+import type { Machine } from '../../shared/pour/types';
 import { resultsComment } from '../../shared/results';
-import { sha256Hex, toHex } from '../../shared/sha256';
-import type { Machine } from '../../shared/types';
 import type { Deps } from './deps';
 import { currentDayId, encodeMeta, newId, readMachine, readMeta, type DayMeta } from './day';
 import { K } from './keys';
-import { DEFAULT_RESOLVE_HOUR, ensureAhead, ensureConfig, ensureMachine, readConfig, SCHEDULE_VERSION } from './levels';
+import { ensureAhead, ensureConfig, ensureMachine, readConfig } from './machines';
 import { ensureDayPost, ensureResultsComment } from './posts';
-import { endCells, recomputeRun, resolveDay } from './resolve';
+import { nextGoal, resolveDay } from './summary';
 
 export const LEASE_MS = 5 * 60_000;
 /** A Day opened off-schedule (install, Run now) runs at least this long, so there is one new game a day. */
@@ -27,38 +25,23 @@ export function lockTimeFor(openedAt: number, hourUtc: number, minMs = MIN_DAY_M
   return t;
 }
 
-/** Existing installs: move to the current daily hour once, including the Day that is open now. */
-export async function migrateSchedule(deps: Deps): Promise<boolean> {
-  const v = Number((await deps.store.hGet(K.cfg, 'scheduleVersion')) ?? 0);
-  if (v >= SCHEDULE_VERSION) return false;
-  await deps.store.hSet(K.cfg, { resolveHourUtc: String(DEFAULT_RESOLVE_HOUR), scheduleVersion: String(SCHEDULE_VERSION) });
-  const id = await currentDayId(deps.store);
-  const meta = id ? await readMeta(deps.store, id) : null;
-  if (id && meta?.status === 'OPEN') {
-    await deps.store.hSet(K.meta(id), { locksAt: String(lockTimeFor(deps.now(), DEFAULT_RESOLVE_HOUR, 6 * 3_600_000)) });
-  }
-  deps.log('info', `schedule migrated to ${DEFAULT_RESOLVE_HOUR}:00 UTC`);
-  return true;
-}
-
 const fallbackText = (m: Machine, n: number): string =>
-  `Chaos Engine Day ${n}: "${m.name}". One shared machine, built by the whole subreddit. Open this post in the Reddit app or on new Reddit to play.`;
+  `Chaos Engine Day ${n}: "${m.name}". 100 balls, one bucket. Place ramps, springs and fans to catch them all, and top today's leaderboard. Open this post in the Reddit app or on new Reddit to play.`;
 
 /** Create a Day record (status CREATING) if it doesn't exist. Idempotent. */
-export async function createDayRecord(deps: Deps, dayNumber: number, machine: Machine, openedAt: number): Promise<string> {
+export async function createDayRecord(deps: Deps, dayNumber: number, machine: Machine, openedAt: number, goal: number): Promise<string> {
   const { store } = deps;
   const existing = await store.get(K.dayByNumber(dayNumber));
   if (existing) return existing;
   const cfg = await readConfig(deps);
   const id = makeDayId(openedAt, dayNumber);
-  const secret = toHex(deps.randomBytes(32));
   const meta: DayMeta = {
     dayId: id,
     dayNumber,
     status: 'CREATING',
     openedAt,
     locksAt: lockTimeFor(openedAt, cfg.resolveHourUtc),
-    commitHash: sha256Hex(secret),
+    goal,
     title: dayTitle(dayNumber, machine.name),
   };
   const tx = await store.watch(K.dayByNumber(dayNumber));
@@ -68,8 +51,6 @@ export async function createDayRecord(deps: Deps, dayNumber: number, machine: Ma
   }
   await tx.multi();
   await tx.hSet(K.meta(id), encodeMeta(meta));
-  await tx.set(K.secret(id), secret);
-  await tx.hSet(K.inv(id), Object.fromEntries(Object.entries(machine.inventory).map(([k, v]) => [k, String(v)])));
   await tx.set(K.dayByNumber(dayNumber), id);
   await tx.exec();
   return (await store.get(K.dayByNumber(dayNumber))) ?? id;
@@ -107,31 +88,25 @@ async function commentDay(deps: Deps, id: string): Promise<boolean> {
   const meta = await readMeta(deps.store, id);
   if (!meta || meta.status !== 'RESOLVED') return false;
   const raw = await deps.store.get(K.result(id));
-  const rec = await recomputeRun(deps, id);
-  if (!raw || !rec) return false;
-  const body = resultsComment(meta.dayNumber, JSON.parse(raw) as DayResult, rec.pieces, endCells(rec.run));
+  const machine = await readMachine(deps.store, meta.dayNumber);
+  if (!raw || !machine) return false;
+  const body = resultsComment(meta.dayNumber, machine.name, JSON.parse(raw) as DayResult);
   if (!(await ensureResultsComment(deps, id, body))) return false;
   await deps.store.hSet(K.meta(id), { status: 'COMMENTED' });
   return true;
 }
 
-/** COMMENTED → HANDED_OFF: open the next Day from its pre-generated machine. */
+/** COMMENTED → HANDED_OFF: open the next Day. */
 async function handoffDay(deps: Deps, id: string): Promise<boolean> {
   const meta = await readMeta(deps.store, id);
   if (!meta || meta.status !== 'COMMENTED') return false;
   const n = meta.dayNumber + 1;
   let nextId = meta.nextDayId;
   if (!nextId) {
-    let machine = await readMachine(deps.store, n);
-    if (!machine) {
-      // Generation is never on this path (§5.5). Publish a fixture rather than fail to publish.
-      const fx = JSON.parse(JSON.stringify(FIXTURES[n % FIXTURES.length])) as Machine;
-      fx.gen = { ...fx.gen!, fallback: true };
-      deps.log('error', `hand-off: no pre-generated machine for Day ${n}; publishing fixture "${fx.name}"`);
-      await deps.store.set(K.level(n), JSON.stringify(fx), { nx: true });
-      machine = (await readMachine(deps.store, n))!;
-    }
-    nextId = await createDayRecord(deps, n, machine, deps.now());
+    const machine = await ensureMachine(deps, n);
+    const raw = await deps.store.get(K.result(id));
+    const balls = raw ? (JSON.parse(raw) as DayResult).totals.balls : 0;
+    nextId = await createDayRecord(deps, n, machine, deps.now(), nextGoal(balls));
     await deps.store.hSet(K.meta(id), { nextDayId: nextId });
   }
   return openDay(deps, nextId, id);
@@ -164,8 +139,8 @@ export async function install(deps: Deps): Promise<string | null> {
   await ensureConfig(deps);
   if (await currentDayId(deps.store)) return currentDayId(deps.store);
   const now = deps.now();
-  const machine = await ensureMachine(deps, 1, now);
-  const id = await createDayRecord(deps, 1, machine, now);
+  const machine = await ensureMachine(deps, 1);
+  const id = await createDayRecord(deps, 1, machine, now, nextGoal(0));
   await openDay(deps, id, null);
   return currentDayId(deps.store);
 }
@@ -178,7 +153,6 @@ export async function tick(deps: Deps): Promise<TickReport> {
   if ((await store.get(K.lock)) !== token) return { ran: false, reason: 'another tick holds the lease', stages: [] };
   const stages: string[] = [];
   try {
-    if (await migrateSchedule(deps)) stages.push('schedule→02:00 UTC');
     let id = await currentDayId(store);
     if (!id) {
       id = await install(deps);
@@ -204,7 +178,7 @@ export async function tick(deps: Deps): Promise<TickReport> {
     // Generate ahead last: the hand-off above only ever reads stored machines.
     try {
       const cur = await readMeta(store, id);
-      if (cur) await ensureAhead(deps, cur.dayNumber, cur.locksAt, 2);
+      if (cur) await ensureAhead(deps, cur.dayNumber, 2);
     } catch (e) {
       deps.log('error', 'generate-ahead failed', String(e));
     }

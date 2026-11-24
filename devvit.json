@@ -40,15 +40,8 @@
   "menu": {
     "items": [
       {
-        "label": "Chaos Engine: Seed demo day",
-        "description": "Fill today's machine with labelled setup pieces and demo predictions",
-        "location": "subreddit",
-        "forUserType": "moderator",
-        "endpoint": "/internal/menu/seed-demo"
-      },
-      {
         "label": "Chaos Engine: Run now",
-        "description": "Lock and resolve today's machine now, then open the next one",
+        "description": "Close today's machine now, post results, open the next one",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/run-now"
@@ -61,25 +54,18 @@
         "endpoint": "/internal/menu/new-post"
       },
       {
-        "label": "Chaos Engine: Remove piece…",
-        "description": "Moderation override: remove a piece by coordinate",
+        "label": "Chaos Engine: Remove a score\u2026",
+        "description": "Take a player off today's leaderboard",
         "location": "subreddit",
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/remove-piece"
+        "endpoint": "/internal/menu/remove-score"
       },
       {
-        "label": "Chaos Engine: Regenerate upcoming",
-        "description": "Rebuild unpinned future machines with the current generator",
+        "label": "Chaos Engine: How hard is today?",
+        "description": "What the generator's own search caught on today's machine",
         "location": "subreddit",
         "forUserType": "moderator",
-        "endpoint": "/internal/menu/regenerate"
-      },
-      {
-        "label": "Chaos Engine: Show today's solution",
-        "description": "Moderator debugging aid",
-        "location": "subreddit",
-        "forUserType": "moderator",
-        "endpoint": "/internal/menu/show-solution"
+        "endpoint": "/internal/menu/show-par"
       },
       {
         "label": "Chaos Engine: Show duplicates",
@@ -91,7 +77,7 @@
     ]
   },
   "forms": {
-    "removePiece": "/internal/form/remove-piece"
+    "removeScore": "/internal/form/remove-score"
   },
   "scripts": {
     "build": "vite build",

@@ -5,7 +5,10 @@
 import { createApp } from '../../src/server/app';
 import type { Deps } from '../../src/server/core/deps';
 import { K } from '../../src/server/core/keys';
-import { readMeta } from '../../src/server/core/day';
+import { readMachine, readMeta } from '../../src/server/core/day';
+import { recordPour } from '../../src/server/core/board';
+import { runPour } from '../../src/shared/pour/sim';
+import { snap } from '../../src/shared/pour/build';
 import { MemoryStore } from '../harness/memory-store';
 import { FakeReddit } from '../harness/fake-reddit';
 import { clearState, loadState, saveState } from './persist';
@@ -76,9 +79,27 @@ export async function nextDay(): Promise<string> {
   return r.stages.join(' → ');
 }
 
-export async function seedDemo(): Promise<string> {
-  const r = (await (await call('POST', '/internal/menu/seed-demo')).json()) as { showToast?: { text: string } };
-  return r.showToast?.text ?? '';
+/**
+ * Playtest only: other players pour today, so the board has rivals. Their builds are the
+ * generator's best build for this machine, nudged a little so scores spread out.
+ */
+export async function fillBoard(): Promise<string> {
+  const id = await store.get(K.current);
+  const meta = id ? await readMeta(store, id) : null;
+  const machine = meta ? await readMachine(store, meta.dayNumber) : null;
+  if (!id || !meta || !machine) return 'No machine yet.';
+  const par = machine.gen?.par ?? [];
+  const names = ['marble_mike', 'rampqueen', 'bucketlist', 'sir_bounce', 'fanboy42', 'gravitas', 'plinko_pro'];
+  let n = 0;
+  for (const [i, u] of names.entries()) {
+    const jitter = i * 9;
+    const build = par.map((p, k) => snap({ ...p, x: p.x + ((k + i) % 2 ? jitter : -jitter), y: p.y + (i % 3) * 6 }));
+    const real = runPour(machine, build);
+    await recordPour(deps, id, { userId: `t2_${u}`, username: u }, build, real);
+    n++;
+  }
+  persist();
+  return `${n} players poured.`;
 }
 
 export function resetAll(): void {

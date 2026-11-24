@@ -2,10 +2,8 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../app';
 import { currentDayId, readMachine, readMeta } from '../core/day';
 import { K } from '../core/keys';
-import { regenerateUpcoming } from '../core/levels';
+import { removeFromBoard } from '../core/board';
 import { install, newPostForToday, runNow, tick } from '../core/pipeline';
-import { modRemove } from '../core/placement';
-import { seedDemo } from '../core/seed';
 
 type Ui = { showToast?: string | { text: string; appearance?: 'neutral' | 'success' }; showForm?: unknown; navigateTo?: string };
 
@@ -36,8 +34,7 @@ export function internalRoutes(env: AppEnv): Hono {
     return c.json({ status: 'success' });
   });
 
-  // Moderator menu (§6.4).
-  r.post('/menu/seed-demo', async (c) => c.json(await guard(async () => toast(await seedDemo(deps)))));
+  // Moderator menu.
   r.post('/menu/run-now', async (c) =>
     c.json(
       await guard(async () => {
@@ -52,44 +49,32 @@ export function internalRoutes(env: AppEnv): Hono {
     ),
   );
   r.post('/menu/new-post', async (c) => c.json(await guard(async () => toast(await newPostForToday(deps)))));
-  r.post('/menu/remove-piece', async (c) =>
+  r.post('/menu/remove-score', async (c) =>
     c.json({
       showForm: {
-        name: 'removePiece',
-        form: { title: 'Remove a piece', description: 'Moderator override: the piece returns to stock and its owner can place again.', acceptLabel: 'Remove', fields: [{ name: 'cell', label: 'Cell (e.g. C7)', type: 'string', required: true }] },
+        name: 'removeScore',
+        form: { title: "Remove a player's score", description: "Takes them off today's leaderboard. They can still play.", acceptLabel: 'Remove', fields: [{ name: 'username', label: 'Username', type: 'string', required: true }] },
       },
     }),
   );
-  r.post('/form/remove-piece', async (c) =>
+  r.post('/form/remove-score', async (c) =>
     c.json(
       await guard(async () => {
-        const { cell } = (await c.req.json()) as { cell?: string };
+        const { username } = (await c.req.json()) as { username?: string };
         const id = await currentDayId(deps.store);
         if (!id) return toast('No Day is running yet.', false);
-        return toast(await modRemove(deps, id, String(cell ?? '')));
+        return toast(await removeFromBoard(deps, id, String(username ?? '')));
       }),
     ),
   );
-  r.post('/menu/regenerate', async (c) =>
-    c.json(
-      await guard(async () => {
-        const id = await currentDayId(deps.store);
-        const meta = id ? await readMeta(deps.store, id) : null;
-        if (!meta) return toast('No Day is running yet.', false);
-        const n = await regenerateUpcoming(deps, meta.dayNumber);
-        await tick(deps);
-        return toast(`Cleared ${n} upcoming machine(s); they were regenerated with the current generator.`);
-      }),
-    ),
-  );
-  r.post('/menu/show-solution', async (c) =>
+  r.post('/menu/show-par', async (c) =>
     c.json(
       await guard(async () => {
         const id = await currentDayId(deps.store);
         const meta = id ? await readMeta(deps.store, id) : null;
         const m = meta ? await readMachine(deps.store, meta.dayNumber) : null;
-        if (!m?.solution) return toast('No solution stored.', false);
-        return toast(`Day ${meta!.dayNumber}: ${m.solution.map((s) => `${s.type} ${s.dir} @ ${s.socket}`).join(' · ')}`);
+        if (!m?.gen) return toast('No notes stored for this machine.', false);
+        return toast(`Day ${meta!.dayNumber}: the generator's search caught ${m.gen.best}; random builds catch about ${m.gen.random}.`);
       }),
     ),
   );

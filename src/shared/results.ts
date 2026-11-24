@@ -1,61 +1,28 @@
-/** Results text shared by the server (comment) and client (summary). */
+/** The nightly results comment. The first line is the marker used to find it again after a crash. */
 import { resultsMarker } from './day';
-import type { DayResult, StoredPiece } from './protocol';
-import { pieceName } from './rules/placement';
-import { variantInfo } from './sim/variants';
+import type { DayResult } from './protocol';
 
+const MEDAL = ['🥇', '🥈', '🥉'];
+const fmt = (n: number): string => n.toLocaleString('en-US');
 
-export function ballLabel(i: number, result: Pick<DayResult, 'variants'>): string {
-  const v = result.variants[i]!;
-  return i === 0 ? 'The red ball' : `The ${variantInfo(v).short} ball`;
+export function resultsComment(dayNumber: number, name: string, r: DayResult): string {
+  const lines = [`**${resultsMarker(dayNumber)}** · ${name}`, ''];
+  if (r.winner) {
+    lines.push(
+      r.winner.score === 100
+        ? `**Build of the Day:** u/${r.winner.username} caught all 100 balls and got there first. Open the post to watch their pour.`
+        : `**Build of the Day:** u/${r.winner.username} caught ${r.winner.score} of 100. Open the post to watch their pour.`,
+      '',
+    );
+    lines.push(r.top.slice(0, 5).map((e, i) => `${MEDAL[i] ?? `${e.rank}.`} u/${e.username} **${e.score}**`).join(' · '), '');
+  } else lines.push('Nobody poured today. The next machine is open now.', '');
+  const t = r.totals;
+  lines.push(
+    `Together: **${fmt(t.balls)}** balls caught in ${fmt(t.pours)} pours by ${fmt(t.players)} ${t.players === 1 ? 'player' : 'players'}. Goal ${fmt(t.goal)}: ${r.goalMet ? `**done!**${r.streak > 1 ? ` That's ${r.streak} days in a row.` : ''}` : 'not this time.'}`,
+  );
+  if (t.hundreds) lines.push('', `${t.hundreds} ${t.hundreds === 1 ? 'player' : 'players'} caught all 100.`);
+  lines.push('', 'A new machine is open now. Same 100 balls, new course.');
+  return lines.join('\n');
 }
 
-function endPhrase(end: string): string {
-  switch (end) {
-    case 'lost':
-      return 'fell off the board';
-    case 'stalled':
-      return 'got stuck';
-    case 'loop':
-      return 'bounced around forever';
-    default:
-      return 'ran out of time';
-  }
-}
-
-export function minutesBefore(ms: number): string {
-  const m = Math.max(0, Math.round(ms / 60_000));
-  if (m < 1) return 'seconds before lock';
-  if (m < 90) return `${m} min before lock`;
-  return `${Math.round(m / 60)} h before lock`;
-}
-
-/** The app's results comment (§8). Always ends with the recovery marker line. */
-export function resultsComment(dayNumber: number, r: DayResult, pieces: readonly StoredPiece[], endCells: readonly string[]): string {
-  const lines: string[] = [];
-  const misses = r.perBall
-    .map((b, i) => ({ b, i }))
-    .filter(({ b }) => b.end !== 'success')
-    .map(({ b, i }) => `${ballLabel(i, r)} ${endPhrase(b.end)}`);
-  void endCells;
-  const stars = '⭐'.repeat(r.score) + '☆'.repeat(3 - r.score);
-  lines.push(`${stars} **${r.score} of 3 balls reached the flag.**${misses.length ? ` ${misses.join('; ')}.` : ' A perfect run!'}`);
-  const piece = (id: string | undefined): StoredPiece | undefined => pieces.find((p) => p.pieceId === id);
-  const aw: string[] = [];
-  const mvp = piece(r.awards.mvp?.pieceId);
-  if (r.awards.mvp && mvp) aw.push(`🏆 MVP: u/${r.awards.mvp.username}'s ${pieceName(mvp.type)}`);
-  const mt = piece(r.awards.mostTouched?.pieceId);
-  if (r.awards.mostTouched && mt) aw.push(`👆 Most Touched: u/${r.awards.mostTouched.username}'s ${pieceName(mt.type)}`);
-  if (r.awards.clutch) aw.push(`⏱ Clutch: u/${r.awards.clutch.username}, ${minutesBefore(r.lockedAt - r.awards.clutch.at)}`);
-  if (aw.length) lines.push(aw.join(' · '));
-  lines.push(`Streak: ${r.streak} ${r.streak === 1 ? 'day' : 'days'}. A new machine is up now — find it in the newest post.`);
-  lines.push('');
-  lines.push(resultsMarker(dayNumber));
-  return lines.join('\n\n').replace(/\n\n\n\n/g, '\n\n');
-}
-
-/** Does this comment body carry the Day's marker as its last line? */
-export function hasResultsMarker(body: string, dayNumber: number): boolean {
-  const last = body.trim().split('\n').at(-1)?.trim() ?? '';
-  return last === resultsMarker(dayNumber);
-}
+export const hasResultsMarker = (body: string, dayNumber: number): boolean => body.includes(resultsMarker(dayNumber));

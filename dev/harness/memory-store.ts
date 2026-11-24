@@ -183,6 +183,16 @@ export class MemoryStore implements StorePort {
     for (const m of members) z.delete(m);
     this.bump(key);
   }
+  async zRank(key: string, member: string): Promise<number | undefined> {
+    this.check('zRank', key);
+    const all = await this.zRange(key, 0, -1);
+    const i = all.findIndex((m) => m.member === member);
+    return i < 0 ? undefined : i;
+  }
+  async zScore(key: string, member: string): Promise<number | undefined> {
+    this.check('zScore', key);
+    return this.zset(key, false)?.get(member);
+  }
   async zCard(key: string): Promise<number> {
     this.check('zCard', key);
     return this.zset(key, false)?.size ?? 0;

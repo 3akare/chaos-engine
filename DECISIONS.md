@@ -134,3 +134,15 @@ or where the implementation deviates from it. Newest last.
 - **Solution-space census** (`shared/generator/solveSpace.ts`): every arrangement of the day's pieces (any + spot, any turn, or unused) is simulated. A machine passes if ≥1 arrangement gets all three balls home, ≤2% of arrangements do (not luck), and ≥30% of normal-ball wins lose the heavy or bouncy ball (the balls matter). Median generation ~140 ms. A last-resort pass relaxes the 30% rule (marked `gen.relaxed`), and the test allows at most 10 such days in 100.
 - **Solo machine ≠ Team machine.** Generated with a `:solo` salt, kept apart from the Team layout by the variety check, stored at `ce:sololevel:{n}`; `/api/solo` scores against it. `/api/solo/hint?n=` reveals Solo solution pieces one at a time (offered after 3 tries without 3 stars).
 - **Placing pieces from a bubble** next to the tapped spot (pick / turn / remove, or turn / place / cancel in Team) instead of a dock tray that overflowed narrow phones. Checked at 320 px.
+
+## 2026-11-24 · Ball pour replaces the grid game
+
+Playtesting said the grid game had "zero excitement": you watched three balls move square by square and got a star or not. The ball-pour prototype (real physics, 100 balls, sound) was fun immediately, so the game is now that, with a daily leaderboard as the competition.
+
+- **One fixed pour per day.** Everyone gets the same 100 balls (the chute's wobble is seeded per machine). Your build is the only variable, so the leaderboard is skill, not luck, and any score can be re-run.
+- **The server re-runs scores.** A pour that would raise your best is simulated again on the server (≈0.15 s); the server's count is saved. Pours that don't raise your best only add to the shared total.
+- **Deterministic trig.** Matter.js calls `Math.sin/cos` every step for every rotating body. Those differ by an ulp between V8 and JavaScriptCore, which is enough to change a score. While the sim runs they're swapped for fdlibm-kernel versions built from + − × ÷ and `Math.round` only. Verified bit-identical between Node and Bun.
+- **Builds hidden until close.** Revealing the winner only after 02:00 UTC stops the leader being copied, and gives the next day's post a reason to exist (Build of the Day).
+- **Community without a shared board.** A shared board was what made the old Team mode feel lame. The subreddit instead has a daily goal (balls caught by everyone) and a streak.
+- **Machines are made offline.** Vetting a machine takes a few hundred pours (a minute of CPU), too slow for the scheduler, so a vetted pack ships with the app and later days reuse it mirrored and re-seeded.
+- **Removed:** the grid sim, its generator and fixtures, Solo/Team, the three ball types, the commit-reveal seal (nothing secret is drawn any more), Phaser.

@@ -1,105 +1,94 @@
 # Chaos Engine
 
-> **Build together. Let chaos take over.**
-> A daily cooperative machine-building game for Reddit, built on Devvit Web.
+> **100 balls. One bucket. Catch them all.**
+> A daily physics puzzle for Reddit with a subreddit leaderboard, built on Devvit Web.
 
-Every day your subreddit gets a **Build of the Day**: one machine with a ball chute and a green flag. Open the post and pick how to play:
+Every day your subreddit gets a new machine: a chute at the top, a bucket at the bottom, and ledges, pegs and spinners in between. You get a handful of pieces (ramps, a spring, a bumper, a fan) and you can put them **anywhere**. Press **Pour** and 100 balls tumble through with real physics. Every ball in the bucket counts.
 
-- **Solo** — your own machine for the day with every piece it has. Place the pieces, press ▶ and three balls roll: **normal, heavy and bouncy**. Each one that reaches the flag is a ⭐, and coloured dots show where each ball went. Try as often as you like (hints after 3 tries); your best is saved.
-- **Team** — a different machine (so Solo answers don't spoil it), one board for the whole subreddit. The pieces are split between today's builders, nobody can make it worse, and at **02:00 UTC** the three balls roll for real. Then a new machine opens.
+- **Today's leaderboard.** Your best pour of the day is your score. Most balls wins; on a tie, whoever got there first. Can anyone catch all 100?
+- **Together.** Every ball anyone catches adds to the subreddit's goal for the day.
+- **Build of the Day.** Builds stay hidden while the day is open. At **02:00 UTC** the board closes, the winning build is revealed (anyone can watch it pour), a results comment goes up, and the next machine opens.
 
 <p align="center">
-  <img src="docs/img/splash-open.png" width="380" alt="The post in the feed with Solo and Team buttons" />
+  <img src="docs/img/card.png" width="380" alt="The post in the feed: the machine, the top three, the shared goal and Play" />
 </p>
 <p align="center">
-  <img src="docs/img/build.png" width="250" alt="Placing a piece" />
-  <img src="docs/img/reveal.png" width="250" alt="Rolling the three balls" />
-  <img src="docs/img/run.png" width="250" alt="The result in stars" />
+  <img src="docs/img/build.png" width="250" alt="Placing pieces" />
+  <img src="docs/img/pour.png" width="250" alt="100 balls pouring" />
+  <img src="docs/img/board.png" width="250" alt="Today's leaderboard" />
 </p>
 
 ## How to play
 
-1. **Get the balls to the flag.**
-2. **Tap a +**: a bubble shows the pieces you have. Tap one to place it; tap a placed piece to turn or remove it. There's no preview: you find out by rolling.
-3. **Press ▶** to roll all three balls. Coloured dots show where each ball went and a ✕ where it was lost. Build so the heavy and bouncy balls make it too.
+1. **Drag a piece** from the bar onto the board. Put it anywhere.
+2. **Tap a placed piece to turn it** (ramps and springs 20° a tap, fans 45°). Drag it off the board to take it back.
+3. **Pour.** Watch, tweak, pour again. Only your best counts.
 
-### The three balls
-
-| Ball | What's different |
+| Piece | What it does |
 |---|---|
-| 🔴 **Normal** | The one the dotted path shows. |
-| ⚪ **Heavy** | Fans push it less; springs throw it lower. |
-| 🟢 **Bouncy** | Springs throw it higher. |
+| **Ramp** | A plank. Balls roll along it. |
+| **Spring** | Launches any ball that lands on its pad, straight out the way it points. |
+| **Bumper** | Kicks balls away hard in whatever direction they hit it. |
+| **Fan** | Blows balls along its beam, strongest up close. |
 
-They're the same three every day. Every machine is checked by trying every possible arrangement of its pieces: at least one gets all three home, at most 2% of arrangements win (no winning by luck), and at least 30% of builds that get the normal ball home still lose the heavy or bouncy one (so all three balls matter).
+## Fair scores
 
-### Team play: how pieces are shared
+The phone runs the pour, but the score on the leaderboard comes from the server. Any pour that would raise your best is re-run on the server with the same build, and the server's count is the one that's saved.
 
-Today's fix needs 2–4 pieces. They're split between everyone building today, rounded up: **pieces you can place = pieces needed ÷ people building**. Alone, you can build the whole fix; with four people on a four-piece day it's one each. A piece can only be replaced by one that gets the normal ball further, so nobody can wreck the board. In Team, ▶ shows what the board would score if it rolled right now.
+That only works if the physics is identical everywhere. The game uses [Matter.js](https://brm.io/matter-js/) at a fixed 1/60 s step, and swaps `Math.sin`, `Math.cos` and `Math.atan2` for deterministic versions while it runs (`src/shared/pour/detmath.ts`). The native ones differ in the last bit between JavaScript engines, and 100 colliding balls turn one bit into a different score. `npm run check:engines` runs the same pours under V8 (Node; Chrome; Android) and JavaScriptCore (Bun; Safari; every iPhone browser) and the ball positions match bit for bit.
 
-### The pieces
+Everyone pours the same 100 balls on the same machine, so the only difference between two scores is the build.
 
-| Piece | Turns | What it does |
-|---|---|---|
-| **Ramp** | ↘ ↙ | Sends the ball down and to the side. |
-| **Spring** | ↑ ↗ ↖ | Launches a ball that lands on it, straight up or in an arc. |
-| **Fan** | → ← ↑ | Blows the ball along (you can see the wind), up to 3 squares. |
+## Where the machines come from
 
-Each day has exactly the pieces its solution needs, and every weekday features a different one (springs or fans), so no two days play the same. The machine also has **switches** that unlock **gates**, and on Saturdays numbered **coins** to collect in order.
+Each machine is generated from a seed and then **poured hundreds of times** before it's used (`dev/pour/pack.ts`):
 
-### How fairness works (the seal)
+- the empty board catches almost nothing (≤ 15),
+- random builds catch almost nothing (median ≤ 20),
+- a search that keeps improving a build gets most of the way (≥ 72). People beat the search: on the prototype levels, players beat its best by 10–15.
 
-When a Day opens, the server draws a random 32-byte secret and publishes `sha256(secret)` in the game ("🔒 Sealed: 3fa9…"). The secret balls are picked deterministically from `hash(dayId + secret)`. At lock the secret is revealed and the game checks the hash in front of you ("sha256(seed) = … ✓ matches"). Everything else is deterministic too: replays are recomputed from the frozen board and the revealed seed, with integer-only physics.
+The machines that pass go into `src/shared/pour/pack.json`, in play order. After the pack runs out it repeats mirrored, then with a different chute wobble, so no two days pour the same. A machine is copied into Redis when its day is created and never changes after that.
 
-### Awards and stats
+## The daily loop
 
-- 🏆 **MVP**: the piece whose removal would have hurt the day's outcome most (computed by re-running the day without it).
-- 👆 **Most touched**: the piece the balls hit most often across all three runs.
-- ⏱ **Clutch**: the last placement before lock that improved Ball 1's progress.
-- **Community**: current streak of Days with at least one star, best streak, perfect (⭐⭐⭐) Days.
-- **You**: pieces placed, pieces that touched a ball in the final run, MVPs.
+```
+OPEN ──02:00 UTC──▶ LOCKED ──▶ RESOLVED ──▶ COMMENTED ──▶ HANDED_OFF (next day OPEN)
+```
 
-Awards are positive only; nobody is ever named as a "saboteur". If something happened to your piece while you were away (someone replaced it, or it became MVP), the game tells you the next time you open it.
+A scheduler job runs every 10 minutes and advances whatever is due. Each stage saves its own state and is safe to repeat, so a crash in the middle just picks up on the next run. Posts and comments are found again by their title marker before anything new is created, so nothing is posted twice.
 
-### The weekly rhythm
+The daily goal is 10% more than the subreddit caught the day before (at least 2,000 balls). Days in a row with the goal met are the subreddit's streak.
 
-| Day | Difficulty | Twist |
-|---|---|---|
-| Mon, Tue | ⚙ | 2-piece fix |
-| Wed, Thu | ⚙⚙ | 3-piece fix, gates likely |
-| Fri | ⚙⚙⚙ | 4-piece fix, a gate guaranteed |
-| Sat | ⚙⚙⚙ | Checkpoints: hit ①② in order before the goal |
-| Sun | ⚙⚙ | Springs and fans |
-
-## For moderators
-
-Install the app, and Day 1 opens with its own post (the app makes every post itself). A scheduled job runs every 10 minutes: at the lock time (**02:00 UTC**, once a day) it locks the machine, resolves the three balls, posts a results comment, and opens the next Day's post. Every stage is crash-safe and idempotent, and the job searches for its own posts and comments before creating any, so a retry never duplicates them.
-
-Moderator menu items (subreddit menu → **Chaos Engine: …**):
+## Moderator menu
 
 | Item | What it does |
 |---|---|
-| **Seed demo day** | Fills today's machine with labelled `(setup)` pieces (all but one piece of a known solution) Great for a fresh subreddit. Players can replace setup pieces under the improve rule. |
-| **Run now** | Locks and resolves today's machine immediately, then opens the next one (same code path as the scheduler). |
-| **New post for today** | Recreates today's post if it was deleted. |
-| **Remove piece…** | Moderation override: remove the piece at a coordinate (e.g. `C7`). It returns to stock and its owner is notified. |
-| **Regenerate upcoming** | Rebuilds unpinned future machines with the current generator version. |
-| **Show today's solution** | Shows the generator's known solution (debugging aid; never sent to players). |
-| **Show duplicates** | Lists duplicate posts/comments recorded during recovery, for cleanup. |
+| Run now | Close today's machine now, post results, open the next one. |
+| New post for today | Recreate today's post if it was deleted. |
+| Remove a score… | Take a player off today's leaderboard. |
+| How hard is today? | What the generator's own search caught on today's machine. |
+| Show duplicates | Duplicate posts or comments to clean up. |
 
-The app makes **no external network requests** (its HTTP allowlist is empty).
+## Project layout
 
-## Development
+```
+src/shared/pour/   physics (sim.ts), deterministic trig, build checks, generator, search, the pack
+src/server/        Hono routes, daily pipeline, leaderboard (core/board.ts), results
+src/client/pour/   game screen (game.ts), canvas drawing, sounds
+src/client/splash/ the feed card
+dev/demo/          browser playtest: the real server running in the page over an in-memory store
+dev/pour/          machine search, pack builder, cross-engine check, machine gallery
+```
+
+## Develop
 
 ```bash
 npm install
-npm run check      # lint + typecheck + tests + Devvit build
-npm run harness    # local harness on http://localhost:5174 (no Reddit account needed)
-npm run dev        # devvit playtest (needs `devvit login`)
+npm run check          # lint, typecheck, tests, build
+npm run demo:build     # browser playtest → dist/demo
+npm run check:engines  # V8 vs JavaScriptCore, needs bun
+npm run pack           # search for more machines (slow; uses 4 cores)
+npm run pack:json      # rebuild pack.json from the search results
 ```
 
-The **local harness** runs the real server routes against an in-memory Redis (with `watch/multi/exec`) and a fake Reddit. It provides a phone frame, a user switcher, **Advance day**, **Seed demo**, a **sandbox** for placing pieces freely, and a **seed gallery** of the next 30 generated Days. The gallery has a "Play solution" button and lets you pin a different validated attempt for any future Day.
-
-<p align="center"><img src="docs/img/gallery.png" width="760" alt="Seed gallery" /></p>
-
-Project layout: `src/shared` (pure, deterministic simulation, generator, rules), `src/server` (Hono routes and the daily pipeline over injected ports), `src/client` (`splash.html` inline card without Phaser; `game.html` with a Phaser board and a DOM overlay), `dev/harness`, `tests` (Vitest). See [`PLAN.md`](PLAN.md) for the full design and [`DECISIONS.md`](DECISIONS.md) for choices made during the build.
+Art: [Kenney](https://kenney.nl) (CC0). Fonts: Lilita One, Nunito (OFL). Physics: Matter.js (MIT).

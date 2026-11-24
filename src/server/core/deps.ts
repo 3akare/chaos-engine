@@ -38,6 +38,9 @@ export interface StorePort {
   zRange(key: string, start: number, stop: number, opts?: { reverse?: boolean; by?: 'rank' | 'score' }): Promise<ZMember[]>;
   zRem(key: string, members: string[]): Promise<void>;
   zCard(key: string): Promise<number>;
+  /** Ascending rank (0 = lowest score), or undefined if absent. */
+  zRank(key: string, member: string): Promise<number | undefined>;
+  zScore(key: string, member: string): Promise<number | undefined>;
   watch(...keys: string[]): Promise<TxPort>;
 }
 

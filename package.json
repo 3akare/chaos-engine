@@ -11,13 +11,15 @@
     "lint": "eslint \"src/**/*.ts\" \"dev/**/*.ts\" \"tests/**/*.ts\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "harness": "node dev/harness/run.mjs",
     "dev": "devvit playtest",
     "deploy": "npm run check && devvit upload",
     "launch": "npm run deploy && devvit publish",
     "login": "devvit login",
     "prettier": "prettier --write .",
-    "demo:build": "vite build --config dev/demo/vite.demo.config.ts"
+    "demo:build": "vite build --config dev/demo/vite.demo.config.ts",
+    "check:engines": "npx tsx dev/pour/engines.ts && bun dev/pour/engines.ts",
+    "pack": "npx tsx dev/pour/pack.ts 4 dev/pour/pack.jsonl",
+    "pack:json": "npx tsx dev/pour/pack-json.ts"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -30,10 +32,11 @@
     "@hono/node-server": "2.1.6",
     "devvit": "0.15.4",
     "hono": "4.13.17",
-    "phaser": "3.90.0"
+    "matter-js": "^0.19.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/matter-js": "^0.20.2",
     "@types/node": "^24.13.3",
     "eslint": "10.14.0",
     "globals": "17.14.0",
