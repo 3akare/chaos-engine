@@ -16,6 +16,7 @@ export default defineConfig([
       'vite.config.ts',
       'vitest.config.ts',
       'dev/harness/vite.harness.config.ts',
+      'dev/demo/vite.demo.config.ts',
       'dev/harness/run.mjs',
     ],
   },

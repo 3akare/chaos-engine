@@ -54,6 +54,25 @@ export class MemoryStore implements StorePort {
     return m;
   }
 
+  /** Serialize everything (browser demo persistence). */
+  snapshot(): string {
+    const out: Array<[string, unknown]> = [];
+    for (const [k, v] of this.data) {
+      if (v.t === 'str') out.push([k, v]);
+      else out.push([k, { t: v.t, v: [...v.v.entries()] }]);
+    }
+    return JSON.stringify(out);
+  }
+  restore(json: string): void {
+    this.data.clear();
+    for (const [k, v] of JSON.parse(json) as Array<[string, { t: Val['t']; v: unknown; exp?: number }]>) {
+      if (v.t === 'str') this.data.set(k, v as Val);
+      else if (v.t === 'hash') this.data.set(k, { t: 'hash', v: new Map(v.v as Array<[string, string]>) });
+      else this.data.set(k, { t: 'zset', v: new Map(v.v as Array<[string, number]>) });
+      this.bump(k);
+    }
+  }
+
   /** Snapshot for debugging / harness reset. */
   keys(): string[] {
     return [...this.data.keys()].filter((k) => this.live(k));

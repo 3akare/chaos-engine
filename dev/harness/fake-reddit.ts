@@ -15,6 +15,16 @@ export class FakeReddit implements RedditPort {
     private appName = 'chaos-engine',
   ) {}
 
+  snapshot(): string {
+    return JSON.stringify({ posts: this.posts, comments: [...this.comments.entries()], seq: this.seq });
+  }
+  restore(json: string): void {
+    const d = JSON.parse(json) as { posts: RedditPostRef[]; comments: Array<[string, RedditCommentRef[]]>; seq: number };
+    this.posts = d.posts;
+    this.comments = new Map(d.comments);
+    this.seq = d.seq;
+  }
+
   async appUsername(): Promise<string> {
     return this.appName;
   }

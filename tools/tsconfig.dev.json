@@ -8,7 +8,7 @@
     "rootDir": ".."
   },
   "include": ["../tests/**/*", "../dev/**/*", "../vitest.config.ts"],
-  "exclude": ["../dev/harness/vite.harness.config.ts"],
+  "exclude": ["../dev/harness/vite.harness.config.ts", "../dev/demo/vite.demo.config.ts"],
   "references": [
     { "path": "./tsconfig.shared.json" },
     { "path": "./tsconfig.server.json" },

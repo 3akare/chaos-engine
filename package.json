@@ -16,7 +16,8 @@
     "deploy": "npm run check && devvit upload",
     "launch": "npm run deploy && devvit publish",
     "login": "devvit login",
-    "prettier": "prettier --write ."
+    "prettier": "prettier --write .",
+    "demo:build": "vite build --config dev/demo/vite.demo.config.ts"
   },
   "engines": {
     "node": ">=22.0.0"
