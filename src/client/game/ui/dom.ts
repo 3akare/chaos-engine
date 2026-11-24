@@ -1,4 +1,4 @@
-/** Minimal DOM helpers: element builder, bottom sheet, modal, toast. */
+/** Tiny UI kit: element builder, cards centred on the board, a one-line tag above the dock. */
 export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string | boolean | ((e: Event) => void)> = {}, ...kids: Array<Node | string | null | undefined | false>): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -10,99 +10,79 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<s
   return el;
 }
 
-let scrim: HTMLElement | null = null;
-let openSheet: HTMLElement | null = null;
-let openModal: HTMLElement | null = null;
-let onCloseSheet: (() => void) | null = null;
+const board = (): HTMLElement => document.getElementById('board') ?? document.body;
 
-function ensureScrim(close: () => void): HTMLElement {
-  if (!scrim) {
-    scrim = h('div', { class: 'scrim' });
-    document.body.append(scrim);
-  }
-  scrim.onclick = close;
-  requestAnimationFrame(() => scrim!.classList.add('show'));
-  return scrim;
-}
-function hideScrim(): void {
-  if (!scrim || openSheet || openModal) return;
-  scrim.classList.remove('show');
-  const s = scrim;
-  scrim = null;
-  setTimeout(() => s.remove(), 200);
-}
+let openVeil: HTMLElement | null = null;
 
-/** Show a bottom sheet. `modal: false` keeps the board tappable (used by the palette). */
-export function showSheet(content: HTMLElement, opts: { onClose?: () => void; modal?: boolean } = {}): HTMLElement {
-  closeSheet(true);
-  const el = h('div', { class: 'sheet', role: 'dialog' }, h('div', { class: 'grabber' }), content);
-  document.body.append(el);
-  openSheet = el;
-  onCloseSheet = opts.onClose ?? null;
-  if (opts.modal !== false) ensureScrim(() => closeSheet());
-  requestAnimationFrame(() => el.classList.add('show'));
-  return el;
-}
-
-export function closeSheet(silent = false): void {
-  if (!openSheet) return;
-  const el = openSheet;
-  openSheet = null;
-  el.classList.remove('show');
-  setTimeout(() => el.remove(), 230);
-  const cb = onCloseSheet;
-  onCloseSheet = null;
-  if (!silent) cb?.();
-  hideScrim();
-}
-
-export const sheetOpen = (): boolean => openSheet !== null;
-
-export function showModal(content: HTMLElement, onClose?: () => void, closeLabel = 'Got it'): void {
-  closeModal();
+/** A card centred on the board with one call-to-action. Tapping outside also closes it (onClose runs either way, onCta only for the button). */
+export function showCard(content: HTMLElement, cta: string | null, onClose?: () => void, onCta?: () => void): () => void {
+  closeCard();
+  const veil = h('div', { class: 'veil', role: 'dialog' });
   const close = (): void => {
-    closeModal();
+    if (openVeil !== veil) return;
+    openVeil = null;
+    veil.classList.remove('show');
+    setTimeout(() => veil.remove(), 220);
     onClose?.();
   };
-  const el = h('div', { class: 'modal', role: 'dialog' }, content, h('button', { class: 'btn primary close', onclick: close }, closeLabel));
-  document.body.append(el);
-  openModal = el;
-  ensureScrim(close);
-  requestAnimationFrame(() => el.classList.add('show'));
+  const card = h('div', { class: 'card' }, ...content.childNodes.length ? [...content.childNodes] : [content]);
+  if (cta)
+    card.append(
+      h('button', {
+        class: 'cta',
+        onclick: () => {
+          close();
+          onCta?.();
+        },
+      }, cta),
+    );
+  card.addEventListener('click', (e) => e.stopPropagation());
+  veil.addEventListener('click', close);
+  veil.append(card);
+  document.body.append(veil);
+  openVeil = veil;
+  requestAnimationFrame(() => veil.classList.add('show'));
+  return close;
 }
 
-export function closeModal(): void {
-  if (!openModal) return;
-  const el = openModal;
-  openModal = null;
-  el.classList.remove('show');
-  setTimeout(() => el.remove(), 200);
-  hideScrim();
+export function closeCard(): void {
+  if (!openVeil) return;
+  const v = openVeil;
+  openVeil = null;
+  v.classList.remove('show');
+  setTimeout(() => v.remove(), 220);
 }
 
-let toastTimer = 0;
-export function toast(text: string, ms = 2600): void {
-  document.querySelectorAll('.toast').forEach((t) => t.remove());
-  const el = h('div', { class: 'toast', role: 'status' }, text);
-  document.body.append(el);
-  clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => el.remove(), ms);
+export const cardOpen = (): boolean => openVeil !== null;
+
+let tagEl: HTMLElement | null = null;
+let tagTimer = 0;
+/** One short line just above the dock. `sticky` keeps it until replaced or cleared. */
+export function tag(text: string, kind: 'good' | 'bad' | 'same' = 'same', sticky = false): void {
+  if (!tagEl || !tagEl.isConnected) {
+    tagEl = h('div', { class: 'tag', role: 'status', 'aria-live': 'polite' });
+    board().append(tagEl);
+  }
+  tagEl.className = `tag ${kind}`;
+  tagEl.replaceChildren(h('i', {}), text);
+  requestAnimationFrame(() => tagEl?.classList.add('show'));
+  clearTimeout(tagTimer);
+  if (!sticky) tagTimer = window.setTimeout(clearTag, 2600);
 }
+
+export function clearTag(): void {
+  clearTimeout(tagTimer);
+  tagEl?.classList.remove('show');
+}
+
+/** Back-compat for older callers. */
+export const toast = (text: string): void => tag(text, 'bad');
 
 export function fmtCountdown(ms: number): string {
-  if (ms <= 0) return 'locking…';
+  if (ms <= 0) return '';
   const s = Math.floor(ms / 1000);
   const hh = Math.floor(s / 3600);
   const mm = Math.floor((s % 3600) / 60);
   if (hh > 0) return `${hh}h ${String(mm).padStart(2, '0')}m`;
-  const ss = s % 60;
-  return `${mm}m ${String(ss).padStart(2, '0')}s`;
-}
-
-export function ago(ms: number): string {
-  const m = Math.round(ms / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m} min ago`;
-  const hrs = Math.round(m / 60);
-  return `${hrs} h ago`;
+  return `${mm}m ${String(s % 60).padStart(2, '0')}s`;
 }

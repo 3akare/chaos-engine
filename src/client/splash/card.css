@@ -1,18 +1,19 @@
-:root { --c-bg1: #ffeadb; --c-bg2: #ffcdbd; --c-ink: #5a3442; --c-muted: #b07f86; --c-accent: #ff7b5c; --c-accent-ink: #fff; --c-well: rgba(176, 98, 74, 0.12); color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --c-bg1: #2b1f3a; --c-bg2: #4b2d47; --c-ink: #fbe9dc; --c-muted: #b998ad; --c-accent: #ff8f6b; --c-accent-ink: #2b1f3a; --c-well: rgba(255, 220, 200, 0.1); color-scheme: dark; } }
-:root[data-theme='dark'] { --c-bg1: #2b1f3a; --c-bg2: #4b2d47; --c-ink: #fbe9dc; --c-muted: #b998ad; --c-accent: #ff8f6b; --c-accent-ink: #2b1f3a; --c-well: rgba(255, 220, 200, 0.1); color-scheme: dark; }
+/* Feed card. Same tokens, font, radii and shadow as the game (see game/game.css). */
+@import '../lib/font.css';
+:root { --c-bg1: #fde9dc; --c-bg2: #f8d3c3; --c-ink: #4a2b37; --c-muted: #a27b80; --c-accent: #ff7657; --c-on-accent: #fff; --c-well: rgba(90, 45, 55, 0.07); --c-lift: 0 6px 16px rgba(150, 70, 50, 0.18), 0 1px 3px rgba(150, 70, 50, 0.12); color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --c-bg1: #2a1e37; --c-bg2: #3b2541; --c-ink: #f8e8dc; --c-muted: #ae90a7; --c-accent: #ff8a66; --c-on-accent: #2a1e37; --c-well: rgba(255, 230, 215, 0.08); --c-lift: 0 6px 16px rgba(8, 0, 16, 0.42), 0 1px 3px rgba(8, 0, 16, 0.3); color-scheme: dark; } }
+:root[data-theme='dark'] { --c-bg1: #2a1e37; --c-bg2: #3b2541; --c-ink: #f8e8dc; --c-muted: #ae90a7; --c-accent: #ff8a66; --c-on-accent: #2a1e37; --c-well: rgba(255, 230, 215, 0.08); --c-lift: 0 6px 16px rgba(8, 0, 16, 0.42), 0 1px 3px rgba(8, 0, 16, 0.3); color-scheme: dark; }
 .ce-card, .ce-card * { box-sizing: border-box; }
-.ce-card { height: 100%; display: flex; gap: 16px; padding: 14px; background: linear-gradient(160deg, var(--c-bg1), var(--c-bg2)); color: var(--c-ink); font: 700 15px/1.25 ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, sans-serif; }
-.ce-card .mini { flex: 0 0 auto; height: 100%; aspect-ratio: 9 / 14.4; max-width: 48%; cursor: pointer; }
+.ce-card { height: 100%; display: flex; gap: 20px; padding: 16px 20px; background: linear-gradient(180deg, var(--c-bg1), var(--c-bg2)); color: var(--c-ink); font: 800 16px/1.25 'Nunito Variable', 'Nunito', ui-rounded, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.ce-card .mini { flex: 0 0 auto; height: 100%; max-width: 50%; cursor: pointer; }
 .ce-card .mini canvas { width: 100%; height: 100%; display: block; }
-.ce-card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.ce-card .brand { font-size: 12px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-muted); }
-.ce-card .title { font-size: 30px; font-weight: 900; line-height: 1.05; }
-.ce-card .muted { color: var(--c-muted); font-size: 15px; font-variant-numeric: tabular-nums; }
-.ce-card .score { font-size: 44px; font-weight: 900; line-height: 1; margin-top: 6px; }
-.ce-card .balls3 { display: flex; gap: 6px; }
+.ce-card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 0 4px; }
+.ce-card .title { font-size: 32px; font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; }
+.ce-card .muted { color: var(--c-muted); font-size: 16px; font-variant-numeric: tabular-nums; }
+.ce-card .score { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: -0.03em; margin-top: 12px; }
+.ce-card .balls3 { display: flex; gap: 8px; margin-top: 8px; }
 .ce-card .balls3 i { width: 16px; height: 16px; border-radius: 50%; background: var(--c-well); }
 .ce-card .balls3 i.in { background: var(--c-accent); }
 .ce-card .spacer { flex: 1; }
-.ce-card .cta { min-height: 56px; border: 0; border-radius: 20px; background: var(--c-accent); color: var(--c-accent-ink); font: 900 19px ui-rounded, system-ui, sans-serif; cursor: pointer; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.14), 0 8px 18px rgba(176, 98, 74, 0.28); }
-.ce-card .cta:active { transform: translateY(2px); }
+.ce-card .cta { height: 52px; border: 0; border-radius: 999px; background: var(--c-accent); color: var(--c-on-accent); font: 900 17px 'Nunito Variable', 'Nunito', system-ui, sans-serif; cursor: pointer; box-shadow: var(--c-lift); transition: transform 0.14s; }
+.ce-card .cta:active { transform: translateY(2px) scale(0.98); }

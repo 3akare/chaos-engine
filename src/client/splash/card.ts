@@ -31,7 +31,7 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => vo
   const mini = el('div', 'mini', canvas);
   mini.addEventListener('click', open);
   const info = el('div', 'info');
-  info.append(el('div', 'brand', 'Chaos Engine'), el('div', 'title', `Day ${v.day.dayNumber}`));
+  info.append(el('div', 'title', `Day ${v.day.dayNumber}`));
   const cta = (label: string): void => {
     const b = el('button', 'cta', label);
     b.addEventListener('click', open);
@@ -51,15 +51,14 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => vo
   root.replaceChildren(mini, info);
   // Size the preview from the card's height (CSS aspect-ratio collapses inside a flex row here).
   const fit = (): void => {
-    const hgt = mini.clientHeight || root.clientHeight - 28;
-    mini.style.width = `${Math.min(root.clientWidth * 0.48, Math.floor((hgt * 9) / 14.4))}px`;
+    const hgt = mini.clientHeight || root.clientHeight - 32;
+    mini.style.width = `${Math.min(root.clientWidth * 0.5, Math.floor((hgt * 9.7) / 14.7))}px`;
   };
   fit();
   requestAnimationFrame(() =>
     (fit(), drawMini)(canvas, v.level.rows, {
       pieces: v.pieces,
       path: resolved ? [] : run.frames,
-      pathColor: '#ff7b5c',
       target: v.level.target ?? 'bell',
     }),
   );

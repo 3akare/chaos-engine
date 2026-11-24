@@ -1,4 +1,7 @@
-/** Game controller: owns the Day view, the board scene and a deliberately tiny DOM overlay. */
+/**
+ * Game controller. The frame never changes: top line · board · dock. Every interaction
+ * swaps what the dock holds (play / place / guess / swap) instead of opening panels.
+ */
 import { navigateTo } from '@devvit/web/client';
 import { parseCell } from '../../shared/coords';
 import type { DayView, StoredPiece } from '../../shared/protocol';
@@ -8,39 +11,47 @@ import type { Level } from '../../shared/sim/level';
 import { PIECE_DIRS, PIECE_TYPES, W, type Dir, type PieceType, type SimResult } from '../../shared/types';
 import { api } from '../lib/api';
 import type { BoardScene, ScenePiece } from './scenes/BoardScene';
-import { welcome, welcomeSeen } from './ui/welcome';
-import { closeModal, closeSheet, fmtCountdown, h, sheetOpen, showSheet, toast } from './ui/dom';
+import { clearTag, closeCard, fmtCountdown, h, tag } from './ui/dom';
 import { pieceIcon } from './ui/icons';
-import { howToPlay, pieceCard, reportModal } from './ui/modals';
+import { howToPlay, reportModal, welcome } from './ui/modals';
+import { markWelcomed, welcomeSeen } from './ui/welcome';
 import { RunScreen } from './run';
 
 const POLL_MS = 15_000;
 
 /** `from`: which of your pieces moves here (null = a new piece). */
 type Candidate = { socket: string; type: PieceType; dir: Dir; from: string | null };
+type Mode = 'idle' | 'pick' | 'guess' | 'other';
 
 export class GameApp {
   view!: DayView;
   level!: Level;
   private skew = 0;
   private speed = 1.4;
+  private mode: Mode = 'idle';
   private candidate: Candidate | null = null;
   private busy = false;
   private run: RunScreen | null = null;
-  private els!: { day: HTMLElement; time: HTMLElement; status: HTMLElement; bar: HTMLElement; board: HTMLElement; overlay: HTMLElement };
+  private els!: { day: HTMLElement; time: HTMLElement; board: HTMLElement; dock: HTMLElement; top: HTMLElement };
 
   constructor(
-    private root: HTMLElement,
+    root: HTMLElement,
     private scene: BoardScene,
     private postId: string | undefined,
   ) {
-    this.buildShell();
+    const day = h('button', { class: 'day', 'aria-label': 'How to play', onclick: () => howToPlay() });
+    const time = h('div', { class: 'time' });
+    const top = h('header', { class: 'top' }, day, time);
+    const board = h('div', { id: 'board' });
+    const dock = h('nav', { class: 'dock' });
+    root.append(top, board, dock);
+    this.els = { day, time, board, dock, top };
   }
 
   async start(): Promise<void> {
     const r = await api.state(this.postId);
     if (!r.ok) {
-      this.els.overlay.replaceChildren(h('div', { class: 'note' }, r.error.message));
+      tag(r.error.message, 'bad', true);
       return;
     }
     this.setView(r.data);
@@ -51,27 +62,8 @@ export class GameApp {
     });
   }
 
-  // ---------- shell: day, timer, board, dock. Nothing else. ----------
-
-  private buildShell(): void {
-    const day = h('button', { class: 'day', 'aria-label': 'How to play', onclick: () => howToPlay() });
-    const time = h('div', { class: 'time' });
-    const status = h('div', { class: 'whisper', 'aria-live': 'polite' });
-    const overlay = h('div', { class: 'overlay' });
-    const board = h('div', { id: 'board' }, overlay, status);
-    const bar = h('nav', { class: 'dock' });
-    this.root.append(h('header', { class: 'top' }, day, time), board, bar);
-    this.els = { day, time, status, bar, board, overlay };
-    let hide = 0;
-    new MutationObserver(() => {
-      status.classList.toggle('show', status.textContent !== '');
-      clearTimeout(hide);
-      hide = window.setTimeout(() => status.classList.remove('show'), 2800);
-    }).observe(status, { childList: true, characterData: true, subtree: true });
-  }
-
   boardElement(): HTMLElement {
-    return document.getElementById('board')!;
+    return this.els.board;
   }
 
   private now(): number {
@@ -80,62 +72,47 @@ export class GameApp {
 
   private setView(v: DayView): void {
     const firstLoad = !this.view;
-    const levelChanged = !this.view || this.view.day.dayId !== v.day.dayId;
+    if (!this.view || this.view.day.dayId !== v.day.dayId) this.level = levelOf({ ...v.level, solution: [] });
     this.view = v;
     this.skew = v.serverNow - Date.now();
-    if (levelChanged) this.level = levelOf({ ...v.level, solution: [] });
     this.els.day.textContent = `Day ${v.day.dayNumber}`;
     this.tickClock();
-    const status = v.day.status;
-    const pastLock = status === 'OPEN' && v.serverNow >= v.day.locksAt;
-    if (status === 'OPEN' && !pastLock) {
+    const open = v.day.status === 'OPEN' && v.serverNow < v.day.locksAt;
+    if (open) {
       this.run?.destroy();
       this.run = null;
-      this.els.overlay.replaceChildren();
+      this.els.board.querySelector('.spinner')?.remove();
       this.scene.setBoard(this.level, this.scenePieces(), v.level.target ?? 'bell');
-      this.scene.setGhost(this.currentRun(), undefined);
-      this.renderDock();
       this.scene.onTap = (x, y) => this.onTap(x, y);
-      if (firstLoad) this.afterFirstLoad();
+      this.toIdle();
+      if (firstLoad) {
+        if (!welcomeSeen()) {
+          markWelcomed();
+          welcome(() => this.showInbox());
+        } else this.showInbox();
+      }
     } else if (!v.result) {
-      this.closeAll();
       this.scene.onTap = null;
       this.scene.setBoard(this.level, this.scenePieces(), v.level.target ?? 'bell');
       this.scene.setGhost(undefined, undefined);
-      this.els.overlay.replaceChildren(h('div', { class: 'spinner' }));
-      this.els.bar.replaceChildren();
+      if (!this.els.board.querySelector('.spinner')) this.els.board.append(h('div', { class: 'spinner' }));
+      this.els.dock.replaceChildren();
     } else {
-      this.closeAll();
       this.scene.onTap = null;
-      this.els.overlay.replaceChildren();
+      this.els.board.querySelector('.spinner')?.remove();
       if (!this.run) {
-        this.run = new RunScreen(this, this.scene, this.els.bar, this.els.status, this.els.board);
-        void this.run.start(firstLoad).then(() => {
-          if (firstLoad) this.showInbox();
-        });
+        this.run = new RunScreen(this, this.scene, this.els.dock, this.els.board);
+        void this.run.start(firstLoad);
       }
     }
   }
 
-  private closeAll(): void {
-    closeSheet(true);
-    closeModal();
-    this.candidate = null;
-  }
-
-  private afterFirstLoad(): void {
-    if (!welcomeSeen()) welcome(this.view, () => this.showInbox());
-    else this.showInbox();
-  }
-
   showInbox(): void {
-    const items = this.view.me.inbox;
-    if (!items.length) return;
-    reportModal(items, () => void api.ackInbox(this.postId));
+    if (this.view.me.inbox.length) reportModal(this.view.me.inbox, () => void api.ackInbox(this.postId));
   }
 
   async poll(): Promise<void> {
-    if (document.visibilityState !== 'visible' || this.scene.isPlaying() || sheetOpen() || this.busy) return;
+    if (document.visibilityState !== 'visible' || this.scene.isPlaying() || this.mode !== 'idle' || this.busy) return;
     const r = await api.state(this.postId);
     if (r.ok) this.setView(r.data);
   }
@@ -144,14 +121,14 @@ export class GameApp {
     if (!this.view) return;
     const open = this.view.day.status === 'OPEN';
     const left = this.view.day.locksAt - this.now();
-    this.els.time.textContent = open ? (left > 0 ? fmtCountdown(left) : '') : '';
+    this.els.time.textContent = open ? fmtCountdown(left) : '';
     if (open && left <= 0 && left > -1500 && !this.busy) {
-      closeSheet(true);
+      this.toIdle();
       void this.poll();
     }
   }
 
-  // ---------- board state ----------
+  // ---------- board helpers ----------
 
   private boardState(): BoardState {
     const pieces: Record<string, StoredPiece> = {};
@@ -163,7 +140,6 @@ export class GameApp {
     return this.view.pieces.filter((p) => p.userId === this.view.me.userId && !p.setup);
   }
 
-  /** The piece of yours this candidate moves or edits, if any. */
   private moving(c: Candidate): StoredPiece | undefined {
     const target = this.view.pieces.find((p) => p.socket === c.socket);
     if (target && target.userId === this.view.me.userId && !target.setup) return target;
@@ -190,88 +166,108 @@ export class GameApp {
     return ball1(this.level, this.boardState().pieces);
   }
 
-  // ---------- dock: pieces left · play · guess ----------
+  // ---------- dock modes ----------
 
-  private renderDock(): void {
+  private key(cls: string, label: string, onclick: () => void, ...kids: Array<Node | string>): HTMLButtonElement {
+    return h('button', { class: `key ${cls}`, 'aria-label': label, onclick }, ...kids);
+  }
+
+  private toIdle(): void {
+    this.mode = 'idle';
+    this.candidate = null;
+    clearTag();
+    this.scene.setHighlights([]);
+    this.scene.setPieces(this.scenePieces());
+    this.scene.setGhost(this.currentRun(), undefined);
     const me = this.view.me;
     const left = Math.max(0, me.allowance - me.sockets.length);
-    const dots = h('span', { class: 'dots' }, ...Array.from({ length: me.allowance }, (_, i) => h('i', { class: i < left ? 'on' : '' })));
-    this.els.bar.replaceChildren(
-      h('button', { class: 'orb', 'data-act': 'place', 'aria-label': `${left} pieces left`, onclick: () => this.placeHint() }, dots),
-      h('button', { class: 'orb play', 'data-act': 'test', 'aria-label': 'Run the ball', onclick: () => void this.testRun() }, h('span', { class: 'tri' })),
-      h('button', { class: 'orb', 'data-act': 'predict', 'aria-label': 'Guess the score', onclick: () => this.predictSheet() }, h('span', { class: 'guess' }, me.prediction === null ? '?' : String(me.prediction))),
+    const pips = h('span', { class: 'pips' }, ...Array.from({ length: Math.min(4, me.allowance) }, (_, i) => h('i', { class: i < left ? 'on' : '' })));
+    this.els.dock.className = 'dock';
+    this.els.dock.replaceChildren(
+      this.key('', `${left} pieces left`, () => this.hintSockets(), pips),
+      this.key('primary', 'Run the ball', () => void this.testRun(), h('span', { class: 'tri' })),
+      this.key('', 'Guess the score', () => this.toGuess(), me.prediction === null ? '?' : String(me.prediction)),
     );
+    this.els.dock.children[1]?.setAttribute('data-act', 'test');
+  }
+
+  private hintSockets(): void {
+    const all: Array<[number, number]> = [];
+    for (let i = 0; i < this.level.socket.length; i++) if (this.level.socket[i]) all.push([i % W, Math.floor(i / W)]);
+    this.scene.setHighlights(all);
+    const left = Math.max(0, this.view.me.allowance - this.view.me.sockets.length);
+    tag(left > 0 ? `${left} ${left === 1 ? 'piece' : 'pieces'} to place` : 'Tap your piece to move it');
+    window.setTimeout(() => {
+      if (this.mode === 'idle') this.scene.setHighlights([]);
+    }, 1600);
   }
 
   private async testRun(): Promise<void> {
+    const btn = this.els.dock.querySelector('[data-act="test"]');
     if (this.scene.isPlaying()) {
       this.scene.stop();
+      btn?.classList.remove('playing');
       this.scene.setGhost(this.currentRun(), undefined);
       return;
     }
-    const r = this.candidate ? (this.candidateRun() ?? this.currentRun()) : this.currentRun();
+    const r = this.currentRun();
     this.scene.setGhost(undefined, undefined);
-    const btn = this.els.bar.querySelector('[data-act="test"]') ?? document.querySelector('.sheet [data-act="try"]');
     btn?.classList.add('playing');
     await this.scene.playRun(r, { speed: this.speed, showOwners: true });
     btn?.classList.remove('playing');
-    if (this.candidate) this.updatePreview();
-    else this.scene.setGhost(r, undefined);
-  }
-
-  private placeHint(): void {
-    const free: Array<[number, number]> = [];
-    for (let i = 0; i < this.level.socket.length; i++) if (this.level.socket[i]) free.push([i % W, Math.floor(i / W)]);
-    this.scene.setHighlights(free);
-    window.setTimeout(() => this.scene.setHighlights([]), 1600);
+    if (this.mode === 'idle') {
+      this.scene.setGhost(r, undefined);
+      tag(r.end === 'success' ? 'It made it!' : r.end === 'lost' ? 'Fell off the board' : r.end === 'loop' ? 'Bouncing forever' : 'Got stuck', r.end === 'success' ? 'good' : 'bad');
+    }
   }
 
   private onTap(x: number, y: number): void {
-    if (this.scene.isPlaying()) return;
-    const i = y * W + x;
-    if (!this.level.socket[i]) return;
+    if (this.scene.isPlaying() || this.busy) return;
+    if (!this.level.socket[y * W + x]) {
+      if (this.mode !== 'idle') this.toIdle();
+      return;
+    }
     if (!this.view.me.userId) {
-      toast('Log in to Reddit to play.');
+      tag('Log in to Reddit to play', 'bad');
       return;
     }
     const name = `${'ABCDEFGHI'[x]}${y + 1}`;
     const occupant = this.view.pieces.find((p) => p.socket === name);
-    const mine = occupant && occupant.userId === this.view.me.userId && !occupant.setup;
-    if (occupant && !mine && !this.candidate) {
-      this.showPieceCard(occupant);
-      return;
-    }
-    this.openPalette(name);
+    if (occupant && (occupant.userId !== this.view.me.userId || occupant.setup)) this.toOther(occupant);
+    else this.toPick(name);
   }
 
-  private showPieceCard(p: StoredPiece): void {
+  // Someone else's piece: who placed it, and a way to swap it.
+  private toOther(p: StoredPiece): void {
+    this.mode = 'other';
     this.scene.setHighlights([parseCell(p.socket)!]);
-    showSheet(
-      pieceCard(p, this.view, [{ label: 'Swap it', primary: true, run: () => this.openPalette(p.socket) }]),
-      { onClose: () => this.scene.setHighlights([]) },
+    tag(p.setup ? 'Starter piece' : `Placed by u/${p.username}`);
+    this.els.dock.className = 'dock';
+    this.els.dock.replaceChildren(
+      this.key('flat', 'Back', () => this.toIdle(), '✕'),
+      this.key('primary', 'Swap it for a better one', () => this.toPick(p.socket), '⇄'),
     );
   }
 
-  // ---------- placing a piece ----------
-
-  private openPalette(socket: string): void {
+  // Placing: the dock becomes the piece tray.
+  private toPick(socket: string): void {
+    this.mode = 'pick';
     const mine = this.mine();
     const occupant = this.view.pieces.find((p) => p.socket === socket);
     const ownTarget = occupant && occupant.userId === this.view.me.userId && !occupant.setup ? occupant : undefined;
     const keep = this.candidate;
-    let from: string | null = keep?.from ?? null;
-    if (ownTarget) from = null;
-    else if (from === null && mine.length >= this.view.me.allowance && mine.length > 0) from = mine[mine.length - 1]!.socket;
+    let from: string | null = ownTarget ? null : (keep?.from ?? null);
+    if (!ownTarget && from === null && mine.length >= this.view.me.allowance && mine.length > 0) from = mine[mine.length - 1]!.socket;
     const base = ownTarget ?? (from ? this.view.pieces.find((p) => p.socket === from) : undefined);
-    const type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? occupant?.type ?? 'RAMP';
-    let dir: Dir = ownTarget?.dir ?? keep?.dir ?? base?.dir ?? occupant?.dir ?? PIECE_DIRS[type][0]!;
+    const type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? 'RAMP';
+    let dir: Dir = ownTarget?.dir ?? (keep?.type === type ? keep.dir : undefined) ?? base?.dir ?? PIECE_DIRS[type][0]!;
     if (!PIECE_DIRS[type].includes(dir)) dir = PIECE_DIRS[type][0]!;
     this.candidate = { socket, type, dir, from };
-    this.scene.setHighlights([parseCell(socket)!]);
-    this.renderPalette();
+    this.scene.setHighlights([]);
+    this.renderPick();
   }
 
-  private candidateDecision(): Decision | null {
+  private decision(): Decision | null {
     const c = this.candidate;
     if (!c || !this.view.me.userId) return null;
     return decide(
@@ -285,13 +281,6 @@ export class GameApp {
     );
   }
 
-  private candidateRun(): SimResult | null {
-    const d = this.candidateDecision();
-    if (!d) return null;
-    return ball1(this.level, d.ok ? d.next.pieces : this.previewState().pieces);
-  }
-
-  /** Board with the candidate applied regardless of validity (so the preview shows what would happen). */
   private previewState(): BoardState {
     const s = this.boardState();
     const c = this.candidate!;
@@ -301,126 +290,52 @@ export class GameApp {
     return s;
   }
 
-  private updatePreview(): void {
-    const c = this.candidate;
-    if (!c) return;
-    this.scene.setPieces(this.scenePieces(c));
-    this.scene.setGhost(this.currentRun(), ball1(this.level, this.previewState().pieces));
-  }
-
-  private renderPalette(): void {
+  private renderPick(): void {
     const c = this.candidate!;
     const view = this.view;
     const own = this.moving(c);
     const occupant = view.pieces.find((p) => p.socket === c.socket);
     const replacing = occupant && occupant !== own;
-    const d = this.candidateDecision();
-    this.updatePreview();
+    const d = this.decision();
+    this.scene.setPieces(this.scenePieces(c));
+    this.scene.setGhost(this.currentRun(), ball1(this.level, this.previewState().pieces));
 
-    const available = (t: PieceType): number => view.inventory[t] + (own?.type === t ? 1 : 0) + (replacing && occupant?.type === t ? 1 : 0);
-    const tiles = h(
-      'div',
-      { class: 'tiles' },
-      ...PIECE_TYPES.map((t) => {
-        const sel = t === c.type;
-        const n = available(t);
-        return h(
-          'button',
-          {
-            class: `tile${sel ? ' sel' : ''}`,
-            disabled: n <= 0,
-            'aria-label': sel ? 'Turn it' : t.toLowerCase(),
-            onclick: () => {
-              if (sel) {
-                const dirs = PIECE_DIRS[t];
-                c.dir = dirs[(dirs.indexOf(c.dir) + 1) % dirs.length]!;
-              } else {
-                c.type = t;
-                c.dir = PIECE_DIRS[t].includes(c.dir) ? c.dir : PIECE_DIRS[t][0]!;
-              }
-              this.renderPalette();
-            },
+    const stock = (t: PieceType): number => view.inventory[t] + (own?.type === t ? 1 : 0) + (replacing && occupant?.type === t ? 1 : 0);
+    const tiles = PIECE_TYPES.map((t) => {
+      const sel = t === c.type;
+      return h(
+        'button',
+        {
+          class: `key tile${sel ? ' sel' : ''}`,
+          disabled: stock(t) <= 0,
+          'aria-label': sel ? 'Turn it' : t.toLowerCase(),
+          onclick: () => {
+            if (sel) {
+              const dirs = PIECE_DIRS[t];
+              c.dir = dirs[(dirs.indexOf(c.dir) + 1) % dirs.length]!;
+            } else {
+              c.type = t;
+              c.dir = PIECE_DIRS[t].includes(c.dir) ? c.dir : PIECE_DIRS[t][0]!;
+            }
+            this.renderPick();
           },
-          pieceIcon(t, sel ? c.dir : PIECE_DIRS[t][0]!, 44),
-          sel ? h('span', { class: 'turn', 'aria-hidden': 'true' }, '↻') : null,
-          h('span', { class: 'count' }, ...Array.from({ length: Math.min(4, n) }, () => h('i', {}))),
-        );
-      }),
-    );
-
-    // One word of feedback, colour plus icon.
-    const [state, word] = ((): ['good' | 'same' | 'bad', string] => {
-      if (!d) return ['same', 'Log in to play'];
-      if (d.ok) return [d.verdict.kind === 'better' ? 'good' : 'same', d.after[0] ? 'Reaches the goal!' : d.verdict.kind === 'better' ? 'Better' : 'No change'];
-      if (d.code === 'NO_CHANGE') return ['same', 'Tap a piece to change it'];
-      if (d.code === 'MUST_IMPROVE') return ['bad', 'Not better than theirs'];
-      if (d.code === 'WOULD_HURT') return ['bad', 'Makes it worse'];
-      if (d.code === 'OUT_OF_STOCK') return ['bad', 'None left'];
-      return ['bad', d.message];
-    })();
-    const canConfirm = !!d && d.ok;
-
-    const mine = this.mine();
-    const atLimit = mine.length >= view.me.allowance;
-    let moveRow: HTMLElement | null = null;
-    if (atLimit && mine.length > 1 && !(occupant && occupant === own && !c.from)) {
-      moveRow = h(
-        'div',
-        { class: 'moverow' },
-        h('span', { class: 'mutedsm' }, 'Move'),
-        ...mine
-          .filter((p) => p.socket !== c.socket)
-          .map((p) =>
-            h(
-              'button',
-              {
-                class: `mini${c.from === p.socket ? ' on' : ''}`,
-                'aria-label': `Move your ${p.type.toLowerCase()}`,
-                onclick: () => {
-                  c.from = p.socket;
-                  c.type = p.type;
-                  c.dir = p.dir;
-                  this.renderPalette();
-                },
-              },
-              pieceIcon(p.type, p.dir, 28),
-            ),
-          ),
+        },
+        pieceIcon(t, sel ? c.dir : PIECE_DIRS[t][0]!, 36),
       );
-    }
+    });
+    const ok = !!d && d.ok;
+    if (!d) tag('Log in to play', 'bad', true);
+    else if (d.ok) tag(d.after[0] ? 'Reaches the goal!' : d.verdict.kind === 'better' ? 'Better' : own && !replacing && own.socket !== c.socket ? 'Moves your piece here' : 'No change yet', d.verdict.kind === 'better' ? 'good' : 'same', true);
+    else if (d.code === 'NO_CHANGE') tag('Tap the piece again to turn it', 'same', true);
+    else if (d.code === 'MUST_IMPROVE') tag('Not better than theirs', 'bad', true);
+    else if (d.code === 'WOULD_HURT') tag('Makes it worse', 'bad', true);
+    else if (d.code === 'OUT_OF_STOCK') tag('None of those left', 'bad', true);
+    else tag(d.message, 'bad', true);
 
-    const content = h(
-      'div',
-      { class: 'palette' },
-      moveRow,
-      tiles,
-      h(
-        'div',
-        { class: 'actions' },
-        own && own.socket === c.socket ? h('button', { class: 'orb sm', 'aria-label': 'Remove', onclick: () => void this.removeMine() }, '✕') : h('button', { class: 'orb sm', 'aria-label': 'Close', onclick: () => closeSheet() }, '✕'),
-        h('div', { class: `word ${state}`, role: 'status' }, word),
-        h('button', { class: 'orb sm', 'data-act': 'try', 'aria-label': 'Try it', onclick: () => void this.testRun() }, h('span', { class: 'tri sm' })),
-        h('button', { class: `orb sm ok${canConfirm ? '' : ' off'}`, disabled: !canConfirm || this.busy, 'aria-label': 'Place it', onclick: () => void this.confirm() }, '✓'),
-      ),
-    );
-    const existing = document.querySelector('.sheet.palette-sheet');
-    if (sheetOpen() && existing) existing.replaceChildren(h('div', { class: 'grabber' }), content);
-    else {
-      const el = showSheet(content, { modal: false, onClose: () => this.cancelCandidate() });
-      el.classList.add('palette-sheet');
-      requestAnimationFrame(() => {
-        const barH = this.els.bar.getBoundingClientRect().height;
-        this.root.style.paddingBottom = `${Math.max(0, el.getBoundingClientRect().height - barH)}px`;
-      });
-    }
-  }
-
-  private cancelCandidate(): void {
-    this.root.style.paddingBottom = '';
-    this.candidate = null;
-    this.scene.setHighlights([]);
-    this.scene.setPieces(this.scenePieces());
-    this.scene.setGhost(this.currentRun(), undefined);
+    const left = own && own.socket === c.socket ? this.key('flat', 'Remove your piece', () => void this.removeMine(), '✕') : this.key('flat', 'Cancel', () => this.toIdle(), '✕');
+    this.els.dock.className = 'dock tight';
+    this.els.dock.replaceChildren(left, ...tiles, this.key('good', 'Place it', () => void this.confirm(), '✓'));
+    (this.els.dock.lastElementChild as HTMLButtonElement).disabled = !ok || this.busy;
   }
 
   private async confirm(): Promise<void> {
@@ -430,16 +345,13 @@ export class GameApp {
     const r = await api.place({ postId: this.postId ?? this.view.day.postId ?? undefined, socketId: c.socket, type: c.type, dir: c.dir, from: c.from ?? undefined });
     this.busy = false;
     if (!r.ok) {
-      toast(r.error.message, 3000);
+      tag(r.error.message, 'bad');
       const fresh = await api.state(this.postId);
       if (fresh.ok) this.view = fresh.data;
-      if (this.candidate) this.renderPalette();
+      if (this.candidate) this.renderPick();
       return;
     }
-    this.candidate = null;
-    closeSheet(true);
-    this.root.style.paddingBottom = '';
-    this.scene.setHighlights([]);
+    this.view = r.data.state;
     this.setView(r.data.state);
   }
 
@@ -449,49 +361,35 @@ export class GameApp {
     const r = await api.remove(this.postId ?? this.view.day.postId ?? undefined, this.candidate?.socket);
     this.busy = false;
     if (!r.ok) {
-      toast(r.error.message, 3000);
+      tag(r.error.message, 'bad');
       return;
     }
-    this.candidate = null;
-    closeSheet(true);
-    this.root.style.paddingBottom = '';
     this.setView(r.data.state);
   }
 
-  private predictSheet(): void {
+  // Guessing: the dock becomes 0 1 2 3.
+  private toGuess(): void {
+    this.mode = 'guess';
     const v = this.view;
+    tag('How many balls make it tonight?', 'same', true);
     const pick = async (n: number): Promise<void> => {
       const r = await api.predict({ postId: this.postId ?? v.day.postId ?? undefined, balls: n });
       if (!r.ok) {
-        toast(r.error.message);
+        tag(r.error.message, 'bad');
         return;
       }
-      closeSheet(true);
       this.setView(r.data.state);
+      tag(`Your guess: ${n}`, 'good');
     };
-    showSheet(
-      h(
-        'div',
-        { class: 'guesssheet' },
-        h('h3', {}, 'How many balls make it?'),
-        h(
-          'div',
-          { class: 'guesses' },
-          ...[0, 1, 2, 3].map((n) =>
-            h(
-              'button',
-              { class: v.me.prediction === n ? 'sel' : '', onclick: () => void pick(n), 'aria-label': `${n} of 3` },
-              h('b', {}, String(n)),
-              h('span', { class: 'balls3' }, ...[0, 1, 2].map((k) => h('i', { class: k < n ? 'in' : '' }))),
-            ),
-          ),
-        ),
-      ),
+    this.els.dock.className = 'dock tight';
+    this.els.dock.replaceChildren(
+      this.key('flat', 'Back', () => this.toIdle(), '✕'),
+      ...[0, 1, 2, 3].map((n) => this.key(`digit${v.me.prediction === n ? ' sel' : ''}`, `${n} of 3`, () => void pick(n), String(n))),
     );
   }
 
-  /** Navigate to the newest Day's post. */
   goToCurrent(): void {
+    closeCard();
     const url = this.view.current.url;
     if (url) navigateTo(url);
   }

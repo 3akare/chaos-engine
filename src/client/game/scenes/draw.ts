@@ -74,22 +74,29 @@ export function shadowRect(g: G, s: number, sx: number, sy: number): void {
 }
 
 export function drawSocket(g: G, s: number, highlight = false): void {
-  // A soft dimple in the clay floor.
-  g.fillStyle(highlight ? C.pathNew : C.socket, highlight ? 0.55 : 0.75);
-  g.fillCircle(0, 0, s * (highlight ? 0.3 : 0.2));
+  // A soft dimple. Highlighted dimples swell and take the accent colour; never an outline.
   if (highlight) {
-    g.lineStyle(Math.max(2, s * 0.06), C.pathNew, 0.9);
-    g.strokeCircle(0, 0, s * 0.38);
+    g.fillStyle(C.pathNew, 0.28);
+    g.fillCircle(0, 0, s * 0.36);
+    g.fillStyle(C.pathNew, 0.9);
+    g.fillCircle(0, 0, s * 0.2);
+    return;
   }
+  g.fillStyle(C.socket, 0.85);
+  g.fillCircle(0, 0, s * 0.19);
+  g.fillStyle(0x000000, 0.05);
+  g.fillCircle(0, -s * 0.03, s * 0.15);
 }
 
-export function drawStart(g: G, s: number, dx: number): void {
-  const h = s / 2;
+export function drawStart(g: G, s: number, _dx: number): void {
+  // The chute: a small block with a hole in its top.
+  const d = depth(s) * 0.7;
   g.fillStyle(C.wallSide, 1);
-  g.fillTriangle(-h * 0.85, -h * 0.95, h * 0.85, -h * 0.95, 0, -h * 0.05);
+  g.fillRoundedRect(-s * 0.3, -s * 0.38, s * 0.6, s * 0.5, s * 0.16);
   g.fillStyle(C.wallTop, 1);
-  g.fillTriangle(-h * 0.85, -h * 1.05, h * 0.85, -h * 1.05, 0, -h * 0.2);
-  if (dx !== 0) arrow(g, s, dx > 0 ? 0 : Math.PI, C.pathOld, 0, h * 0.35, 0.7);
+  g.fillRoundedRect(-s * 0.3, -s * 0.38 - d, s * 0.6, s * 0.5, s * 0.16);
+  g.fillStyle(C.socket, 1);
+  g.fillEllipse(0, -s * 0.15 - d, s * 0.3, s * 0.18);
 }
 
 export function drawTarget(g: G, s: number, _kind: 'bell' | 'basket'): void {
@@ -105,85 +112,47 @@ export function drawTarget(g: G, s: number, _kind: 'bell' | 'basket'): void {
 }
 
 export function drawCheckpoint(g: G, s: number, done: boolean): void {
-  g.fillStyle(done ? C.blue : C.floor, 1);
+  g.fillStyle(done ? C.blue : C.socket, done ? 1 : 0.85);
   g.fillCircle(0, 0, s * 0.3);
-  g.lineStyle(Math.max(2, s * 0.07), C.blue, 1);
-  g.strokeCircle(0, 0, s * 0.3);
 }
 
 export function drawSwitch(g: G, s: number, fired: boolean): void {
-  const h = s / 2;
-  g.fillStyle(C.wallSide, 1);
-  g.fillRoundedRect(-h * 0.6, h * 0.42, h * 1.2, h * 0.32, 3);
-  g.fillStyle(C.wallTop, 1);
-  g.fillRoundedRect(-h * 0.6, h * 0.3, h * 1.2, h * 0.32, 3);
-  const a = fired ? 0.6 : -0.6;
-  g.lineStyle(Math.max(2, s * 0.09), C.ink, 0.9);
-  g.beginPath();
-  g.moveTo(0, h * 0.4);
-  g.lineTo(Math.sin(a) * h * 0.8, h * 0.4 - Math.cos(a) * h * 0.8);
-  g.strokePath();
-  g.fillStyle(fired ? C.green : C.yellow, 1);
-  g.fillCircle(Math.sin(a) * h * 0.8, h * 0.4 - Math.cos(a) * h * 0.8, s * 0.14);
+  // A round floor button: raised until the ball presses it.
+  g.fillStyle(C.socket, 0.85);
+  g.fillCircle(0, 0, s * 0.3);
+  const lift = fired ? 0 : depth(s) * 0.5;
+  g.fillStyle(fired ? C.fanSide : C.springSide, 1);
+  g.fillCircle(0, 0, s * 0.19);
+  g.fillStyle(fired ? C.fan : C.spring, 1);
+  g.fillCircle(0, -lift, s * 0.19);
 }
 
 export function drawGate(g: G, s: number, open: boolean): void {
-  const h = s / 2;
   if (open) {
-    g.lineStyle(Math.max(1.5, s * 0.05), C.gate, 0.5);
-    g.strokeRoundedRect(-h * 0.85, -h * 0.85, h * 1.7, h * 1.7, s * 0.12);
+    g.fillStyle(C.gate, 0.22);
+    g.fillRoundedRect(-s * 0.42, -s * 0.42, s * 0.84, s * 0.84, s * 0.22);
     return;
   }
-  box(g, s, C.gate, C.gateSide, s * 0.06, s * 0.12);
-  g.fillStyle(0x000000, 0.25);
-  const d = depth(s);
-  for (const k of [-0.5, 0, 0.5]) g.fillRect(k * h - s * 0.05, -h + s * 0.12 - d, s * 0.1, s * 0.76);
+  box(g, s, C.gate, C.gateSide, s * 0.06, s * 0.22);
 }
 
-/** Player pieces as raised objects. Fan blades are drawn separately so they can spin. */
 export function drawPiece(g: G, type: PieceType, dir: Dir, s: number, alpha = 1): void {
   const h = s / 2;
   const d = depth(s);
   switch (type) {
     case 'RAMP': {
-      const sx = dir === 'DR' ? 1 : -1;
-      const w = s * 0.2;
-      const x1 = -sx * h * 0.82;
-      const y1 = -h * 0.55;
-      const x2 = sx * h * 0.82;
-      const y2 = h * 0.55;
-      const len = Math.hypot(x2 - x1, y2 - y1);
-      const nx = (-(y2 - y1) / len) * w;
-      const ny = ((x2 - x1) / len) * w;
-      const plank = (oy: number, color: number) => {
-        g.fillStyle(color, alpha);
-        g.beginPath();
-        g.moveTo(x1 + nx, y1 + ny + oy);
-        g.lineTo(x2 + nx, y2 + ny + oy);
-        g.lineTo(x2 - nx, y2 - ny + oy);
-        g.lineTo(x1 - nx, y1 - ny + oy);
-        g.closePath();
-        g.fillPath();
-      };
-      plank(0, C.rampSide);
-      plank(-d, C.ramp);
-      arrow(g, s, dirAngle(dir), 0xffffff, 0, -d, 0.85);
+      // Same block as every other piece; the arrow says which way it sends the ball.
+      box(g, s, C.ramp, C.rampSide, s * 0.06, s * 0.22, d, alpha);
+      arrow(g, s, dirAngle(dir), 0xffffff, 0, -d, 0.95);
       break;
     }
     case 'SPRING': {
-      box(g, s, C.spring, C.springSide, s * 0.08, s * 0.18, d, alpha);
-      g.lineStyle(Math.max(2, s * 0.06), 0xffffff, 0.75 * alpha);
-      for (const k of [-0.18, 0.02, 0.22]) {
-        g.beginPath();
-        g.moveTo(-h * 0.55, k * s - d);
-        g.lineTo(h * 0.55, k * s - d);
-        g.strokePath();
-      }
-      arrow(g, s, dirAngle(dir), C.ink, 0, -d, 0.95);
+      box(g, s, C.spring, C.springSide, s * 0.06, s * 0.22, d, alpha);
+      arrow(g, s, dirAngle(dir), 0xffffff, 0, -d, 0.95);
       break;
     }
     case 'FAN': {
-      box(g, s, C.fan, C.fanSide, s * 0.06, s * 0.2, d, alpha);
+      box(g, s, C.fan, C.fanSide, s * 0.06, s * 0.22, d, alpha);
       g.fillStyle(0x000000, 0.18 * alpha);
       g.fillCircle(0, -d, h * 0.62);
       const a = dirAngle(dir);

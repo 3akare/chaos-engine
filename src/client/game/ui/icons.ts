@@ -2,7 +2,8 @@
 import type { Dir, PieceType } from '../../../shared/types';
 
 const ANG: Record<string, number> = { R: 0, L: Math.PI, U: -Math.PI / 2, UR: -Math.PI / 4, UL: (-3 * Math.PI) / 4, DR: Math.PI / 4, DL: (3 * Math.PI) / 4 };
-const COLOR: Record<PieceType, [string, string]> = { RAMP: ['#3d7ef0', '#2958b0'], SPRING: ['#f39a3a', '#c46f17'], FAN: ['#33b3a0', '#23857a'], BUMPER: ['#ef5a5f', '#bd3b42'] };
+// Same colours as the board pieces (theme.ts).
+const COLOR: Record<PieceType, [string, string]> = { RAMP: ['#7ab8ff', '#4f8fe0'], SPRING: ['#ffc95e', '#e0a033'], FAN: ['#7fd6a0', '#4fb07a'], BUMPER: ['#ff8f8f', '#e0606b'] };
 
 export function pieceIcon(type: PieceType, dir: Dir, size = 38): HTMLCanvasElement {
   const c = document.createElement('canvas');
@@ -19,18 +20,8 @@ export function pieceIcon(type: PieceType, dir: Dir, size = 38): HTMLCanvasEleme
   const shape = (oy: number) => {
     g.beginPath();
     if (type === 'BUMPER') g.ellipse(s / 2, s / 2 + oy, s * 0.4, s * 0.38, 0, 0, Math.PI * 2);
-    else if (type === 'RAMP') {
-      const sx = dir === 'DR' ? 1 : -1;
-      g.moveTo(s / 2 - sx * s * 0.45, s * 0.16 + oy);
-      g.lineTo(s / 2 + sx * s * 0.45, s * 0.68 + oy);
-      g.lineTo(s / 2 + sx * s * 0.45, s * 0.84 + oy);
-      g.lineTo(s / 2 - sx * s * 0.45, s * 0.34 + oy);
-      g.closePath();
-    } else g.roundRect(s * 0.08, s * 0.1 + oy, s * 0.84, s * 0.78, s * 0.2);
+    else g.roundRect(s * 0.08, s * 0.1 + oy, s * 0.84, s * 0.78, s * 0.2);
   };
-  g.fillStyle = 'rgba(0,0,0,0.18)';
-  shape(d + 2);
-  g.fill();
   g.fillStyle = side;
   shape(d / 2);
   g.fill();
@@ -40,7 +31,7 @@ export function pieceIcon(type: PieceType, dir: Dir, size = 38): HTMLCanvasEleme
   g.save();
   g.translate(s / 2, s / 2 - d / 2);
   g.rotate(ANG[dir] ?? 0);
-  g.fillStyle = type === 'SPRING' ? '#2b2d3a' : '#fff';
+  g.fillStyle = '#fff';
   g.beginPath();
   g.moveTo(s * 0.26, 0);
   g.lineTo(-s * 0.04, -s * 0.17);

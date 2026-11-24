@@ -217,8 +217,9 @@ export class BoardScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.gutter = this.showLabels ? Math.max(14, Math.round(Math.min(w, h) * 0.04)) : 0;
-    const cw = Math.floor((w - this.gutter - 8) / W);
-    const ch = Math.floor((h - this.gutter - 8) / H);
+    // 20px side margin, 8px top/bottom, and a floor margin of 0.35 cell around the grid.
+    const cw = Math.floor((w - this.gutter - 40) / (W + 0.7));
+    const ch = Math.floor((h - this.gutter - 16) / (H + 0.7));
     this.cell = Math.max(16, Math.min(cw, ch, 72));
     const bw = this.cell * W;
     const bh = this.cell * H;
@@ -303,8 +304,11 @@ export class BoardScene extends Phaser.Scene {
     const bw = s * W;
     const bh = s * H;
     // The floor: one soft slab with a faint dot grid.
+    const m = Math.round(s * 0.35);
+    fg.fillStyle(C.shadow, C.shadowAlpha * 0.5);
+    fg.fillRoundedRect(this.ox - m, this.oy - m + 6, bw + m * 2, bh + m * 2, s * 0.7);
     fg.fillStyle(C.floor, 1);
-    fg.fillRoundedRect(this.ox - 6, this.oy - 6, bw + 12, bh + 12, 28);
+    fg.fillRoundedRect(this.ox - m, this.oy - m, bw + m * 2, bh + m * 2, s * 0.7);
     // Edge labels are off by default: players found coordinates noise.
     const fs = Math.max(10, Math.min(13, Math.round(s * 0.34)));
     const style = { fontFamily: FONT, fontSize: `${fs}px`, color: '#8b7f6a', fontStyle: 'bold' };
@@ -366,7 +370,7 @@ export class BoardScene extends Phaser.Scene {
         const n = L.cp[i]!;
         drawCheckpoint(g, s, n <= this.cpDone);
         const t = this.add
-          .text(this.px(x), this.py(y), String(n), { fontFamily: FONT, fontSize: `${Math.round(s * 0.36)}px`, color: n <= this.cpDone ? '#ffffff' : `#${C.blue.toString(16).padStart(6, '0')}`, fontStyle: 'bold' })
+          .text(this.px(x), this.py(y), String(n), { fontFamily: FONT, fontSize: `${Math.round(s * 0.36)}px`, color: n <= this.cpDone ? '#ffffff' : `#${C.ink.toString(16).padStart(6, '0')}`, fontStyle: 'bold' })
           .setOrigin(0.5)
           .setResolution(DPR)
           .setDepth(5);
@@ -393,10 +397,12 @@ export class BoardScene extends Phaser.Scene {
         c.add(bg);
         this.blades.push({ g: bg, id: p.id });
       }
-      if (p.mine) {
+      if (p.mine && !p.ghost) {
         const m = this.add.graphics();
-        m.lineStyle(Math.max(2, s * 0.06), C.yellow, 0.95);
-        m.strokeRoundedRect(-s * 0.5, -s * 0.5 - depth(s), s, s, s * 0.22);
+        m.fillStyle(C.white, 1);
+        m.fillCircle(s * 0.3, -s * 0.3 - depth(s), s * 0.11);
+        m.fillStyle(C.pathNew, 1);
+        m.fillCircle(s * 0.3, -s * 0.3 - depth(s), s * 0.07);
         c.add(m);
       }
       if (p.ghost) {
@@ -427,19 +433,11 @@ export class BoardScene extends Phaser.Scene {
         const x = p.x + ddx * d;
         const y = p.y + ddy * d;
         if (x < 0 || x >= W || y < 0 || y >= H || solidAt(x, y)) break;
-        g.fillStyle(C.beam, 0.22 - d * 0.04);
-        g.fillRoundedRect(this.px(x) - s * 0.45, this.py(y) - s * 0.45, s * 0.9, s * 0.9, s * 0.15);
-        g.lineStyle(Math.max(1, s * 0.04), C.beam, 0.55 - d * 0.1);
-        for (const k of [-0.2, 0.2]) {
-          g.beginPath();
-          if (ddx !== 0) {
-            g.moveTo(this.px(x) - s * 0.3, this.py(y) + k * s);
-            g.lineTo(this.px(x) + s * 0.3, this.py(y) + k * s);
-          } else {
-            g.moveTo(this.px(x) + k * s, this.py(y) - s * 0.3);
-            g.lineTo(this.px(x) + k * s, this.py(y) + s * 0.3);
-          }
-          g.strokePath();
+        g.fillStyle(C.beam, 0.75 - d * 0.18);
+        for (const k of [-0.22, 0.22]) {
+          const bx = this.px(x) + (ddx === 0 ? k * s : 0);
+          const by = this.py(y) + (ddx !== 0 ? k * s : 0);
+          g.fillCircle(bx, by, Math.max(2, s * 0.06));
         }
       }
     }
@@ -476,6 +474,10 @@ export class BoardScene extends Phaser.Scene {
         g.fillCircle(this.px(f.x), this.py(f.y), radius);
       }
     };
+    if (!this.ghost.now) {
+      dots(this.ghost.old, C.pathNew, 0.8, Math.max(2.5, s * 0.085));
+      return;
+    }
     dots(this.ghost.old, C.pathOld, 0.9, Math.max(2, s * 0.07));
     dots(this.ghost.now, C.pathNew, 0.95, Math.max(3, s * 0.1));
   }

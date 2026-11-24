@@ -3,6 +3,7 @@ import type { DayView } from '../../src/shared/protocol';
 import { renderCard } from '../../src/client/splash/card';
 import { boot, call, nextDay, now, persist, reddit, resetAll, seedDemo, state } from './backend';
 import { openPost } from './devvit-client';
+import '../../src/client/lib/font.css';
 import './demo.css';
 
 const PLAYERS = ['you', 'alice', 'bob', 'carol', 'dave'];
@@ -86,20 +87,20 @@ function ago(ms: number): string {
 }
 
 async function renderGame(): Promise<void> {
-  const strip = h(
-    'div',
-    { class: 'demo-strip' },
-    button('← Feed', () => {
-      state.view = { screen: 'feed' };
-      persist();
-      location.reload();
-    }),
-    playerPicker(),
-    button('⏩ Next day', advance, 'primary'),
-  );
-  document.body.append(strip, h('div', { id: 'app' }));
-  document.body.classList.add('demo-game');
+  document.body.append(h('div', { id: 'app' }));
   await import('../../src/client/game/main');
+  // Two small demo-only keys in the game's own top line: back to the feed, and skip to the next day.
+  const top = document.querySelector('.top');
+  const back = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Back to feed' }, '‹');
+  back.addEventListener('click', () => {
+    state.view = { screen: 'feed' };
+    persist();
+    location.reload();
+  });
+  const skip = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Next day (playtest)' }, '⏭');
+  skip.addEventListener('click', () => void advance());
+  top?.prepend(back);
+  top?.append(skip);
 }
 
 async function start(): Promise<void> {
