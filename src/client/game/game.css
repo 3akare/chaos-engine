@@ -127,7 +127,7 @@ button { font: inherit; color: inherit; }
 .reveal-title { font-weight: 800; font-size: 18px; }
 .seal { font-size: 54px; transition: transform .4s cubic-bezier(.2,1.6,.4,1); }
 .seal.open { transform: scale(1.25) rotate(-8deg); }
-.reveal-hash { font: 12px ui-monospace, Menlo, monospace; background: var(--chip); padding: 6px 10px; border-radius: 8px; max-width: 92%; text-align: center; }
+.reveal-hash { font: 600 14px system-ui, sans-serif; background: var(--chip); padding: 6px 10px; border-radius: 8px; max-width: 92%; text-align: center; }
 .flips { display: flex; gap: 12px; }
 .flip { width: 136px; height: 120px; perspective: 600px; }
 .flip-in { position: relative; width: 100%; height: 100%; transition: transform .6s cubic-bezier(.3,1.4,.5,1); transform-style: preserve-3d; }
@@ -171,3 +171,8 @@ button { font: inherit; color: inherit; }
 
 .chip.on { background: var(--blue); color: #fff; }
 .chip:disabled { opacity: .45; }
+
+.welcome p { margin: 0 0 10px; }
+.wstep { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+.wnum { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--orange); color: #1d1408; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.wstep .muted { font-size: 14px; margin-top: 2px; }

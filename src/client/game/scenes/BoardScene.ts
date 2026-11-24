@@ -53,6 +53,7 @@ export class BoardScene extends Phaser.Scene {
   private ox = 0;
   private oy = 0;
   private gutter = 16;
+  showLabels = false;
 
   private staticG!: Phaser.GameObjects.Graphics;
   private beamG!: Phaser.GameObjects.Graphics;
@@ -193,7 +194,7 @@ export class BoardScene extends Phaser.Scene {
   private layout(): void {
     const w = this.scale.width;
     const h = this.scale.height;
-    this.gutter = Math.max(14, Math.round(Math.min(w, h) * 0.04));
+    this.gutter = this.showLabels ? Math.max(14, Math.round(Math.min(w, h) * 0.04)) : 4;
     const cw = Math.floor((w - this.gutter - 6) / W);
     const ch = Math.floor((h - this.gutter - 6) / H);
     this.cell = Math.max(16, Math.min(cw, ch, 64));
@@ -249,14 +250,14 @@ export class BoardScene extends Phaser.Scene {
     g.fillRoundedRect(this.ox - 2, this.oy - 2, bw + 4, bh + 4, 10);
     g.fillStyle(C.dot, 1);
     for (let y = 1; y < H; y++) for (let x = 1; x < W; x++) g.fillCircle(this.ox + x * s, this.oy + y * s, Math.max(1, s * 0.035));
-    // Edge labels (§4.2).
+    // Edge labels are off by default: players found coordinates noise.
     const fs = Math.max(10, Math.min(13, Math.round(s * 0.34)));
     const style = { fontFamily: FONT, fontSize: `${fs}px`, color: '#8b7f6a', fontStyle: 'bold' };
-    for (let x = 0; x < W; x++) {
+    for (let x = 0; x < W && this.showLabels; x++) {
       const t = this.add.text(this.px(x), this.oy - this.gutter * 0.5 - 4, 'ABCDEFGHI'[x]!, style).setOrigin(0.5).setResolution(DPR);
       this.labels.push(t);
     }
-    for (let y = 0; y < H; y++) {
+    for (let y = 0; y < H && this.showLabels; y++) {
       const t = this.add.text(this.ox - this.gutter * 0.5 - 4, this.py(y), String(y + 1), style).setOrigin(0.5).setResolution(DPR);
       this.labels.push(t);
     }

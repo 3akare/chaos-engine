@@ -5,17 +5,17 @@ export type VariantInfo = { id: SecretVariantId; name: string; short: string; ef
 
 /** The public variant list (§4.6). Order is part of the seed contract — never reorder. */
 export const VARIANTS: readonly VariantInfo[] = [
-  { id: 'OFFSET_L', name: 'Drifter (left)', short: 'DRIFTER ◀', effect: 'Spawns one column left of Start.' },
-  { id: 'OFFSET_R', name: 'Drifter (right)', short: 'DRIFTER ▶', effect: 'Spawns one column right of Start.' },
-  { id: 'HEAVY', name: 'Heavy', short: 'HEAVY', effect: 'Fans reach only 1 cell; springs launch one cell lower.' },
-  { id: 'BOUNCY', name: 'Bouncy', short: 'BOUNCY', effect: 'Bumpers hop one cell higher; springs launch one cell higher.' },
-  { id: 'REVERSE', name: 'Contrarian', short: 'CONTRARIAN', effect: 'Starts rolling the opposite way.' },
-  { id: 'SLICK', name: 'Slick', short: 'SLICK', effect: 'Ramps push it sideways only — no diagonal drop.' },
+  { id: 'OFFSET_L', name: 'Left Drifter', short: 'Left Drifter', effect: 'Starts one step to the left of the chute.' },
+  { id: 'OFFSET_R', name: 'Right Drifter', short: 'Right Drifter', effect: 'Starts one step to the right of the chute.' },
+  { id: 'HEAVY', name: 'Heavy', short: 'Heavy', effect: 'Too heavy for fans to push far, and springs throw it lower.' },
+  { id: 'BOUNCY', name: 'Bouncy', short: 'Bouncy', effect: 'Bounces higher off bumpers and springs.' },
+  { id: 'REVERSE', name: 'Contrarian', short: 'Contrarian', effect: 'Starts rolling the opposite way.' },
+  { id: 'SLICK', name: 'Slick', short: 'Slick', effect: 'Slides along ramps instead of dropping down them.' },
 ];
 
 export const variantInfo = (id: VariantId): { name: string; short: string; effect: string } =>
   id === 'STANDARD'
-    ? { name: 'Standard', short: 'STANDARD', effect: 'The ball you test with.' }
+    ? { name: 'Your ball', short: 'Your ball', effect: 'The same ball you test with.' }
     : VARIANTS.find((v) => v.id === id)!;
 
 /** Two distinct secret variants for a Day seed (§2.6). */

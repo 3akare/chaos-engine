@@ -30,7 +30,7 @@ describe('§2.5 action matrix', () => {
     expect(d.ok).toBe(false);
     if (!d.ok) {
       expect(d.code).toBe('WOULD_HURT');
-      expect(d.message).toMatch(/Lower progress ✗: Ball 1 now .* instead of/);
+      expect(d.message).toMatch(/That would make things worse\. The ball would now .* instead of/);
     }
   });
   it('Replace someone else’s piece needs strictly better P (MUST_IMPROVE)', () => {
@@ -161,7 +161,7 @@ describe('solo and community modes (piece allowance)', () => {
     expect(d.ok && d.kind).toBe('place');
     s = ok(d);
     expect(s.holders.a).toEqual(['B13', 'I3']);
-    expect(d.ok && d.verdict.text).toMatch(/now delivers/);
+    expect(d.ok && d.verdict.text).toMatch(/now reaches the goal/);
   });
   it('at the limit you must say which piece moves', () => {
     let s = ok(act2(fresh(), alice, 'A11', 'SPRING', 'U'));

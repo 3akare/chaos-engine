@@ -101,7 +101,7 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
     if (action.socket) {
       const p = state.pieces[action.socket];
       own = p && p.userId === actor.userId && !p.setup ? p : undefined;
-      if (!own) return { ok: false, code: 'NO_PIECE', message: `You don't have a piece at ${action.socket}.` };
+      if (!own) return { ok: false, code: 'NO_PIECE', message: "That isn't one of your pieces." };
     } else if (mine.length === 1) own = mine[0];
     else if (mine.length === 0) return { ok: false, code: 'NO_PIECE', message: "You don't have a piece on the board." };
     else return { ok: false, code: 'BAD_REQUEST', message: 'Tap the piece you want to remove.' };
@@ -111,7 +111,7 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
     const afterRun = ball1(level, next.pieces);
     const v = verdict(level, beforeRun, afterRun, beforeRun.touchedPieceIds.includes(own!.pieceId));
     if (compareProgress(afterRun.progress, beforeRun.progress) < 0) {
-      return { ok: false, code: 'WOULD_HURT', message: `Removing it would lower Ball 1's progress. ${v.reason}`, verdict: v };
+      return { ok: false, code: 'WOULD_HURT', message: `Removing it would make things worse. ${v.reason}`, verdict: v };
     }
     return { ok: true, kind: 'remove', next, own: own!, before: beforeRun.progress, after: afterRun.progress, raised: false, verdict: v };
   }
@@ -119,13 +119,13 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
   const { socket, type, dir } = action;
   if (!PIECE_DIRS[type]?.includes(dir)) return { ok: false, code: 'BAD_PIECE', message: "That piece can't face that way." };
   const cell = parseCell(socket);
-  if (!cell) return { ok: false, code: 'NOT_A_SOCKET', message: `${socket} isn't a cell on this board.` };
+  if (!cell) return { ok: false, code: 'NOT_A_SOCKET', message: "That spot isn't on the board." };
   const name = cellName(cell[0], cell[1]);
   const i = cell[1] * W + cell[0];
   if (!level.socket[i]) {
     const k = level.kinds[i];
-    if (k !== 'empty') return { ok: false, code: 'NOT_REPLACEABLE', message: `${name} is part of the machine itself and can't be changed.` };
-    return { ok: false, code: 'NOT_A_SOCKET', message: `${name} isn't a socket. Pieces only go in the dashed squares.` };
+    if (k !== 'empty') return { ok: false, code: 'NOT_REPLACEABLE', message: 'That part of the machine can’t be changed. Pieces go in the dashed squares.' };
+    return { ok: false, code: 'NOT_A_SOCKET', message: 'Pieces only go in the dashed squares.' };
   }
   const target = state.pieces[name];
   const isOwnTarget = target !== undefined && target.userId === actor.userId && !target.setup;
@@ -136,7 +136,7 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
   if (isOwnTarget) own = target;
   else if (action.from && action.from !== name) {
     const p = state.pieces[action.from];
-    if (!p || p.userId !== actor.userId || p.setup) return { ok: false, code: 'BAD_REQUEST', message: `You don't have a piece at ${action.from} to move.` };
+    if (!p || p.userId !== actor.userId || p.setup) return { ok: false, code: 'BAD_REQUEST', message: "That isn't one of your pieces." };
     own = p;
   } else if (mine.length >= allowance) {
     if (mine.length === 1) own = mine[0];
@@ -144,7 +144,7 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
       return {
         ok: false,
         code: 'LIMIT',
-        message: `You're holding all ${allowance} pieces you can right now. Tap one of yours to move or remove it.`,
+        message: `You've used all ${allowance} of your pieces. Tap one of yours to move or remove it.`,
       };
     }
   }
@@ -188,10 +188,10 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
   if (displaced) {
     if (c <= 0) {
       const whose = displaced.setup ? 'the setup piece' : displaced.userId === actor.userId ? 'your own piece' : `u/${displaced.username}'s ${pieceName(displaced.type)}`;
-      return { ok: false, code: 'MUST_IMPROVE', message: `To replace ${whose}, your version must give Ball 1 strictly better progress. ${v.reason}`, verdict: v };
+      return { ok: false, code: 'MUST_IMPROVE', message: `To replace ${whose}, yours has to work better. ${v.reason}`, verdict: v };
     }
   } else if (c < 0) {
-    return { ok: false, code: 'WOULD_HURT', message: `${v.label}: ${v.reason} Pieces can never lower Ball 1's progress.`, verdict: v };
+    return { ok: false, code: 'WOULD_HURT', message: `That would make things worse. ${v.reason}`, verdict: v };
   }
   const result: Decision = { ok: true, kind, next, piece, before: beforeRun.progress, after: afterRun.progress, raised: c > 0, verdict: v };
   if (own) result.own = own;

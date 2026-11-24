@@ -8,19 +8,19 @@ const pct = (n: number, d: number): number => (d === 0 ? 0 : Math.round((n * 100
 
 export function ballLabel(i: number, result: Pick<DayResult, 'variants'>): string {
   const v = result.variants[i]!;
-  return i === 0 ? 'Ball 1' : `Ball ${i + 1} (${variantInfo(v).short})`;
+  return i === 0 ? 'Your ball' : `The ${variantInfo(v).short} ball`;
 }
 
-function endPhrase(end: string, cell: string): string {
+function endPhrase(end: string): string {
   switch (end) {
     case 'lost':
-      return `fell into the void near ${cell}`;
+      return 'fell off the board';
     case 'stalled':
-      return `stalled at ${cell}`;
+      return 'got stuck';
     case 'loop':
-      return `got stuck in perpetual motion near ${cell}`;
+      return 'bounced around forever';
     default:
-      return `ran out of time near ${cell}`;
+      return 'ran out of time';
   }
 }
 
@@ -37,22 +37,21 @@ export function resultsComment(dayNumber: number, r: DayResult, pieces: readonly
   const misses = r.perBall
     .map((b, i) => ({ b, i }))
     .filter(({ b }) => b.end !== 'success')
-    .map(({ b, i }) => `${ballLabel(i, r)} ${endPhrase(b.end, endCells[i] ?? '?')}`);
+    .map(({ b, i }) => `${ballLabel(i, r)} ${endPhrase(b.end)}`);
+  void endCells;
   lines.push(`⚙️ **${r.score}/3 delivered.**${misses.length ? ` ${misses.join('; ')}.` : ' A perfect run!'}`);
   const piece = (id: string | undefined): StoredPiece | undefined => pieces.find((p) => p.pieceId === id);
   const aw: string[] = [];
   const mvp = piece(r.awards.mvp?.pieceId);
-  if (r.awards.mvp && mvp) aw.push(`🏆 MVP: u/${r.awards.mvp.username}'s ${pieceName(mvp.type)} at ${mvp.socket}`);
+  if (r.awards.mvp && mvp) aw.push(`🏆 MVP: u/${r.awards.mvp.username}'s ${pieceName(mvp.type)}`);
   const mt = piece(r.awards.mostTouched?.pieceId);
-  if (r.awards.mostTouched && mt) aw.push(`👆 Most Touched: u/${r.awards.mostTouched.username}'s ${pieceName(mt.type)} at ${mt.socket}`);
+  if (r.awards.mostTouched && mt) aw.push(`👆 Most Touched: u/${r.awards.mostTouched.username}'s ${pieceName(mt.type)}`);
   if (r.awards.clutch) aw.push(`⏱ Clutch: u/${r.awards.clutch.username}, ${minutesBefore(r.lockedAt - r.awards.clutch.at)}`);
   if (aw.length) lines.push(aw.join(' · '));
   const total = r.predictions.reduce((a, b) => a + b, 0);
   const right = r.predictions[r.score] ?? 0;
   const pred = total > 0 ? `🔮 ${pct(right, total)}% predicted ${r.score}.` : '🔮 Nobody predicted today.';
   lines.push(`${pred} Streak: ${r.streak} ${r.streak === 1 ? 'day' : 'days'}. A new machine is up now — find it in the newest post.`);
-  lines.push('');
-  lines.push(`Secret seed revealed: \`${r.revealedSecret.slice(0, 16)}…\` (its SHA-256 was posted when the Day opened).`);
   lines.push('');
   lines.push(resultsMarker(dayNumber));
   return lines.join('\n\n').replace(/\n\n\n\n/g, '\n\n');

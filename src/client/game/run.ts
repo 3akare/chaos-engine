@@ -1,5 +1,5 @@
 /** The run screen (§7.3): reveal, three runs, tally, awards, your results, replay controls. */
-import { cellName, parseCell } from '../../shared/coords';
+import { parseCell } from '../../shared/coords';
 import type { DayResult, StoredPiece } from '../../shared/protocol';
 import { daySeed } from '../../shared/rng';
 import { boardPieces, pieceName } from '../../shared/rules/placement';
@@ -70,7 +70,7 @@ export class RunScreen {
     }
     if (autoplay && !seen) await this.sequence();
     else {
-      this.status.textContent = `Day ${v.day.dayNumber}: ${this.result.score}/3 delivered`;
+      this.status.textContent = `Day ${v.day.dayNumber}: ${this.result.score} of 3 balls made it`;
       this.showResults();
     }
   }
@@ -94,7 +94,11 @@ export class RunScreen {
 
   private ballTitle(i: number): string {
     const v = this.run.variants[i]!;
-    return i === 0 ? 'Ball 1 · Standard' : `Ball ${i + 1} · ${variantInfo(v).short}`;
+    return i === 0 ? 'Ball 1 · Your ball' : `Ball ${i + 1} · Surprise: ${variantInfo(v).short}`;
+  }
+
+  private shortName(i: number): string {
+    return i === 0 ? 'Your ball' : variantInfo(this.run.variants[i]!).short;
   }
 
   private async reveal(): Promise<void> {
@@ -104,19 +108,19 @@ export class RunScreen {
       h(
         'div',
         { class: 'flip' },
-        h('div', { class: 'flip-in' }, h('div', { class: 'face front' }, `Ball ${i + 1}`, h('small', {}, 'sealed')), h('div', { class: 'face back' }, `Ball ${i + 1}`, h('b', {}, variantInfo(this.run.variants[i]!).short), h('small', {}, variantInfo(this.run.variants[i]!).effect))),
+        h('div', { class: 'flip-in' }, h('div', { class: 'face front' }, `Surprise ball ${i}`, h('small', {}, '?')), h('div', { class: 'face back' }, `Surprise ball ${i}`, h('b', {}, variantInfo(this.run.variants[i]!).short), h('small', {}, variantInfo(this.run.variants[i]!).effect))),
       );
     const seal = h('div', { class: 'seal' }, '🔒');
-    const hash = h('div', { class: 'reveal-hash' }, `sha256 ${v.day.commitHash.slice(0, 12)}…`);
+    const hash = h('div', { class: 'reveal-hash' }, 'Three balls are about to fire: yours, and two surprises.');
     const c1 = card(1);
     const c2 = card(2);
-    const box = h('div', { class: 'reveal', onclick: () => (this.skip = true) }, h('div', { class: 'reveal-title' }, `Day ${v.day.dayNumber} · the secret balls`), seal, hash, h('div', { class: 'flips' }, c1, c2), h('small', { class: 'tapskip' }, 'tap to skip'));
+    const box = h('div', { class: 'reveal', onclick: () => (this.skip = true) }, h('div', { class: 'reveal-title' }, `Day ${v.day.dayNumber} · The big run`), seal, hash, h('div', { class: 'flips' }, c1, c2), h('small', { class: 'tapskip' }, 'tap to skip'));
     this.board.append(box);
     requestAnimationFrame(() => box.classList.add('show'));
     await this.wait(700);
     seal.textContent = '🔓';
     seal.classList.add('open');
-    hash.textContent = ok ? `sha256(seed) = ${v.day.commitHash.slice(0, 12)}… ✓ matches` : 'seed does not match the published hash ⚠️';
+    hash.textContent = ok ? 'Here are today’s surprise balls. They were locked in at the start of the day.' : 'Here are today’s surprise balls.';
     await this.wait(600);
     c1.classList.add('flipped');
     await this.wait(450);
@@ -157,7 +161,7 @@ export class RunScreen {
     const slow = (tick: number): number => (keys.has(tick) || keys.has(tick + 1) ? 0.35 : 1);
     this.banner.textContent = this.ballTitle(i);
     this.banner.classList.add('show');
-    this.status.textContent = i === 0 ? 'The ball everyone tested' : variantInfo(this.run.variants[i]!).effect;
+    this.status.textContent = i === 0 ? 'The same ball you tested with.' : `Twist: ${variantInfo(this.run.variants[i]!).effect}`;
     if (show) await sleep(450);
     await this.scene.playRun(r, { speed: this.speed, slowmo: slow, showOwners: true, follow: true, startTick });
     this.banner.classList.remove('show');
@@ -176,7 +180,7 @@ export class RunScreen {
   private async tally(): Promise<void> {
     const s = this.result.score;
     const title = s === 3 ? 'Perfect machine!' : s === 0 ? 'The machine wins today' : s === 2 ? 'So close!' : 'One made it';
-    const el = h('div', { class: `tally ${s >= 2 ? 'good' : ''}` }, h('div', { class: 'score' }, `${s} / 3`), h('div', {}, 'delivered'), h('b', {}, title));
+    const el = h('div', { class: `tally ${s >= 2 ? 'good' : ''}` }, h('div', { class: 'score' }, `${s} / 3`), h('div', {}, 'made it'), h('b', {}, title));
     this.board.append(el);
     requestAnimationFrame(() => el.classList.add('show'));
     if (s > 0) this.confetti(s * 18);
@@ -184,7 +188,7 @@ export class RunScreen {
     el.classList.remove('show');
     await sleep(250);
     el.remove();
-    this.status.textContent = `Day ${this.app.view.day.dayNumber}: ${s}/3 delivered`;
+    this.status.textContent = `Day ${this.app.view.day.dayNumber}: ${s} of 3 balls made it`;
   }
 
   private confetti(n: number): void {
@@ -241,11 +245,11 @@ export class RunScreen {
         if (e.kind === 'touch' && e.pieceId && !seen.has(e.pieceId)) {
           seen.add(e.pieceId);
           const p = byId.get(e.pieceId);
-          if (p && !p.setup) out.push({ ball: b, tick: e.tick, label: `${b + 1}: u/${p.username}'s ${pieceName(p.type)}` });
+          if (p && !p.setup) out.push({ ball: b, tick: e.tick, label: `${this.shortName(b)}: u/${p.username}'s ${pieceName(p.type)}` });
         }
-        if (e.kind === 'gate' && e.n === 1) out.push({ ball: b, tick: e.tick, label: `${b + 1}: gate opens at ${cellName(e.cell[0], e.cell[1])}` });
+        if (e.kind === 'gate' && e.n === 1) out.push({ ball: b, tick: e.tick, label: `${this.shortName(b)}: a gate opens` });
       }
-      out.push({ ball: b, tick: Math.max(0, r.frames.length - 4), label: `${b + 1}: ${failureTitle(r)}` });
+      out.push({ ball: b, tick: Math.max(0, r.frames.length - 4), label: `${this.shortName(b)}: ${failureTitle(r)}` });
     });
     return out.slice(0, 12);
   }
@@ -256,16 +260,16 @@ export class RunScreen {
     const byId = new Map(v.pieces.map((p) => [p.pieceId, p]));
     const award = (icon: string, name: string, a: { pieceId: string; username: string } | null, extra: string) => {
       const p = a ? byId.get(a.pieceId) : undefined;
-      return h('div', { class: 'award' }, h('div', { class: 'aicon' }, icon), h('div', {}, h('div', { class: 'k' }, name), a && p ? h('div', {}, h('b', {}, `u/${a.username}`), ` · ${pieceName(p.type)} at ${p.socket}${extra}`) : h('div', { class: 'muted' }, 'Nobody this time')));
+      return h('div', { class: 'award' }, h('div', { class: 'aicon' }, icon), h('div', {}, h('div', { class: 'k' }, name), a && p ? h('div', {}, h('b', {}, `u/${a.username}`), ` · ${pieceName(p.type)}${extra}`) : h('div', { class: 'muted' }, 'Nobody this time')));
     };
     const mine = v.pieces.find((p) => p.userId === v.me.userId && !p.setup);
     const myLines: string[] = [];
     if (mine) {
       const touched = this.run.balls.map((b, i) => (b.touchedPieceIds.includes(mine.pieceId) ? i + 1 : 0)).filter(Boolean);
-      myLines.push(touched.length ? `Your ${pieceName(mine.type)} at ${mine.socket} touched ball${touched.length > 1 ? 's' : ''} ${touched.join(', ')}.` : `Your ${pieceName(mine.type)} at ${mine.socket} stayed dormant — no ball touched it.`);
+      myLines.push(touched.length ? `Your ${pieceName(mine.type)} helped steer ${touched.length === 1 ? '1 ball' : `${touched.length} balls`}.` : `No ball touched your ${pieceName(mine.type)}.`);
       if (r.awards.mvp?.pieceId === mine.pieceId) myLines.push('🏆 It was the MVP!');
     } else if (v.me.userId) myLines.push('You didn’t place a piece this time.');
-    if (v.me.prediction !== null) myLines.push(v.me.prediction === r.score ? `🔮 You predicted ${v.me.prediction} — right! Streak ${v.me.stats.predStreak}.` : `🔮 You predicted ${v.me.prediction}; it was ${r.score}.`);
+    if (v.me.prediction !== null) myLines.push(v.me.prediction === r.score ? `🔮 You guessed ${v.me.prediction}. Spot on!` : `🔮 You guessed ${v.me.prediction}. It was ${r.score}.`);
     const total = r.predictions.reduce((a, b) => a + b, 0);
     const hist = h(
       'div',
@@ -275,7 +279,7 @@ export class RunScreen {
     const ballsRow = h(
       'div',
       { class: 'balls' },
-      ...this.run.balls.map((b, i) => h('div', { class: `ball ${b.end === 'success' ? 'ok' : 'no'}` }, h('b', {}, b.end === 'success' ? '✓' : '✗'), h('span', {}, i === 0 ? 'Standard' : variantInfo(b.variant).short), h('small', {}, failureTitle(b)))),
+      ...this.run.balls.map((b, i) => h('div', { class: `ball ${b.end === 'success' ? 'ok' : 'no'}` }, h('b', {}, b.end === 'success' ? '✓' : '✗'), h('span', {}, i === 0 ? 'Your ball' : variantInfo(b.variant).short), h('small', {}, failureTitle(b)))),
     );
     const moments = h('div', { class: 'chips wrap' }, ...this.moments().map((m) => h('button', { class: 'chip', onclick: () => void this.replay(m.ball, Math.max(0, m.tick - 3)) }, m.label)));
     const cur = v.current;
@@ -287,13 +291,13 @@ export class RunScreen {
       h(
         'div',
         { class: 'results' },
-        h('h3', {}, `Day ${v.day.dayNumber}: ${r.score}/3 delivered`),
-        h('div', { class: 'sub' }, `${r.builders} ${r.builders === 1 ? 'engineer' : 'engineers'} · community streak ${r.streak} ${r.streak === 1 ? 'day' : 'days'} · best ${v.sub.bestStreak}`),
+        h('h3', {}, `Day ${v.day.dayNumber}: ${r.score} of 3 balls made it`),
+        h('div', { class: 'sub' }, `${r.builders} ${r.builders === 1 ? 'player' : 'players'} built it · ${r.streak} ${r.streak === 1 ? 'day' : 'days'} in a row with a ball in`),
         ballsRow,
         goNext,
-        award('🏆', 'MVP', r.awards.mvp, ''),
-        award('👆', 'Most touched', r.awards.mostTouched, r.awards.mostTouched ? ` · ${r.awards.mostTouched.value} touches` : ''),
-        award('⏱', 'Clutch', r.awards.clutch, r.awards.clutch ? ` · ${minutesBefore(r.lockedAt - r.awards.clutch.at)}` : ''),
+        award('🏆', 'Most useful piece', r.awards.mvp, ''),
+        award('👆', 'Busiest piece', r.awards.mostTouched, r.awards.mostTouched ? ` · hit ${r.awards.mostTouched.value} times` : ''),
+        award('⏱', 'Last-minute save', r.awards.clutch, r.awards.clutch ? ` · ${minutesBefore(r.lockedAt - r.awards.clutch.at)}` : ''),
         myLines.length ? h('div', { class: 'card' }, h('div', { class: 'k' }, 'You'), ...myLines.map((l) => h('div', {}, l))) : null,
         h('div', { class: 'card' }, h('div', { class: 'k' }, 'Predictions'), hist),
         h('div', { class: 'k', style: 'margin-top:8px' }, 'Jump to a key moment'),

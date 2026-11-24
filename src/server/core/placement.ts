@@ -93,7 +93,7 @@ export async function applyAction(deps: Deps, dayId: string, actor: { userId: st
         at: now,
         kind: 'replaced',
         dayNumber: meta.dayNumber,
-        text: `u/${actor.username} replaced your ${pieceName(d.displaced.type)} at ${d.displaced.socket} with a better one. You're free to place again.`,
+        text: `u/${actor.username} swapped your ${pieceName(d.displaced.type)} for one that works better. You can place a piece again.`,
       };
       await tx.zAdd(K.inbox(d.displaced.userId), { member: JSON.stringify(item), score: now });
     }

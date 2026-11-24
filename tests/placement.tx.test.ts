@@ -67,7 +67,7 @@ describe('transactional placement', () => {
     if ('ok' in r && r.ok) {
       const inbox = await env.store.zRange(K.inbox('b'), 0, -1);
       expect(inbox).toHaveLength(1);
-      expect(JSON.parse(inbox[0]!.member).text).toMatch(/u\/alice replaced your bumper at I3 with a better one\. You're free to place again\./);
+      expect(JSON.parse(inbox[0]!.member).text).toMatch(/u\/alice swapped your bumper for one that works better\. You can place a piece again\./);
     }
   });
 });

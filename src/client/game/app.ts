@@ -9,14 +9,14 @@ import type { Level } from '../../shared/sim/level';
 import { PIECE_DIRS, PIECE_TYPES, W, type Dir, type PieceType, type SimResult } from '../../shared/types';
 import { api } from '../lib/api';
 import type { BoardScene, ScenePiece } from './scenes/BoardScene';
-import { coachSeen, runCoach } from './ui/coach';
+import { welcome, welcomeSeen } from './ui/welcome';
 import { closeModal, closeSheet, fmtCountdown, h, sheetOpen, showSheet, toast } from './ui/dom';
 import { PIECE_LABEL, pieceIcon } from './ui/icons';
-import { howToPlay, pieceCard, reportModal, sealInfo } from './ui/modals';
+import { howToPlay, pieceCard, reportModal } from './ui/modals';
 import { RunScreen } from './run';
 
 const POLL_MS = 15_000;
-const KIND_NAMES: Record<string, string> = { solid: 'a wall', start: 'the start chute', target: 'the goal', checkpoint: 'a checkpoint', switch: 'a switch', gate: 'a gate', empty: 'empty air' };
+const KIND_NAMES: Record<string, string> = { solid: 'That’s a wall', start: 'That’s where the ball drops in', target: 'That’s the goal', checkpoint: 'That’s a checkpoint', switch: 'That’s a switch: the ball opens or closes gates when it rolls over it', gate: 'That’s a gate: a switch opens it', empty: 'Nothing goes there' };
 
 /** `from`: which of your pieces moves here (null = a new piece). */
 type Candidate = { socket: string; type: PieceType; dir: Dir; from: string | null };
@@ -131,18 +131,8 @@ export class GameApp {
   }
 
   private afterFirstLoad(): void {
-    const next = (): void => this.showInbox();
-    if (!coachSeen()) {
-      const rect = (sel: string) => () => document.querySelector(sel)?.getBoundingClientRect() ?? null;
-      runCoach(
-        [
-          { text: 'This machine is broken. Run it.', target: rect('[data-act="test"]') },
-          { text: 'Add one piece to help.', target: () => this.boardElement().getBoundingClientRect(), below: false },
-          { text: 'At lock, three balls fire. Two are secret.', target: rect('[data-act="seal"]'), below: true },
-        ],
-        next,
-      );
-    } else next();
+    if (!welcomeSeen()) welcome(this.view, () => this.showInbox());
+    else this.showInbox();
   }
 
   showInbox(): void {
@@ -161,10 +151,10 @@ export class GameApp {
 
   goalText(): string {
     const icon = this.view.level.target === 'basket' ? '🧺' : '🔔';
-    const verb = this.view.level.target === 'basket' ? 'Fill the basket' : 'Ring the bell';
+    const verb = this.view.level.target === 'basket' ? 'Get the ball in the basket' : 'Get the ball to the bell';
     if (this.view.level.objective.type === 'CHECKPOINTS_THEN_DELIVER') {
       const n = this.view.level.objective.count;
-      return `${icon} ${verb} after ${Array.from({ length: n }, (_, i) => circled(i + 1)).join('')}`;
+      return `${icon} ${verb}, through ${Array.from({ length: n }, (_, i) => circled(i + 1)).join('')} first`;
     }
     return `${icon} ${verb}`;
   }
@@ -172,30 +162,11 @@ export class GameApp {
   private renderHud(): void {
     const v = this.view;
     const tier = v.level.gen?.tier ?? 1;
-    this.els.title.replaceChildren(`Day ${v.day.dayNumber} · ${v.level.name} `, h('span', { class: 'gears', title: `Difficulty ${tier} of 3`, 'aria-label': `Difficulty ${tier} of 3` }, '⚙'.repeat(tier)));
+    const level = tier === 1 ? 'Easy' : tier === 2 ? 'Medium' : 'Hard';
+    this.els.title.replaceChildren(`Day ${v.day.dayNumber} · ${v.level.name}`);
     const open = v.day.status === 'OPEN';
-    const chips: HTMLElement[] = [h('span', { class: 'chip goal' }, this.goalText())];
-    if (open) chips.push(h('span', { class: 'chip', title: 'Time until the machine locks and fires' }, '⏱ ', this.els.countdown));
-    chips.push(h('button', { class: 'chip', 'data-act': 'seal', onclick: () => sealInfo(v) }, v.result ? '🔓 Seal opened' : `🔒 Sealed: ${v.day.commitHash.slice(0, 4)}…`));
-    chips.push(h('span', { class: 'chip' }, `👷 ${v.counts.builders} ${v.counts.builders === 1 ? 'engineer' : 'engineers'}`));
-    if (open && v.me.userId) {
-      const solo = v.me.allowance > 1;
-      chips.push(
-        h(
-          'button',
-          {
-            class: 'chip',
-            onclick: () =>
-              toast(
-                `Today's fix needs ${v.me.piecesNeeded} pieces, shared between everyone building. ${solo ? `Right now you can hold ${v.me.allowance}.` : 'With this many engineers it is one piece each.'}`,
-                4200,
-              ),
-          },
-          solo ? `🧩 Solo: hold ${v.me.allowance}` : '👥 1 piece each',
-        ),
-      );
-    }
-    if (v.counts.predictors) chips.push(h('span', { class: 'chip' }, `🔮 ${v.counts.predictors}`));
+    const chips: HTMLElement[] = [h('span', { class: 'chip goal' }, this.goalText()), h('span', { class: 'chip' }, level)];
+    if (open) chips.push(h('span', { class: 'chip', title: 'Time left before the machine fires' }, '⏱ ', this.els.countdown, ' left'));
     this.els.chips.replaceChildren(...chips);
     this.tickClock();
   }
@@ -252,7 +223,7 @@ export class GameApp {
 
   private refreshStatus(): void {
     const r = this.currentRun();
-    this.els.status.textContent = r.end === 'success' ? 'Right now: Ball 1 delivers ✓' : `Right now: Ball 1 ${describeEnd(r)}`;
+    this.els.status.textContent = r.end === 'success' ? 'Right now: the ball reaches the goal ✓' : `Right now: the ball ${describeEnd(r)}`;
     if (!this.candidate) this.scene.setGhost(r, undefined);
   }
 
@@ -284,7 +255,7 @@ export class GameApp {
     if (btn) btn.firstChild!.textContent = '■ Stop ';
     await this.scene.playRun(r, { speed: this.speed, showOwners: true });
     if (btn) btn.firstChild!.textContent = '▶ Test run';
-    this.els.status.textContent = r.end === 'success' ? 'Ball 1 delivers ✓' : `Ball 1 ${describeEnd(r)}`;
+    this.els.status.textContent = r.end === 'success' ? 'The ball reaches the goal ✓' : `The ball ${describeEnd(r)}`;
     if (this.candidate) this.updatePreview();
     else this.scene.setGhost(r, undefined);
   }
@@ -310,7 +281,8 @@ export class GameApp {
     const i = y * W + x;
     if (!this.level.socket[i]) {
       const k = this.level.kinds[i] ?? 'empty';
-      this.els.status.textContent = `${name} is ${KIND_NAMES[k] ?? 'part of the machine'}. Pieces go in dashed sockets.`;
+      this.els.status.textContent = `${KIND_NAMES[k] ?? 'That’s part of the machine'}. Pieces go in the dashed squares.`;
+      void name;
       return;
     }
     if (!this.view.me.userId) {
@@ -441,17 +413,17 @@ export class GameApp {
     let heading: string;
     let sub: string;
     if (replacing) {
-      heading = `Replace ${occupant!.setup ? 'the setup' : `u/${occupant!.username}'s`} ${pieceName(occupant!.type)} at ${c.socket}`;
-      sub = 'Your version must give Ball 1 strictly better progress.';
+      heading = `Swap ${occupant!.setup ? 'this' : `u/${occupant!.username}'s`} ${pieceName(occupant!.type)}`;
+      sub = 'Yours has to work better than theirs.';
     } else if (own && own.socket === c.socket) {
-      heading = `Your ${pieceName(own.type)} at ${c.socket}`;
-      sub = 'Turn it or swap its type. It must not lower Ball 1’s progress.';
+      heading = `Your ${pieceName(own.type)}`;
+      sub = 'Tap a piece to change it, or tap it again to turn it.';
     } else if (own) {
-      heading = `Move your ${pieceName(own.type)} to ${c.socket}`;
-      sub = `It leaves ${own.socket}. Ball 1 must not do worse.`;
+      heading = `Move your ${pieceName(own.type)} here`;
+      sub = 'It can’t make the ball do worse.';
     } else {
-      heading = `Add a piece at ${c.socket}`;
-      sub = 'Tap a piece, tap again to turn it. Ball 1 must not do worse.';
+      heading = 'Add a piece here';
+      sub = 'Pick a piece. Tap it again to turn it.';
     }
 
     let verdictEl: HTMLElement;
@@ -462,12 +434,11 @@ export class GameApp {
       const icon = d.verdict.kind === 'better' ? '✅' : '☑️';
       verdictEl = h('div', { class: `verdict ${d.verdict.kind}`, role: 'status' }, h('span', { class: 'vi' }, icon), h('div', {}, h('b', {}, d.verdict.label), ' ', d.verdict.reason));
     } else if (d.code === 'LIMIT') {
-      verdictEl = h('div', { class: 'verdict' }, h('span', { class: 'vi' }, '👆'), h('div', {}, `You're holding all ${view.me.allowance} pieces you can right now. Pick one of yours above to move it here.`));
+      verdictEl = h('div', { class: 'verdict' }, h('span', { class: 'vi' }, '👆'), h('div', {}, `You've used all ${view.me.allowance} of your pieces. Pick one above to move it here.`));
     } else if (d.code === 'NO_CHANGE') {
-      verdictEl = h('div', { class: 'verdict' }, h('span', { class: 'vi' }, '👆'), h('div', {}, 'That’s your piece as it is. Tap a piece type to change it, or tap another socket to move it.'));
+      verdictEl = h('div', { class: 'verdict' }, h('span', { class: 'vi' }, '👆'), h('div', {}, 'That’s your piece. Tap a piece above to change it.'));
     } else {
-      const label = d.verdict ? d.verdict.label : 'Not allowed ✗';
-      verdictEl = h('div', { class: 'verdict lower', role: 'status' }, h('span', { class: 'vi' }, '⛔'), h('div', {}, h('b', {}, label), ' ', d.verdict ? d.verdict.reason : d.message, d.code === 'MUST_IMPROVE' ? ' Replacing needs strictly better.' : ''));
+      verdictEl = h('div', { class: 'verdict lower', role: 'status' }, h('span', { class: 'vi' }, '⛔'), h('div', {}, d.message));
     }
 
     const buttons = h(
@@ -482,7 +453,7 @@ export class GameApp {
     if (mine.length > 0 && !(occupant && occupant === own && !c.from)) {
       const opts: Array<{ label: string; from: string | null; disabled: boolean }> = [];
       opts.push({ label: atLimit ? `New piece (limit ${view.me.allowance})` : 'New piece', from: null, disabled: atLimit });
-      for (const p of mine) if (p.socket !== c.socket) opts.push({ label: `Move ${pieceName(p.type)} from ${p.socket}`, from: p.socket, disabled: false });
+      for (const p of mine) if (p.socket !== c.socket) opts.push({ label: `Move your ${pieceName(p.type)}${mine.filter((q) => q.type === p.type).length > 1 ? ` #${mine.filter((q) => q.type === p.type).indexOf(p) + 1}` : ''}`, from: p.socket, disabled: false });
       chooser = h(
         'div',
         { class: 'chips wrap', style: 'margin:2px 0 6px' },

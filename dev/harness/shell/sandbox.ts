@@ -33,6 +33,7 @@ let speed = 1;
 let seq = 0;
 
 const scene = new BoardScene();
+scene.showLabels = true;
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'board',

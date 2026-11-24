@@ -32,9 +32,10 @@ describe('results comment', () => {
   it('reads like §8 and ends with the recovery marker', () => {
     const body = resultsComment(12, r, pieces, ['I13', 'G11', 'I13']);
     expect(body).toContain('**2/3 delivered.**');
-    expect(body).toContain('Ball 2 (HEAVY) fell into the void near G11');
-    expect(body).toContain("🏆 MVP: u/kestrel's spring at F4");
-    expect(body).toContain("👆 Most Touched: u/moss's ramp at C3");
+    expect(body).toContain('The Heavy ball fell off the board');
+    expect(body).not.toMatch(/[A-I]\d{1,2}\b/);
+    expect(body).toContain("🏆 MVP: u/kestrel's spring");
+    expect(body).toContain("👆 Most Touched: u/moss's ramp");
     expect(body).toContain('⏱ Clutch: u/plover, 14 min before lock');
     expect(body).toContain('40% predicted 2');
     expect(body).toContain('Streak: 4 days');

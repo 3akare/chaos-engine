@@ -31,7 +31,7 @@ describe('api', () => {
   it('POST /api/place, then /api/remove', async () => {
     const r = await api.post('/api/place', { socketId: 'D3', type: 'BUMPER', dir: 'L' });
     expect(r.status).toBe(200);
-    expect(r.json.verdict).toMatch(/^Same progress ✓/);
+    expect(r.json.verdict).toMatch(/^No change ✓/);
     expect(r.json.state.me.socket).toBe('D3');
     const rm = await api.post('/api/remove', {});
     expect(rm.status).toBe(200);
@@ -42,7 +42,7 @@ describe('api', () => {
     const r = await api.post('/api/place', { socketId: 'B2', type: 'RAMP', dir: 'DL' });
     expect(r.status).toBe(400);
     expect(r.json.error).toBe('NOT_REPLACEABLE');
-    expect(r.json.message).toMatch(/B2 is part of the machine/);
+    expect(r.json.message).toMatch(/can’t be changed/);
     const bad = await api.post('/api/place', { socketId: 'D3', type: 'RAMP', dir: 'U' });
     expect(bad.json.message).not.toMatch(/^[A-Z_]+$/);
   });

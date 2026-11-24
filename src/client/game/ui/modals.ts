@@ -3,7 +3,7 @@ import type { DayView, InboxItem, StoredPiece } from '../../../shared/protocol';
 import { VARIANTS } from '../../../shared/sim/variants';
 import { sha256Hex } from '../../../shared/sha256';
 import { ago, h, showModal } from './dom';
-import { DIR_LABEL, PIECE_LABEL, pieceIcon } from './icons';
+import { PIECE_LABEL, pieceIcon } from './icons';
 
 export function howToPlay(): void {
   showModal(
@@ -11,22 +11,23 @@ export function howToPlay(): void {
       'div',
       {},
       h('h2', {}, 'How to play'),
-      h('p', {}, 'Every day the subreddit shares ', h('b', {}, 'one broken machine'), '. Fix it together, one piece each.'),
+      h('p', {}, 'Get the ball from the chute at the top into the goal at the bottom.'),
       h(
         'table',
         {},
         ...[
-          ['▶ Test run', 'Run Ball 1 as often as you like. It is free and instant.'],
-          ['➕ Place', 'Hold one piece at a time: ramp, spring, fan or bumper, in a dashed socket.'],
-          ['🛡 Protected', 'A piece can never make Ball 1 do worse. Replacing someone else’s piece needs a strictly better result.'],
-          ['🎲 Lock', 'At lock, three balls fire: Ball 1, plus two secret variants.'],
-          ['🔮 Predict', 'Guess how many of the 3 balls will make it. Keep your streak.'],
+          ['▶ Test run', 'See where the ball goes right now. Free, as often as you like.'],
+          ['➕ Place', 'Tap a dashed square and pick a piece. Tap the piece again to turn it.'],
+          ['🛡 No griefing', 'A piece can never make the ball do worse. To swap someone else’s piece, yours has to work better.'],
+          ['🧩 Pieces', 'On your own you can place every piece the fix needs. When more people join, you share them.'],
+          ['💥 The big run', 'Once a day the machine fires 3 balls. Your score is how many reach the goal.'],
+          ['🔮 Guess', 'Predict how many will make it.'],
         ].map(([a, b]) => h('tr', {}, h('td', {}, h('b', {}, a!)), h('td', {}, b!))),
       ),
-      h('p', {}, h('b', {}, 'Only Ball 1’s progress is protected, not whether the machine will win.'), ' The secret balls can be helped — or hurt — by any piece.'),
-      h('h2', { style: 'margin-top:14px;font-size:17px' }, 'The six secret variants'),
+      h('h2', { style: 'margin-top:14px;font-size:17px' }, 'The surprise balls'),
+      h('p', { class: 'muted', style: 'margin-top:0' }, 'Two of these are picked each day, and you only find out which when the machine fires. A machine that only works for your ball might not work for them.'),
       h('table', {}, ...VARIANTS.map((v) => h('tr', {}, h('td', {}, h('b', {}, v.name)), h('td', {}, v.effect)))),
-      h('p', { style: 'color:var(--muted);font-size:13px' }, 'Coordinates like C7 are on the board edges — use them in the comments.'),
+      h('p', { class: 'muted', style: 'font-size:13px' }, 'The surprise balls are locked in when the day starts, so nobody can change them later.'),
     ),
   );
 }
@@ -59,13 +60,13 @@ export function reportModal(items: InboxItem[], onDone: () => void): void {
 export function pieceCard(p: StoredPiece, view: DayView, actions: Array<{ label: string; primary?: boolean; run: () => void }>): HTMLElement {
   const mine = p.userId === view.me.userId && !p.setup;
   const who = p.setup ? `u/${p.username} (setup)` : mine ? 'Your piece' : `u/${p.username}`;
-  const lines: Array<string | HTMLElement> = [`${PIECE_LABEL[p.type]} facing ${DIR_LABEL[p.dir]} · placed ${ago(view.serverNow - p.placedAt)}`];
+  const lines: Array<string | HTMLElement> = [`${PIECE_LABEL[p.type]}, placed ${ago(view.serverNow - p.placedAt)}`];
   if (p.editedAt) lines.push(`edited ${ago(view.serverNow - p.editedAt)}`);
-  if (p.replaced) lines.push(`replaced u/${p.replaced.username}'s ${PIECE_LABEL[p.replaced.type].toLowerCase()}`);
+  if (p.replaced) lines.push(`swapped in for u/${p.replaced.username}'s ${PIECE_LABEL[p.replaced.type].toLowerCase()}`);
   return h(
     'div',
     {},
-    h('div', { style: 'display:flex;gap:10px;align-items:center' }, pieceIcon(p.type, p.dir, 40), h('div', {}, h('h3', {}, `${who} · ${p.socket}`), h('div', { class: 'sub', style: 'margin:0' }, lines.join(' · ')))),
+    h('div', { style: 'display:flex;gap:10px;align-items:center' }, pieceIcon(p.type, p.dir, 40), h('div', {}, h('h3', {}, who), h('div', { class: 'sub', style: 'margin:0' }, lines.join(' · ')))),
     h('div', { class: 'row', style: 'margin-top:10px' }, ...actions.map((a) => h('button', { class: `btn${a.primary ? ' primary' : ''}`, onclick: a.run }, a.label))),
   );
 }

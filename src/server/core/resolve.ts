@@ -93,7 +93,7 @@ export async function resolveDay(deps: Deps, dayId: string): Promise<boolean> {
     run.balls.forEach((b, i) => {
       for (const id of b.touchedPieceIds) touchedBy.set(id, [...(touchedBy.get(id) ?? []), i]);
     });
-    const ballName = (i: number): string => (i === 0 ? 'Ball 1' : `Ball ${i + 1} (${variantInfo(run.variants[i]!).short})`);
+    const ballName = (i: number): string => (i === 0 ? 'your ball' : `the ${variantInfo(run.variants[i]!).short} ball`);
     const goal = machine.target === 'basket' ? 'into the basket' : 'into the bell';
     const touchedOwners = new Map<string, number>();
     for (const p of pieces) {
@@ -104,11 +104,11 @@ export async function resolveDay(deps: Deps, dayId: string): Promise<boolean> {
       const delivered = balls.find((i) => run.balls[i]!.end === 'success');
       let text: string;
       if (isMvp) {
-        text = delivered !== undefined ? `Your ${pieceName(p.type)} at ${p.socket} helped ${ballName(delivered)} ${goal}. MVP!` : `Your ${pieceName(p.type)} at ${p.socket} was Day ${meta.dayNumber}'s MVP!`;
+        text = delivered !== undefined ? `Your ${pieceName(p.type)} helped ${ballName(delivered)} ${goal}. MVP!` : `Your ${pieceName(p.type)} was Day ${meta.dayNumber}'s MVP!`;
       } else if (balls.length) {
-        text = `Your ${pieceName(p.type)} at ${p.socket} touched ${balls.length === 1 ? ballName(balls[0]!) : `${balls.length} of 3 balls`} on Day ${meta.dayNumber}. ${run.score}/3 delivered.`;
+        text = `Your ${pieceName(p.type)} helped steer ${balls.length === 1 ? ballName(balls[0]!) : `${balls.length} of the 3 balls`} on Day ${meta.dayNumber}. ${run.score} of 3 made it.`;
       } else {
-        text = `Your ${pieceName(p.type)} at ${p.socket} stayed dormant on Day ${meta.dayNumber} — no ball touched it. ${run.score}/3 delivered.`;
+        text = `No ball touched your ${pieceName(p.type)} on Day ${meta.dayNumber}. ${run.score} of 3 made it.`;
       }
       inbox.push({ userId: p.userId, item: { id: newId(deps), at: now, kind: isMvp ? 'mvp' : 'touched', dayNumber: meta.dayNumber, text } });
     }
@@ -121,7 +121,7 @@ export async function resolveDay(deps: Deps, dayId: string): Promise<boolean> {
       if (!touchedOwners.has(uid) && !pieces.some((p) => p.userId === uid)) {
         inbox.push({
           userId: uid,
-          item: { id: newId(deps), at: now, kind: 'prediction', dayNumber: meta.dayNumber, text: right ? `You predicted ${v} for Day ${meta.dayNumber} — exactly right! Prediction streak: ${s}.` : `You predicted ${v} for Day ${meta.dayNumber}; it was ${run.score}/3.` },
+          item: { id: newId(deps), at: now, kind: 'prediction', dayNumber: meta.dayNumber, text: right ? `You guessed ${v} for Day ${meta.dayNumber}. Spot on! Guess streak: ${s}.` : `You guessed ${v} for Day ${meta.dayNumber}. It was ${run.score}.` },
         });
       }
     }
