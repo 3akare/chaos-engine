@@ -8,8 +8,7 @@ import { variantInfo } from '../../shared/sim/variants';
 import type { SimResult } from '../../shared/types';
 import type { GameApp } from './app';
 import type { BoardScene, ScenePiece } from './scenes/BoardScene';
-import { closeCard, h, showCard } from './ui/dom';
-import { pieceIcon } from './ui/icons';
+import { closeCard, h, ico, pieceImg, showCard, spr } from './ui/dom';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -100,7 +99,7 @@ export class RunScreen {
       return h(
         'div',
         { class: 'flip' },
-        h('div', { class: 'flip-in' }, h('div', { class: 'face front' }, h('i', { class: 'sphere' })), h('div', { class: 'face back' }, h('b', {}, info.short), h('small', {}, info.effect))),
+        h('div', { class: 'flip-in' }, h('div', { class: 'face front hud' }, '?'), h('div', { class: 'face back' }, spr('ball'), h('b', {}, info.short), h('small', {}, info.effect))),
       );
     };
     const c1 = card(1);
@@ -158,7 +157,7 @@ export class RunScreen {
   }
 
   private async stamp(good: boolean): Promise<void> {
-    const el = h('div', { class: `stamp ${good ? 'good' : 'bad'}` }, good ? '✓' : '✕');
+    const el = h('div', { class: `stamp ${good ? 'good' : 'bad'}` }, ico(good ? 'checkmark' : 'cross'));
     this.board.append(el);
     requestAnimationFrame(() => el.classList.add('show'));
     await sleep(1000);
@@ -168,11 +167,9 @@ export class RunScreen {
   }
 
   private confetti(n: number): void {
-    const colors = ['#ffc65a', '#ff8f8f', '#7ab8ff', '#7fd6a0', '#ff7657'];
     for (let i = 0; i < n; i++) {
-      const p = h('i', { class: 'confetto' });
+      const p = spr(i % 3 ? 'star' : 'coin', 'confetto');
       p.style.left = `${(i * 37) % 100}%`;
-      p.style.background = colors[i % colors.length]!;
       p.style.animationDelay = `${(i % 10) * 60}ms`;
       this.board.append(p);
       setTimeout(() => p.remove(), 2600);
@@ -186,14 +183,15 @@ export class RunScreen {
       h(
         'button',
         {
-          class: `key ballkey${this.run.balls[i]!.end === 'success' ? '' : ' miss'}${i === this.ball ? ' sel' : ''}`,
+          class: `key tile${i === this.ball ? ' sel' : ''}`,
           'aria-label': `Replay ${this.ballTitle(i)}`,
           onclick: () => void this.replay(i),
         },
-        h('i', { class: 'sphere' }),
+        spr('ball', this.run.balls[i]!.end === 'success' ? '' : 'miss'),
+        h('span', { class: `badge ${this.run.balls[i]!.end === 'success' ? 'ok' : 'x'}` }, ico(this.run.balls[i]!.end === 'success' ? 'checkmark' : 'cross')),
       ),
     );
-    const star = h('button', { class: 'key primary', 'aria-label': 'Score', onclick: () => this.showResults() }, '★');
+    const star = h('button', { class: 'key blue', 'aria-label': 'Score', onclick: () => this.showResults() }, ico('trophy'));
     this.dock.className = 'dock';
     this.dock.replaceChildren(...keys, star);
   }
@@ -217,7 +215,7 @@ export class RunScreen {
     const who = (label: string, a: { pieceId: string; username: string } | null): HTMLElement | null => {
       const p = a ? byId.get(a.pieceId) : undefined;
       if (!a || !p) return null;
-      return h('div', { class: 'who' }, pieceIcon(p.type, p.dir, 28), h('b', {}, `u/${a.username}`), h('span', { class: 'lbl' }, label));
+      return h('div', { class: 'who' }, pieceImg(p.type, p.dir), h('b', {}, `u/${a.username}`), h('span', { class: 'lbl' }, label));
     };
     const cur = v.current;
     const hasNext = !!cur.postId && cur.postId !== v.day.postId;
@@ -228,8 +226,8 @@ export class RunScreen {
       h(
         'div',
         {},
-        h('div', { class: 'score' }, `${r.score}/3`),
-        h('div', { class: 'trio' }, ...this.run.balls.map((b) => h('i', { class: b.end === 'success' ? 'in' : '' }))),
+        h('div', { class: 'score hud' }, `${r.score}/3`),
+        h('div', { class: 'trio' }, ...this.run.balls.map((b) => spr('ball', b.end === 'success' ? '' : 'miss'))),
         guess,
         mvp,
         clutch,

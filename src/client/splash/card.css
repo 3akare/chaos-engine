@@ -1,19 +1,18 @@
-/* Feed card. Same tokens, font, radii and shadow as the game (see game/game.css). */
+/* Feed card: the sky, a small board, the day and one button. Same art and font as the game. */
 @import '../lib/font.css';
-:root { --c-bg1: #fde9dc; --c-bg2: #f8d3c3; --c-ink: #4a2b37; --c-muted: #a27b80; --c-accent: #ff7657; --c-on-accent: #fff; --c-well: rgba(90, 45, 55, 0.07); --c-lift: 0 6px 16px rgba(150, 70, 50, 0.18), 0 1px 3px rgba(150, 70, 50, 0.12); color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { --c-bg1: #2a1e37; --c-bg2: #3b2541; --c-ink: #f8e8dc; --c-muted: #ae90a7; --c-accent: #ff8a66; --c-on-accent: #2a1e37; --c-well: rgba(255, 230, 215, 0.08); --c-lift: 0 6px 16px rgba(8, 0, 16, 0.42), 0 1px 3px rgba(8, 0, 16, 0.3); color-scheme: dark; } }
-:root[data-theme='dark'] { --c-bg1: #2a1e37; --c-bg2: #3b2541; --c-ink: #f8e8dc; --c-muted: #ae90a7; --c-accent: #ff8a66; --c-on-accent: #2a1e37; --c-well: rgba(255, 230, 215, 0.08); --c-lift: 0 6px 16px rgba(8, 0, 16, 0.42), 0 1px 3px rgba(8, 0, 16, 0.3); color-scheme: dark; }
 .ce-card, .ce-card * { box-sizing: border-box; }
-.ce-card { height: 100%; display: flex; gap: 20px; padding: 16px 20px; background: linear-gradient(180deg, var(--c-bg1), var(--c-bg2)); color: var(--c-ink); font: 800 16px/1.25 'Nunito Variable', 'Nunito', ui-rounded, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-.ce-card .mini { flex: 0 0 auto; height: 100%; max-width: 50%; cursor: pointer; }
+.ce-card { height: 100%; display: flex; gap: 16px; padding: 14px 16px; color: #353541; background: url(../assets/bg_clouds.png) repeat-x left bottom / 160px 160px, #c3e3ff; font: 800 16px/1.2 'Nunito Variable', 'Nunito', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.ce-card .mini { flex: 0 0 auto; height: 100%; max-width: 52%; cursor: pointer; }
 .ce-card .mini canvas { width: 100%; height: 100%; display: block; }
-.ce-card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 8px 0 4px; }
-.ce-card .title { font-size: 32px; font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; }
-.ce-card .muted { color: var(--c-muted); font-size: 16px; font-variant-numeric: tabular-nums; }
-.ce-card .score { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: -0.03em; margin-top: 12px; }
-.ce-card .balls3 { display: flex; gap: 8px; margin-top: 8px; }
-.ce-card .balls3 i { width: 16px; height: 16px; border-radius: 50%; background: var(--c-well); }
-.ce-card .balls3 i.in { background: var(--c-accent); }
+.ce-card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 6px 0 4px; }
+.ce-card .hud, .ce-card .cta { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; }
+.ce-card .hud { color: #fff; -webkit-text-stroke: 6px #353541; paint-order: stroke fill; }
+.ce-card .title { font-size: 40px; line-height: 1; }
+.ce-card .muted { align-self: flex-start; height: 32px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 999px; background: #fff; border: 4px solid #353541; font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ce-card .score { font-size: 56px; line-height: 1; margin-top: 4px; }
+.ce-card .balls3 { display: flex; gap: 6px; }
+.ce-card .balls3 img { width: 30px; height: 30px; display: block; }
+.ce-card .balls3 img.miss { filter: grayscale(1) opacity(0.45); }
 .ce-card .spacer { flex: 1; }
-.ce-card .cta { height: 52px; border: 0; border-radius: 999px; background: var(--c-accent); color: var(--c-on-accent); font: 900 17px 'Nunito Variable', 'Nunito', system-ui, sans-serif; cursor: pointer; box-shadow: var(--c-lift); transition: transform 0.14s; }
-.ce-card .cta:active { transform: translateY(2px) scale(0.98); }
+.ce-card .cta { height: 60px; border-radius: 18px; border: 4px solid #353541; background: #2ecc71; box-shadow: inset 0 -6px 0 #1aa074; color: #fff; -webkit-text-stroke: 5px #353541; paint-order: stroke fill; font: 26px 'Lilita One', system-ui, sans-serif; cursor: pointer; }
+.ce-card .cta:active { transform: translateY(3px); box-shadow: inset 0 -3px 0 #1aa074; }

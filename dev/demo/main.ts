@@ -3,7 +3,7 @@ import type { DayView } from '../../src/shared/protocol';
 import { renderCard } from '../../src/client/splash/card';
 import { boot, call, nextDay, now, persist, reddit, resetAll, seedDemo, state } from './backend';
 import { openPost } from './devvit-client';
-import '../../src/client/lib/font.css';
+import { icon } from '../../src/client/assets';
 import './demo.css';
 
 const PLAYERS = ['you', 'alice', 'bob', 'carol', 'dave'];
@@ -13,6 +13,13 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, 
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
   e.append(...kids);
   return e;
+}
+
+function img(name: string): HTMLImageElement {
+  const i = new Image();
+  i.src = icon(name);
+  i.alt = '';
+  return i;
 }
 
 function note(text: string): void {
@@ -54,8 +61,8 @@ async function renderFeed(): Promise<void> {
     h(
       'header',
       { class: 'feed-head' },
-      h('div', { class: 'sub-name' }, 'r/chaos_engine_game_dev · playtest'),
-      h('div', { class: 'demo-controls' }, playerPicker(), button('⏩ Next day', advance, 'primary'), button('Seed demo', async () => note(await seedDemo())), button('Start over', () => {
+      h('div', { class: 'sub-name' }, 'Chaos Engine playtest'),
+      h('div', { class: 'demo-controls' }, playerPicker(), button('Next day', advance, 'primary'), button('Seed demo', async () => note(await seedDemo())), button('Start over', () => {
         resetAll();
         location.reload();
       })),
@@ -91,13 +98,13 @@ async function renderGame(): Promise<void> {
   await import('../../src/client/game/main');
   // Two small demo-only keys in the game's own top line: back to the feed, and skip to the next day.
   const top = document.querySelector('.top');
-  const back = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Back to feed' }, '‹');
+  const back = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Back to feed' }, img('arrowLeft'));
   back.addEventListener('click', () => {
     state.view = { screen: 'feed' };
     persist();
     location.reload();
   });
-  const skip = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Next day (playtest)' }, '⏭');
+  const skip = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Next day (playtest)' }, img('fastForward'));
   skip.addEventListener('click', () => void advance());
   top?.prepend(back);
   top?.append(skip);

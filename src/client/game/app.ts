@@ -11,8 +11,7 @@ import type { Level } from '../../shared/sim/level';
 import { PIECE_DIRS, PIECE_TYPES, W, type Dir, type PieceType, type SimResult } from '../../shared/types';
 import { api } from '../lib/api';
 import type { BoardScene, ScenePiece } from './scenes/BoardScene';
-import { clearTag, closeCard, fmtCountdown, h, tag } from './ui/dom';
-import { pieceIcon } from './ui/icons';
+import { clearTag, closeCard, fmtCountdown, h, ico, pieceImg, spr, tag } from './ui/dom';
 import { howToPlay, reportModal, welcome } from './ui/modals';
 import { markWelcomed, welcomeSeen } from './ui/welcome';
 import { RunScreen } from './run';
@@ -39,7 +38,7 @@ export class GameApp {
     private scene: BoardScene,
     private postId: string | undefined,
   ) {
-    const day = h('button', { class: 'day', 'aria-label': 'How to play', onclick: () => howToPlay() });
+    const day = h('button', { class: 'day hud', 'aria-label': 'How to play', onclick: () => howToPlay() });
     const time = h('div', { class: 'time' });
     const top = h('header', { class: 'top' }, day, time);
     const board = h('div', { id: 'board' });
@@ -95,7 +94,7 @@ export class GameApp {
       this.scene.onTap = null;
       this.scene.setBoard(this.level, this.scenePieces(), v.level.target ?? 'bell');
       this.scene.setGhost(undefined, undefined);
-      if (!this.els.board.querySelector('.spinner')) this.els.board.append(h('div', { class: 'spinner' }));
+      if (!this.els.board.querySelector('.spinner')) this.els.board.append(spr('coin', 'spinner'));
       this.els.dock.replaceChildren();
     } else {
       this.scene.onTap = null;
@@ -181,12 +180,11 @@ export class GameApp {
     this.scene.setGhost(this.currentRun(), undefined);
     const me = this.view.me;
     const left = Math.max(0, me.allowance - me.sockets.length);
-    const pips = h('span', { class: 'pips' }, ...Array.from({ length: Math.min(4, me.allowance) }, (_, i) => h('i', { class: i < left ? 'on' : '' })));
     this.els.dock.className = 'dock';
     this.els.dock.replaceChildren(
-      this.key('', `${left} pieces left`, () => this.hintSockets(), pips),
-      this.key('primary', 'Run the ball', () => void this.testRun(), h('span', { class: 'tri' })),
-      this.key('', 'Guess the score', () => this.toGuess(), me.prediction === null ? '?' : String(me.prediction)),
+      this.key('', `${left} pieces left`, () => this.hintSockets(), spr('spring_out'), h('span', { class: 'badge' }, String(left))),
+      this.key('go', 'Roll the ball', () => void this.testRun(), ico('right')),
+      this.key('blue', 'Guess the score', () => this.toGuess(), h('span', { class: 'n hud' }, me.prediction === null ? '?' : String(me.prediction))),
     );
     this.els.dock.children[1]?.setAttribute('data-act', 'test');
   }
@@ -206,18 +204,18 @@ export class GameApp {
     const btn = this.els.dock.querySelector('[data-act="test"]');
     if (this.scene.isPlaying()) {
       this.scene.stop();
-      btn?.classList.remove('playing');
+      btn?.replaceChildren(ico('right'));
       this.scene.setGhost(this.currentRun(), undefined);
       return;
     }
     const r = this.currentRun();
     this.scene.setGhost(undefined, undefined);
-    btn?.classList.add('playing');
+    btn?.replaceChildren(ico('stop'));
     await this.scene.playRun(r, { speed: this.speed, showOwners: true });
-    btn?.classList.remove('playing');
+    btn?.replaceChildren(ico('right'));
     if (this.mode === 'idle') {
       this.scene.setGhost(r, undefined);
-      tag(r.end === 'success' ? 'It made it!' : r.end === 'lost' ? 'Fell off the board' : r.end === 'loop' ? 'Bouncing forever' : 'Got stuck', r.end === 'success' ? 'good' : 'bad');
+      tag(r.end === 'success' ? 'It reached the flag!' : r.end === 'lost' ? 'Fell off' : r.end === 'loop' ? 'Going round in circles' : 'Got stuck', r.end === 'success' ? 'good' : 'bad');
     }
   }
 
@@ -244,8 +242,8 @@ export class GameApp {
     tag(p.setup ? 'Starter piece' : `Placed by u/${p.username}`);
     this.els.dock.className = 'dock';
     this.els.dock.replaceChildren(
-      this.key('flat', 'Back', () => this.toIdle(), '✕'),
-      this.key('primary', 'Swap it for a better one', () => this.toPick(p.socket), '⇄'),
+      this.key('no', 'Back', () => this.toIdle(), ico('cross')),
+      this.key('blue', 'Swap it for a better one', () => this.toPick(p.socket), ico('return')),
     );
   }
 
@@ -320,21 +318,21 @@ export class GameApp {
             this.renderPick();
           },
         },
-        pieceIcon(t, sel ? c.dir : PIECE_DIRS[t][0]!, 36),
+        pieceImg(t, sel ? c.dir : PIECE_DIRS[t][0]!),
       );
     });
     const ok = !!d && d.ok;
     if (!d) tag('Log in to play', 'bad', true);
-    else if (d.ok) tag(d.after[0] ? 'Reaches the goal!' : d.verdict.kind === 'better' ? 'Better' : own && !replacing && own.socket !== c.socket ? 'Moves your piece here' : 'No change yet', d.verdict.kind === 'better' ? 'good' : 'same', true);
+    else if (d.ok) tag(d.after[0] ? 'Reaches the flag!' : d.verdict.kind === 'better' ? 'Better' : own && !replacing && own.socket !== c.socket ? 'Moves your piece here' : 'No change yet', d.verdict.kind === 'better' ? 'good' : 'same', true);
     else if (d.code === 'NO_CHANGE') tag('Tap the piece again to turn it', 'same', true);
     else if (d.code === 'MUST_IMPROVE') tag('Not better than theirs', 'bad', true);
     else if (d.code === 'WOULD_HURT') tag('Makes it worse', 'bad', true);
     else if (d.code === 'OUT_OF_STOCK') tag('None of those left', 'bad', true);
     else tag(d.message, 'bad', true);
 
-    const left = own && own.socket === c.socket ? this.key('flat', 'Remove your piece', () => void this.removeMine(), '✕') : this.key('flat', 'Cancel', () => this.toIdle(), '✕');
+    const left = own && own.socket === c.socket ? this.key('no', 'Remove your piece', () => void this.removeMine(), ico('cross')) : this.key('no', 'Cancel', () => this.toIdle(), ico('cross'));
     this.els.dock.className = 'dock tight';
-    this.els.dock.replaceChildren(left, ...tiles, this.key('good', 'Place it', () => void this.confirm(), '✓'));
+    this.els.dock.replaceChildren(left, ...tiles, this.key('go', 'Place it', () => void this.confirm(), ico('checkmark')));
     (this.els.dock.lastElementChild as HTMLButtonElement).disabled = !ok || this.busy;
   }
 
@@ -383,8 +381,8 @@ export class GameApp {
     };
     this.els.dock.className = 'dock tight';
     this.els.dock.replaceChildren(
-      this.key('flat', 'Back', () => this.toIdle(), '✕'),
-      ...[0, 1, 2, 3].map((n) => this.key(`digit${v.me.prediction === n ? ' sel' : ''}`, `${n} of 3`, () => void pick(n), String(n))),
+      this.key('no', 'Back', () => this.toIdle(), ico('cross')),
+      ...[0, 1, 2, 3].map((n) => this.key(`digit${v.me.prediction === n ? ' sel' : ''}`, `${n} of 3`, () => void pick(n), h('span', { class: 'n hud' }, String(n)))),
     );
   }
 

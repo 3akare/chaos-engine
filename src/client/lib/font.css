@@ -1,4 +1,11 @@
-/* Nunito, latin only (the game's one font). */
+/* Two fonts: Lilita One for titles, numbers and buttons; Nunito for sentences. Latin subsets only. */
+@font-face {
+  font-family: 'Lilita One';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url(@fontsource/lilita-one/files/lilita-one-latin-400-normal.woff2) format('woff2');
+}
 @font-face {
   font-family: 'Nunito Variable';
   font-style: normal;

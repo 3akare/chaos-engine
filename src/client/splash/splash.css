@@ -1,4 +1,4 @@
 @import './card.css';
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
+html, body { margin: 0; height: 100%; background: #c3e3ff; overflow: hidden; }
 #splash { height: 100%; }

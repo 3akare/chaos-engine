@@ -1,4 +1,7 @@
-/** Tiny UI kit: element builder, cards centred on the board, a one-line tag above the dock. */
+/** Tiny UI kit: element builder, sprite/icon images, one card at a time, one status line. */
+import type { Dir, PieceType } from '../../../shared/types';
+import { icon, pieceLook, sprite } from '../../assets';
+
 export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string | boolean | ((e: Event) => void)> = {}, ...kids: Array<Node | string | null | undefined | false>): HTMLElementTagNameMap[K] {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -10,11 +13,21 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<s
   return el;
 }
 
-const board = (): HTMLElement => document.getElementById('board') ?? document.body;
+/** A white game icon (Kenney Game Icons). */
+export const ico = (name: string): HTMLImageElement => h('img', { src: icon(name), alt: '' });
+/** A board sprite. */
+export const spr = (name: string, cls = ''): HTMLImageElement => h('img', { src: sprite(name), alt: '', class: cls });
+/** A piece as it looks on the board, turned to its direction. */
+export function pieceImg(type: PieceType, dir: Dir): HTMLImageElement {
+  const l = pieceLook(type, dir);
+  const i = spr(l.key);
+  i.style.transform = `rotate(${l.angle}deg)${l.flip ? ' scaleX(-1)' : ''}`;
+  return i;
+}
 
 let openVeil: HTMLElement | null = null;
 
-/** A card centred on the board with one call-to-action. Tapping outside also closes it (onClose runs either way, onCta only for the button). */
+/** A card in the middle of the screen with one button. Tapping outside closes it too (onClose runs either way, onCta only for the button). */
 export function showCard(content: HTMLElement, cta: string | null, onClose?: () => void, onCta?: () => void): () => void {
   closeCard();
   const veil = h('div', { class: 'veil', role: 'dialog' });
@@ -22,19 +35,23 @@ export function showCard(content: HTMLElement, cta: string | null, onClose?: () 
     if (openVeil !== veil) return;
     openVeil = null;
     veil.classList.remove('show');
-    setTimeout(() => veil.remove(), 220);
+    setTimeout(() => veil.remove(), 200);
     onClose?.();
   };
-  const card = h('div', { class: 'card' }, ...content.childNodes.length ? [...content.childNodes] : [content]);
+  const card = h('div', { class: 'card' }, ...(content.childNodes.length ? [...content.childNodes] : [content]));
   if (cta)
     card.append(
-      h('button', {
-        class: 'cta',
-        onclick: () => {
-          close();
-          onCta?.();
+      h(
+        'button',
+        {
+          class: 'key cta hud',
+          onclick: () => {
+            close();
+            onCta?.();
+          },
         },
-      }, cta),
+        cta,
+      ),
     );
   card.addEventListener('click', (e) => e.stopPropagation());
   veil.addEventListener('click', close);
@@ -50,7 +67,7 @@ export function closeCard(): void {
   const v = openVeil;
   openVeil = null;
   v.classList.remove('show');
-  setTimeout(() => v.remove(), 220);
+  setTimeout(() => v.remove(), 200);
 }
 
 export const cardOpen = (): boolean => openVeil !== null;
@@ -61,7 +78,7 @@ let tagTimer = 0;
 export function tag(text: string, kind: 'good' | 'bad' | 'same' = 'same', sticky = false): void {
   if (!tagEl || !tagEl.isConnected) {
     tagEl = h('div', { class: 'tag', role: 'status', 'aria-live': 'polite' });
-    board().append(tagEl);
+    (document.getElementById('board') ?? document.body).append(tagEl);
   }
   tagEl.className = `tag ${kind}`;
   tagEl.replaceChildren(h('i', {}), text);
@@ -75,7 +92,6 @@ export function clearTag(): void {
   tagEl?.classList.remove('show');
 }
 
-/** Back-compat for older callers. */
 export const toast = (text: string): void => tag(text, 'bad');
 
 export function fmtCountdown(ms: number): string {

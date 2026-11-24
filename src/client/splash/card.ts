@@ -2,6 +2,7 @@
 import type { DayView } from '../../shared/protocol';
 import { levelOf } from '../../shared/sim/board';
 import { ball1 } from '../../shared/rules/placement';
+import { sprite } from '../assets';
 import { drawMini } from '../lib/miniBoard';
 import './card.css';
 
@@ -31,15 +32,23 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => vo
   const mini = el('div', 'mini', canvas);
   mini.addEventListener('click', open);
   const info = el('div', 'info');
-  info.append(el('div', 'title', `Day ${v.day.dayNumber}`));
+  info.append(el('div', 'title hud', `Day ${v.day.dayNumber}`));
   const cta = (label: string): void => {
     const b = el('button', 'cta', label);
+    b.setAttribute('aria-label', label);
     b.addEventListener('click', open);
     info.append(el('div', 'spacer'), b);
   };
   if (resolved) {
     const r = v.result!;
-    info.append(el('div', 'score', `${r.score}/3`), el('div', 'balls3', ...r.perBall.map((b) => el('i', b.end === 'success' ? 'in' : ''))));
+    const ball = (ok: boolean): HTMLImageElement => {
+      const i = document.createElement('img');
+      i.src = sprite('ball');
+      i.alt = '';
+      if (!ok) i.className = 'miss';
+      return i;
+    };
+    info.append(el('div', 'score hud', `${r.score}/3`), el('div', 'balls3', ...r.perBall.map((b) => ball(b.end === 'success'))));
     cta('Watch');
   } else if (v.day.status !== 'OPEN') {
     info.append(el('div', 'muted', 'Firing…'));
@@ -52,14 +61,15 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => vo
   // Size the preview from the card's height (CSS aspect-ratio collapses inside a flex row here).
   const fit = (): void => {
     const hgt = mini.clientHeight || root.clientHeight - 32;
-    mini.style.width = `${Math.min(root.clientWidth * 0.5, Math.floor((hgt * 9.7) / 14.7))}px`;
+    mini.style.width = `${Math.min(root.clientWidth * 0.52, Math.floor((hgt * 9) / 14))}px`;
   };
   fit();
-  requestAnimationFrame(() =>
-    (fit(), drawMini)(canvas, v.level.rows, {
+  requestAnimationFrame(() => {
+    fit();
+    drawMini(canvas, v.level.rows, {
       pieces: v.pieces,
       path: resolved ? [] : run.frames,
       target: v.level.target ?? 'bell',
-    }),
-  );
+    });
+  });
 }
