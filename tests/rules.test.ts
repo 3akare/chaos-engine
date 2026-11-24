@@ -20,7 +20,7 @@ const ok = (d: ReturnType<typeof decide>): BoardState => {
 describe('§2.5 action matrix', () => {
   it('Place on an empty socket needs P(after) >= P(before)', () => {
     const s = ok(act(fresh(), alice, 'I3', 'RAMP', 'DL'));
-    expect(s.holders.a).toBe('I3');
+    expect(s.holders.a).toEqual(['I3']);
     // A dormant piece (never touched) passes trivially.
     ok(act(fresh(), alice, 'D3', 'BUMPER', 'L'));
   });
@@ -49,7 +49,7 @@ describe('§2.5 action matrix', () => {
       s = ok(d);
       expect(s.holders.b).toBeUndefined();
       s = ok(act(s, bob, 'B13', 'SPRING', 'UR'));
-      expect(s.holders.b).toBe('B13');
+      expect(s.holders.b).toEqual(['B13']);
     } else {
       expect(d.code).toBe('MUST_IMPROVE');
     }
@@ -148,5 +148,43 @@ describe('one-piece invariant', () => {
   it('the stored solution can be built by two players in order', () => {
     const sol = solutionPieces(m);
     expect(sol).toHaveLength(2);
+  });
+});
+
+describe('solo and community modes (piece allowance)', () => {
+  const opts = { piecesNeeded: 2 };
+  const act2 = (s: BoardState, who: typeof alice, socket: string, type: StoredPiece['type'], dir: StoredPiece['dir'], from?: string) =>
+    decide(level, s, who, { kind: 'set', socket, type, dir, from }, 1000 + n, `p${n++}`, opts);
+  it('alone, you can hold the whole fix and deliver', () => {
+    let s = ok(act2(fresh(), alice, 'I3', 'RAMP', 'DL'));
+    const d = act2(s, alice, 'B13', 'SPRING', 'UR');
+    expect(d.ok && d.kind).toBe('place');
+    s = ok(d);
+    expect(s.holders.a).toEqual(['B13', 'I3']);
+    expect(d.ok && d.verdict.text).toMatch(/now delivers/);
+  });
+  it('at the limit you must say which piece moves', () => {
+    let s = ok(act2(fresh(), alice, 'A11', 'SPRING', 'U'));
+    s = ok(act2(s, alice, 'G6', 'BUMPER', 'L'));
+    const d = act2(s, alice, 'H13', 'BUMPER', 'L');
+    expect(!d.ok && d.code).toBe('LIMIT');
+    const m = act2(s, alice, 'H13', 'BUMPER', 'L', 'G6');
+    expect(m.ok && m.kind).toBe('move');
+    expect(ok(m).holders.a).toEqual(['A11', 'H13']);
+  });
+  it('with more people building, the allowance shrinks to one each', () => {
+    let s = ok(act2(fresh(), bob, 'D3', 'BUMPER', 'L'));
+    s = ok(act2(s, alice, 'I3', 'RAMP', 'DL'));
+    // two builders, fix of 2 → one each: alice's next tap on an empty socket moves her ramp
+    const d = act2(s, alice, 'G6', 'BUMPER', 'R');
+    expect(d.ok ? d.kind : d.code).not.toBe('place');
+  });
+  it('remove names a socket when you hold several', () => {
+    let s = ok(act2(fresh(), alice, 'A11', 'BUMPER', 'L'));
+    s = ok(act2(s, alice, 'G6', 'SPRING', 'U'));
+    const any = decide(level, s, alice, { kind: 'remove' }, 5, 'x', opts);
+    expect(!any.ok && any.code).toBe('BAD_REQUEST');
+    const one = decide(level, s, alice, { kind: 'remove', socket: 'G6' }, 5, 'x', opts);
+    expect(ok(one).holders.a).toEqual(['A11']);
   });
 });

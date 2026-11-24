@@ -1,7 +1,8 @@
 /** Transactional place / move / replace / remove (§2.5, §6.4). */
 import { cellName, parseCell } from '../../shared/coords';
 import type { ApiError, InboxItem, StoredPiece } from '../../shared/protocol';
-import { decide, pieceName, type Action, type BoardState } from '../../shared/rules/placement';
+import { decide, holdersFrom, pieceName, type Action, type BoardState } from '../../shared/rules/placement';
+import type { Machine } from '../../shared/types';
 import { levelOf } from '../../shared/sim/board';
 import type { Deps } from './deps';
 import { newId, parseInventory, parsePieces, readMachine, readMeta } from './day';
@@ -22,6 +23,11 @@ export type PlacementLogEntry = {
   setup: boolean;
   displaced?: { userId: string; username: string; type: string };
 };
+
+/** Pieces today's fix needs: the stored solution's size (tier + 1 for machines without one). */
+export function piecesNeeded(m: Machine): number {
+  return m.solution?.length || (m.gen?.tier ?? 1) + 1;
+}
 
 export type ActionOutcome = { ok: true; verdict: string; kind: string } | ApiError;
 
@@ -45,9 +51,11 @@ export async function applyAction(deps: Deps, dayId: string, actor: { userId: st
       return { error: 'NO_DAY', message: "Today's machine is still being built. Try again in a minute." };
     }
     const [piecesH, invH, holderH] = await Promise.all([store.hGetAll(K.pieces(dayId)), store.hGetAll(K.inv(dayId)), store.hGetAll(K.holder(dayId))]);
-    const state: BoardState = { pieces: parsePieces(piecesH), inventory: parseInventory(invH), holders: { ...holderH } };
+    void holderH;
+    const pieces = parsePieces(piecesH);
+    const state: BoardState = { pieces, inventory: parseInventory(invH), holders: holdersFrom(pieces) };
     const now = deps.now();
-    const d = decide(levelOf(machine), state, actor, action, now, newId(deps));
+    const d = decide(levelOf(machine), state, actor, action, now, newId(deps), { piecesNeeded: piecesNeeded(machine) });
     if (!d.ok) {
       await tx.unwatch();
       return { error: d.code, message: d.message };
@@ -59,10 +67,11 @@ export async function applyAction(deps: Deps, dayId: string, actor: { userId: st
     if (delSockets.length) await tx.hDel(K.pieces(dayId), delSockets);
     if (d.piece) await tx.hSet(K.pieces(dayId), { [d.piece.socket]: JSON.stringify(d.piece) });
     await tx.hSet(K.inv(dayId), Object.fromEntries(Object.entries(d.next.inventory).map(([k, v]) => [k, String(v)])));
-    const delHolders = Object.keys(state.holders).filter((u) => d.next.holders[u] === undefined);
+    // Holder index: userId → JSON list of sockets, rewritten for everyone this action touched.
+    const delHolders = Object.keys(holderH).filter((u) => d.next.holders[u] === undefined);
     if (delHolders.length) await tx.hDel(K.holder(dayId), delHolders);
     const setHolders: Record<string, string> = {};
-    for (const [u, sock] of Object.entries(d.next.holders)) if (state.holders[u] !== sock) setHolders[u] = sock;
+    for (const [u, socks] of Object.entries(d.next.holders)) if (holderH[u] !== JSON.stringify(socks)) setHolders[u] = JSON.stringify(socks);
     if (Object.keys(setHolders).length) await tx.hSet(K.holder(dayId), setHolders);
     const entry: PlacementLogEntry = {
       id: newId(deps),
@@ -114,7 +123,11 @@ export async function modRemove(deps: Deps, dayId: string, cell: string): Promis
     await tx.multi();
     await tx.hDel(K.pieces(dayId), [name]);
     await tx.hSet(K.inv(dayId), { [p.type]: String(inv[p.type] + 1) });
-    if (!p.setup) await tx.hDel(K.holder(dayId), [p.userId]);
+    if (!p.setup) {
+      const rest = Object.values(parsePieces(await store.hGetAll(K.pieces(dayId)))).filter((q) => q.userId === p.userId && !q.setup && q.socket !== name).map((q) => q.socket).sort();
+      if (rest.length) await tx.hSet(K.holder(dayId), { [p.userId]: JSON.stringify(rest) });
+      else await tx.hDel(K.holder(dayId), [p.userId]);
+    }
     if (!p.setup) {
       const item: InboxItem = { id: newId(deps), at: deps.now(), kind: 'removed', dayNumber: meta?.dayNumber ?? 0, text: `A moderator removed your ${pieceName(p.type)} at ${name}. You're free to place again.` };
       await tx.zAdd(K.inbox(p.userId), { member: JSON.stringify(item), score: deps.now() });

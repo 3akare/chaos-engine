@@ -3,7 +3,7 @@
 > **Build together. Let chaos take over.**
 > A daily cooperative machine-building game for Reddit, built on Devvit Web.
 
-Every day your subreddit gets **one shared, broken machine**. Everyone can add **one piece**: a ramp, spring, fan or bumper. Run the machine as often as you like to see what your piece does. At the daily lock the machine fires **three balls**: the standard ball you've been testing, plus **two secret variants** sealed with a published hash. The community scores 0–3, awards go to the pieces that mattered, and a fresh, procedurally generated machine opens the same minute.
+Every day your subreddit gets **one shared, broken machine**. Everyone adds pieces (ramps, springs, fans and bumpers) to fix it: alone you can hold the whole fix, and on a busy day it's one piece each. Run the machine as often as you like to see what your piece does. At the daily lock the machine fires **three balls**: the standard ball you've been testing, plus **two secret variants** sealed with a published hash. The community scores 0–3, awards go to the pieces that mattered, and a fresh, procedurally generated machine opens the same minute.
 
 <p align="center">
   <img src="docs/img/splash-open.png" width="380" alt="Splash card for an open Day" />
@@ -31,7 +31,7 @@ Every day your subreddit gets **one shared, broken machine**. Everyone can add *
    - `Better progress ✓`: Ball 1 gets further.
    - `Same progress ✓`: Ball 1 does the same (maybe your piece is dormant… for now).
    - `Lower progress ✗`: not allowed. The reason is spelled out, e.g. *"Ball 1 now falls into the void at E9 instead of reaching checkpoint ②."*
-4. **Confirm.** You hold one piece at a time, and you can move it, turn it, swap its type or remove it until lock.
+4. **Confirm.** You can move, turn, swap or remove your pieces until lock. How many you can hold depends on who's building (see *Solo and community* below).
 5. **🔮 Predict** how many of the three balls will make it (0–3). You can change it until lock.
 6. **At lock** the seal opens, the two secret variants are revealed, and all three balls fire. Watch the replay, see the awards, then head to the newest post for tomorrow's machine.
 
@@ -50,6 +50,10 @@ Every day your subreddit gets **one shared, broken machine**. Everyone can add *
 | anything | a wall, gate, switch, target… | not allowed: the machine itself can't be changed | — |
 
 Each Day has limited **stock** of each piece type. Removed or replaced pieces go back into stock.
+
+### Solo and community
+
+There's no mode to pick. Today's fix needs 2–4 pieces, and that allowance is shared between everyone building today, rounded up: **pieces you can hold = pieces needed ÷ people building**. If you're the only engineer you can build the whole fix yourself; with two people on a 4-piece day it's two each; once there are as many engineers as pieces needed, it's one each. Pieces you already placed stay put if more people join — you just can't add more until you're under the new limit. At your limit, tapping an empty socket lets you pick which of your pieces moves there.
 
 **Progress** is compared in order: did the ball deliver? → how many checkpoints did it hit, in order? → how close did it get to the goal (measured on the machine's fixed walls)?
 
@@ -105,7 +109,7 @@ Awards are positive only; nobody is ever named as a "saboteur". If something hap
 
 ## For moderators
 
-Install the app, and Day 1 opens with its own post. A scheduled job runs every 10 minutes: at the lock time (12:00 UTC by default) it locks the machine, resolves the three balls, posts a results comment, and opens the next Day's post. Every stage is crash-safe and idempotent, and the job searches for its own posts and comments before creating any, so a retry never duplicates them.
+Install the app, and Day 1 opens with its own post (the app makes every post itself). A scheduled job runs every 10 minutes: at the lock time (**02:00 UTC**, once a day) it locks the machine, resolves the three balls, posts a results comment, and opens the next Day's post. Every stage is crash-safe and idempotent, and the job searches for its own posts and comments before creating any, so a retry never duplicates them.
 
 Moderator menu items (subreddit menu → **Chaos Engine: …**):
 

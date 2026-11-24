@@ -39,7 +39,7 @@ export function apiRoutes(env: AppEnv): Hono {
     const postId = b.postId ?? ctx.postId;
     const dayId = await dayIdForPost(deps.store, postId);
     if (!dayId) return bad(c, { error: 'NO_DAY', message: 'No machine is running here yet.' }, 404);
-    const out = await applyAction(deps, dayId, { userId: ctx.userId, username: ctx.username }, { kind: 'set', socket: b.socketId, type, dir: b.dir });
+    const out = await applyAction(deps, dayId, { userId: ctx.userId, username: ctx.username }, { kind: 'set', socket: b.socketId, type, dir: b.dir, from: typeof b.from === 'string' ? b.from : undefined });
     if ('error' in out && out.error) return bad(c, out, out.error === 'BUSY' ? 409 : 400);
     return c.json({ ok: true, verdict: 'verdict' in out ? out.verdict : '', state: await stateFor(c, postId) });
   });
@@ -47,11 +47,11 @@ export function apiRoutes(env: AppEnv): Hono {
   api.post('/remove', async (c) => {
     const ctx = await env.ctx(c.req.raw);
     if (!ctx.userId || !ctx.username) return bad(c, { error: 'NOT_LOGGED_IN', message: 'Log in to Reddit to change pieces.' }, 401);
-    const b = await body<{ postId: string }>(c);
+    const b = await body<{ postId: string; socketId: string }>(c);
     const postId = b.postId ?? ctx.postId;
     const dayId = await dayIdForPost(deps.store, postId);
     if (!dayId) return bad(c, { error: 'NO_DAY', message: 'No machine is running here yet.' }, 404);
-    const out = await applyAction(deps, dayId, { userId: ctx.userId, username: ctx.username }, { kind: 'remove' });
+    const out = await applyAction(deps, dayId, { userId: ctx.userId, username: ctx.username }, { kind: 'remove', socket: typeof b.socketId === 'string' ? b.socketId : undefined });
     if ('error' in out && out.error) return bad(c, out, out.error === 'BUSY' ? 409 : 400);
     return c.json({ ok: true, verdict: 'verdict' in out ? out.verdict : '', state: await stateFor(c, postId) });
   });

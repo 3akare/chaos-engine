@@ -4,6 +4,8 @@ import type { Deps, RequestCtx } from './deps';
 import { currentDayId, dayIdForPost, parseInventory, parsePieces, readMachine, readMeta, readSubStats, readUserStats } from './day';
 import { K } from './keys';
 import { publicMachine } from './levels';
+import { allowanceFor } from '../../shared/rules/placement';
+import { piecesNeeded } from './placement';
 
 export const INBOX_SHOWN = 10;
 
@@ -35,7 +37,8 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
     store.hGetAll(K.holder(dayId)),
     store.hGetAll(K.pred(dayId)),
   ]);
-  const pieces = Object.values(parsePieces(piecesH)).sort((a, b) => a.placedAt - b.placedAt);
+  const piecesMap = parsePieces(piecesH);
+  const pieces = Object.values(piecesMap).sort((a, b) => a.placedAt - b.placedAt);
   const resolved = meta.status === 'RESOLVED' || meta.status === 'COMMENTED' || meta.status === 'HANDED_OFF';
   let result: DayResult | null = null;
   if (resolved) {
@@ -48,6 +51,8 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
     if (n >= 0 && n <= 3) histogram[n]!++;
   }
   const userId = ctx.userId ?? null;
+  void holderH;
+  const mineSockets = userId ? pieces.filter((p) => p.userId === userId && !p.setup).map((p) => p.socket) : [];
   const [inbox, stats, sub] = await Promise.all([
     userId ? readInbox(deps, userId) : Promise.resolve([]),
     userId ? readUserStats(store, userId) : readUserStats(store, '-'),
@@ -81,7 +86,10 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
     me: {
       userId,
       username: ctx.username ?? null,
-      socket: userId ? (holderH[userId] ?? null) : null,
+      socket: mineSockets[0] ?? null,
+      sockets: mineSockets,
+      allowance: allowanceFor(piecesMap, userId ?? '-', piecesNeeded(machine)),
+      piecesNeeded: piecesNeeded(machine),
       prediction: userId && predH[userId] !== undefined ? Number(predH[userId]) : null,
       inbox,
       stats,

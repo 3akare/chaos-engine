@@ -14,15 +14,17 @@ export type BoardState = {
   /** socket name → piece */
   pieces: Record<string, StoredPiece>;
   inventory: Record<PieceType, number>;
-  /** userId → socket name */
-  holders: Record<string, string>;
+  /** userId → socket names they hold (derived from `pieces`; kept for the holder index). */
+  holders: Record<string, string[]>;
 };
 
 export type Actor = { userId: string; username: string };
 
 export type Action =
-  | { kind: 'set'; socket: string; type: PieceType; dir: Dir }
-  | { kind: 'remove' };
+  /** `from`: which of your pieces to move here (needed when you hold several and are at your limit). */
+  | { kind: 'set'; socket: string; type: PieceType; dir: Dir; from?: string | undefined }
+  /** `socket`: which of your pieces to remove (optional if you hold exactly one). */
+  | { kind: 'remove'; socket?: string | undefined };
 
 export type ActionKind = 'place' | 'replace' | 'move' | 'edit' | 'move-replace' | 'remove';
 
@@ -60,27 +62,58 @@ export function ball1(level: Level, pieces: Record<string, StoredPiece>): SimRes
   return simulate(level, boardPieces(pieces));
 }
 
+/** Every player's sockets, derived from the pieces (setup pieces belong to nobody). */
+export function holdersFrom(pieces: Record<string, StoredPiece>): Record<string, string[]> {
+  const h: Record<string, string[]> = {};
+  for (const p of Object.values(pieces)) if (!p.setup) (h[p.userId] ??= []).push(p.socket);
+  for (const v of Object.values(h)) v.sort();
+  return h;
+}
+
+/**
+ * Solo and community modes in one rule: you may hold as many pieces as the fix needs,
+ * shared between everyone building today (rounded up, at least one). Alone you can build
+ * the whole fix; once enough people join, it is one piece each.
+ */
+export function allowanceFor(pieces: Record<string, StoredPiece>, userId: string, piecesNeeded: number): number {
+  const builders = new Set(Object.values(pieces).filter((p) => !p.setup).map((p) => p.userId));
+  builders.add(userId);
+  return Math.max(1, Math.ceil(Math.max(1, piecesNeeded) / builders.size));
+}
+
+export type RuleOptions = { piecesNeeded: number };
+
 /**
  * Decide an action. `newPieceId` and `now` are supplied by the caller so the function stays pure.
  * `level` must be the Day's parsed machine.
  */
-export function decide(level: Level, state: BoardState, actor: Actor, action: Action, now: number, newPieceId: string): Decision {
-  const held = state.holders[actor.userId];
-  const own = held ? state.pieces[held] : undefined;
-  const next: BoardState = { pieces: { ...state.pieces }, inventory: { ...state.inventory }, holders: { ...state.holders } };
+export function decide(level: Level, state: BoardState, actor: Actor, action: Action, now: number, newPieceId: string, opts: RuleOptions = { piecesNeeded: 1 }): Decision {
+  const mine = Object.values(state.pieces).filter((p) => p.userId === actor.userId && !p.setup);
+  const allowance = allowanceFor(state.pieces, actor.userId, opts.piecesNeeded);
+  const next: BoardState = { pieces: { ...state.pieces }, inventory: { ...state.inventory }, holders: {} };
   const beforeRun = ball1(level, state.pieces);
+  const finish = (): void => {
+    next.holders = holdersFrom(next.pieces);
+  };
 
   if (action.kind === 'remove') {
-    if (!held || !own) return { ok: false, code: 'NO_PIECE', message: "You don't have a piece on the board." };
-    delete next.pieces[held];
-    delete next.holders[actor.userId];
-    next.inventory[own.type] = (next.inventory[own.type] ?? 0) + 1;
+    let own: StoredPiece | undefined;
+    if (action.socket) {
+      const p = state.pieces[action.socket];
+      own = p && p.userId === actor.userId && !p.setup ? p : undefined;
+      if (!own) return { ok: false, code: 'NO_PIECE', message: `You don't have a piece at ${action.socket}.` };
+    } else if (mine.length === 1) own = mine[0];
+    else if (mine.length === 0) return { ok: false, code: 'NO_PIECE', message: "You don't have a piece on the board." };
+    else return { ok: false, code: 'BAD_REQUEST', message: 'Tap the piece you want to remove.' };
+    delete next.pieces[own!.socket];
+    next.inventory[own!.type] = (next.inventory[own!.type] ?? 0) + 1;
+    finish();
     const afterRun = ball1(level, next.pieces);
-    const v = verdict(level, beforeRun, afterRun, beforeRun.touchedPieceIds.includes(own.pieceId));
+    const v = verdict(level, beforeRun, afterRun, beforeRun.touchedPieceIds.includes(own!.pieceId));
     if (compareProgress(afterRun.progress, beforeRun.progress) < 0) {
       return { ok: false, code: 'WOULD_HURT', message: `Removing it would lower Ball 1's progress. ${v.reason}`, verdict: v };
     }
-    return { ok: true, kind: 'remove', next, own, before: beforeRun.progress, after: afterRun.progress, raised: false, verdict: v };
+    return { ok: true, kind: 'remove', next, own: own!, before: beforeRun.progress, after: afterRun.progress, raised: false, verdict: v };
   }
 
   const { socket, type, dir } = action;
@@ -98,17 +131,33 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
   const isOwnTarget = target !== undefined && target.userId === actor.userId && !target.setup;
   if (isOwnTarget && target.type === type && target.dir === dir) return { ok: false, code: 'NO_CHANGE', message: "That's already your piece." };
 
+  // Which of your pieces (if any) this action moves or edits.
+  let own: StoredPiece | undefined;
+  if (isOwnTarget) own = target;
+  else if (action.from && action.from !== name) {
+    const p = state.pieces[action.from];
+    if (!p || p.userId !== actor.userId || p.setup) return { ok: false, code: 'BAD_REQUEST', message: `You don't have a piece at ${action.from} to move.` };
+    own = p;
+  } else if (mine.length >= allowance) {
+    if (mine.length === 1) own = mine[0];
+    else {
+      return {
+        ok: false,
+        code: 'LIMIT',
+        message: `You're holding all ${allowance} pieces you can right now. Tap one of yours to move or remove it.`,
+      };
+    }
+  }
+
   // 1. Return to stock every piece this action removes.
   if (own) {
     delete next.pieces[own.socket];
-    delete next.holders[actor.userId];
     next.inventory[own.type] = (next.inventory[own.type] ?? 0) + 1;
   }
   let displaced: StoredPiece | undefined;
   if (target && !isOwnTarget) {
     displaced = target;
     delete next.pieces[name];
-    if (!target.setup) delete next.holders[target.userId];
     next.inventory[target.type] = (next.inventory[target.type] ?? 0) + 1;
   }
   // 2. Then take the new piece from stock.
@@ -129,7 +178,7 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
   if (own) piece.editedAt = now;
   if (displaced) piece.replaced = { userId: displaced.userId, username: displaced.username, type: displaced.type };
   next.pieces[name] = piece;
-  next.holders[actor.userId] = name;
+  finish();
 
   const kind: ActionKind = displaced ? (own ? 'move-replace' : 'replace') : own ? (own.socket === name ? 'edit' : 'move') : 'place';
   const afterRun = ball1(level, next.pieces);
@@ -138,7 +187,7 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
   const v = verdict(level, beforeRun, afterRun, touched || displaced !== undefined);
   if (displaced) {
     if (c <= 0) {
-      const whose = displaced.setup ? 'the setup piece' : `u/${displaced.username}'s ${pieceName(displaced.type)}`;
+      const whose = displaced.setup ? 'the setup piece' : displaced.userId === actor.userId ? 'your own piece' : `u/${displaced.username}'s ${pieceName(displaced.type)}`;
       return { ok: false, code: 'MUST_IMPROVE', message: `To replace ${whose}, your version must give Ball 1 strictly better progress. ${v.reason}`, verdict: v };
     }
   } else if (c < 0) {
@@ -150,19 +199,12 @@ export function decide(level: Level, state: BoardState, actor: Actor, action: Ac
   return result;
 }
 
-/** Invariant (§2.3): every holder points at a piece they own, and every player piece has its holder. */
+/** Invariant (§2.3): the holder index and the pieces always agree; stock is never negative. */
 export function checkInvariant(s: BoardState): string | null {
-  for (const [uid, sock] of Object.entries(s.holders)) {
-    const p = s.pieces[sock];
-    if (!p || p.userId !== uid) return `holder ${uid} → ${sock} has no matching piece`;
-  }
-  const seen = new Set<string>();
-  for (const p of Object.values(s.pieces)) {
-    if (p.setup) continue;
-    if (seen.has(p.userId)) return `${p.userId} holds two pieces`;
-    seen.add(p.userId);
-    if (s.holders[p.userId] !== p.socket) return `${p.userId}'s piece at ${p.socket} has no holder entry`;
-  }
+  const derived = holdersFrom(s.pieces);
+  const a = JSON.stringify(Object.keys(derived).sort().map((k) => [k, derived[k]]));
+  const b = JSON.stringify(Object.keys(s.holders).sort().map((k) => [k, [...s.holders[k]!].sort()]));
+  if (a !== b) return `holder index ${b} disagrees with pieces ${a}`;
   for (const v of Object.values(s.inventory)) if (v < 0) return 'negative inventory';
   return null;
 }

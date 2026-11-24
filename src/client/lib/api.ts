@@ -23,7 +23,7 @@ const q = (postId: string | undefined): string => (postId ? `?postId=${encodeURI
 export const api = {
   state: (postId?: string) => call<DayView>('GET', `/api/state${q(postId)}`),
   place: (req: PlaceRequest) => call<{ ok: true; verdict: string; state: DayView }>('POST', '/api/place', req),
-  remove: (postId?: string) => call<{ ok: true; verdict: string; state: DayView }>('POST', '/api/remove', { postId }),
+  remove: (postId?: string, socketId?: string) => call<{ ok: true; verdict: string; state: DayView }>('POST', '/api/remove', { postId, socketId }),
   predict: (req: PredictRequest) => call<{ ok: true; state: DayView }>('POST', '/api/predict', req),
   ackInbox: (postId?: string) => call<{ ok: true }>('POST', '/api/inbox/ack', { postId }),
 };

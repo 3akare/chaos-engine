@@ -102,3 +102,17 @@ or where the implementation deviates from it. Newest last.
   of JS+CSS and never loads Phaser. The game bundle is ~1.2 MB (Phaser 3).
 - **Personal reports** appear after the reveal-and-runs sequence on resolved posts, not over it.
 - **Sound** is not implemented (optional in the plan).
+
+## After the first playtest
+
+- **Solo and community modes are one rule.** One piece per person made a quiet subreddit (or a
+  lone tester or judge) unable to finish any machine, since every fix needs 2–4 pieces. A player
+  may now hold `ceil(piecesNeeded / buildersToday)` pieces (at least one), where builders counts
+  everyone holding a piece plus the player acting. Alone you can build the whole fix; with as many
+  builders as pieces needed it is one each. `/api/place` takes an optional `from` socket (which of
+  your pieces moves) and `/api/remove` an optional `socketId`. The holder index stores a JSON list of
+  sockets per user, rewritten in the same MULTI. The `LIMIT` error asks you to pick a piece to move.
+- **Schedule: 02:00 UTC daily.** Lock/hand-off moved from 12:00 to 02:00 UTC. A Day opened off
+  schedule (install, Run now) runs at least 12 h, so the first day never produces a second new game
+  the same day. Existing installs migrate once on the next tick (`scheduleVersion`), moving the open
+  Day's lock to the next 02:00 that is at least 6 h away.

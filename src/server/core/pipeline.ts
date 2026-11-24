@@ -12,11 +12,34 @@ import type { Machine } from '../../shared/types';
 import type { Deps } from './deps';
 import { currentDayId, encodeMeta, newId, readMachine, readMeta, type DayMeta } from './day';
 import { K } from './keys';
-import { ensureAhead, ensureConfig, ensureMachine, readConfig } from './levels';
+import { DEFAULT_RESOLVE_HOUR, ensureAhead, ensureConfig, ensureMachine, readConfig, SCHEDULE_VERSION } from './levels';
 import { ensureDayPost, ensureResultsComment } from './posts';
 import { endCells, recomputeRun, resolveDay } from './resolve';
 
 export const LEASE_MS = 5 * 60_000;
+/** A Day opened off-schedule (install, Run now) runs at least this long, so there is one new game a day. */
+export const MIN_DAY_MS = 12 * 3_600_000;
+
+/** First lock at the daily hour that leaves the Day at least `minMs` long. */
+export function lockTimeFor(openedAt: number, hourUtc: number, minMs = MIN_DAY_MS): number {
+  let t = nextLockAt(openedAt, hourUtc);
+  while (t - openedAt < minMs) t += 86_400_000;
+  return t;
+}
+
+/** Existing installs: move to the current daily hour once, including the Day that is open now. */
+export async function migrateSchedule(deps: Deps): Promise<boolean> {
+  const v = Number((await deps.store.hGet(K.cfg, 'scheduleVersion')) ?? 0);
+  if (v >= SCHEDULE_VERSION) return false;
+  await deps.store.hSet(K.cfg, { resolveHourUtc: String(DEFAULT_RESOLVE_HOUR), scheduleVersion: String(SCHEDULE_VERSION) });
+  const id = await currentDayId(deps.store);
+  const meta = id ? await readMeta(deps.store, id) : null;
+  if (id && meta?.status === 'OPEN') {
+    await deps.store.hSet(K.meta(id), { locksAt: String(lockTimeFor(deps.now(), DEFAULT_RESOLVE_HOUR, 6 * 3_600_000)) });
+  }
+  deps.log('info', `schedule migrated to ${DEFAULT_RESOLVE_HOUR}:00 UTC`);
+  return true;
+}
 
 const fallbackText = (m: Machine, n: number): string =>
   `Chaos Engine Day ${n}: "${m.name}". One shared machine, built by the whole subreddit. Open this post in the Reddit app or on new Reddit to play.`;
@@ -34,7 +57,7 @@ export async function createDayRecord(deps: Deps, dayNumber: number, machine: Ma
     dayNumber,
     status: 'CREATING',
     openedAt,
-    locksAt: nextLockAt(openedAt, cfg.resolveHourUtc),
+    locksAt: lockTimeFor(openedAt, cfg.resolveHourUtc),
     commitHash: sha256Hex(secret),
     title: dayTitle(dayNumber, machine.name),
   };
@@ -155,6 +178,7 @@ export async function tick(deps: Deps): Promise<TickReport> {
   if ((await store.get(K.lock)) !== token) return { ran: false, reason: 'another tick holds the lease', stages: [] };
   const stages: string[] = [];
   try {
+    if (await migrateSchedule(deps)) stages.push('schedule→02:00 UTC');
     let id = await currentDayId(store);
     if (!id) {
       id = await install(deps);

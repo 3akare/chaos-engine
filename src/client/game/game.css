@@ -168,3 +168,6 @@ button { font: inherit; color: inherit; }
 .hbar.hit i { background: var(--orange); }
 .hbar small { color: var(--muted); font-weight: 600; font-size: 11px; }
 .chips.wrap { flex-wrap: wrap; overflow: visible; margin-top: 4px; }
+
+.chip.on { background: var(--blue); color: #fff; }
+.chip:disabled { opacity: .45; }

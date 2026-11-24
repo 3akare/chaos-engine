@@ -5,7 +5,10 @@ import type { Deps } from './deps';
 import { newId, readMachine } from './day';
 import { K } from './keys';
 
-export const DEFAULT_RESOLVE_HOUR = 12;
+/** Machines lock, resolve and hand off once a day at 02:00 UTC. */
+export const DEFAULT_RESOLVE_HOUR = 2;
+/** Bump to re-apply DEFAULT_RESOLVE_HOUR to existing installs (see migrateSchedule). */
+export const SCHEDULE_VERSION = 2;
 const DAY_MS = 86_400_000;
 
 export type Config = { installSalt: string; resolveHourUtc: number; generatorVersion: number };
@@ -15,6 +18,7 @@ export async function ensureConfig(deps: Deps): Promise<Config> {
   await store.hSetNX(K.cfg, 'installSalt', newId(deps, 16));
   await store.hSetNX(K.cfg, 'resolveHourUtc', String(DEFAULT_RESOLVE_HOUR));
   await store.hSetNX(K.cfg, 'generatorVersion', String(GENERATOR_VERSION));
+  await store.hSetNX(K.cfg, 'scheduleVersion', String(SCHEDULE_VERSION));
   return readConfig(deps);
 }
 

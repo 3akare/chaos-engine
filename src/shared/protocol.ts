@@ -68,7 +68,14 @@ export type DayView = {
   me: {
     userId: string | null;
     username: string | null;
+    /** First of your pieces (kept for older clients). */
     socket: string | null;
+    /** All sockets you hold. */
+    sockets: string[];
+    /** Pieces you may hold right now (solo: the whole fix; busy days: one each). */
+    allowance: number;
+    /** Pieces today's fix needs. */
+    piecesNeeded: number;
     prediction: number | null;
     inbox: InboxItem[];
     stats: UserStats;
@@ -82,7 +89,7 @@ export type DayView = {
   serverNow: number;
 };
 
-export type PlaceRequest = { postId?: string | undefined; socketId: string; type: PieceType; dir: Dir };
+export type PlaceRequest = { postId?: string | undefined; socketId: string; type: PieceType; dir: Dir; from?: string | undefined };
 export type PredictRequest = { postId?: string | undefined; balls: number };
 
 export type ErrorCode =
@@ -95,6 +102,7 @@ export type ErrorCode =
   | 'NO_PIECE'
   | 'BAD_PIECE'
   | 'NO_CHANGE'
+  | 'LIMIT'
   | 'NOT_LOGGED_IN'
   | 'NO_DAY'
   | 'BUSY'

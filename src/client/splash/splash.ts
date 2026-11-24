@@ -73,7 +73,7 @@ function render(v: DayView): void {
     info.append(el('div', `chip ${run.end === 'success' ? 'good' : 'bad'}`, run.end === 'success' ? 'Right now: Ball 1 delivers ✓' : `Right now: Ball 1 ${describeEnd(run)}`));
     if (v.yesterday) info.append(el('div', 'muted', `Yesterday: ${v.yesterday.score}/3 delivered`));
     info.append(el('div', 'spacer'));
-    const b = el('button', 'cta', v.me.socket ? 'Check your piece' : 'Build');
+    const b = el('button', 'cta', v.me.sockets.length ? 'Check your pieces' : 'Build');
     b.addEventListener('click', open);
     info.append(b);
   }

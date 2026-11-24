@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { applyAction } from '../src/server/core/placement';
 import { K } from '../src/server/core/keys';
 import { parseInventory, parsePieces } from '../src/server/core/day';
-import { checkInvariant } from '../src/shared/rules/placement';
+import { checkInvariant, holdersFrom } from '../src/shared/rules/placement';
 import { installWith, makeDeps, type TestEnv } from './server-helpers';
 
 let env: TestEnv;
@@ -16,11 +16,14 @@ beforeEach(async () => {
   env.store.beforeExec = yieldTick;
 });
 
-const state = async () => ({
-  pieces: parsePieces(await env.store.hGetAll(K.pieces(dayId))),
-  inventory: parseInventory(await env.store.hGetAll(K.inv(dayId))),
-  holders: await env.store.hGetAll(K.holder(dayId)),
-});
+const state = async () => {
+  const pieces = parsePieces(await env.store.hGetAll(K.pieces(dayId)));
+  const raw = await env.store.hGetAll(K.holder(dayId));
+  // The stored holder index must agree with the pieces.
+  const holders = Object.fromEntries(Object.entries(raw).map(([u, v]) => [u, JSON.parse(v) as string[]]));
+  expect(holders).toEqual(holdersFrom(pieces));
+  return { pieces, inventory: parseInventory(await env.store.hGetAll(K.inv(dayId))), holders };
+};
 
 describe('transactional placement', () => {
   it('two concurrent places on the same socket: exactly one wins', async () => {
@@ -46,12 +49,15 @@ describe('transactional placement', () => {
     expect(checkInvariant(s)).toBeNull();
   });
 
-  it('one piece per player holds when the same player fires several actions at once', async () => {
+  it('a player never exceeds their allowance when firing several actions at once', async () => {
     await Promise.all(['D3', 'G6', 'E9', 'A11'].map((sock) => applyAction(env.deps, dayId, { userId: 'a', username: 'alice' }, { kind: 'set', socket: sock, type: 'SPRING', dir: 'U' })));
     const s = await state();
-    expect(Object.values(s.pieces).filter((p) => p.userId === 'a')).toHaveLength(1);
+    // Solo on a 2-piece fix: at most 2 pieces, however the requests interleave.
+    const held = Object.values(s.pieces).filter((p) => p.userId === 'a').length;
+    expect(held).toBeGreaterThanOrEqual(1);
+    expect(held).toBeLessThanOrEqual(2);
     expect(checkInvariant(s)).toBeNull();
-    expect(s.inventory.SPRING).toBe(1);
+    expect(s.inventory.SPRING).toBe(2 - held);
   });
 
   it('a displaced player gets an inbox item', async () => {
