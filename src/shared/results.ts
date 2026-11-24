@@ -4,11 +4,10 @@ import type { DayResult, StoredPiece } from './protocol';
 import { pieceName } from './rules/placement';
 import { variantInfo } from './sim/variants';
 
-const pct = (n: number, d: number): number => (d === 0 ? 0 : Math.round((n * 100) / d));
 
 export function ballLabel(i: number, result: Pick<DayResult, 'variants'>): string {
   const v = result.variants[i]!;
-  return i === 0 ? 'Your ball' : `The ${variantInfo(v).short} ball`;
+  return i === 0 ? 'The red ball' : `The ${variantInfo(v).short} ball`;
 }
 
 function endPhrase(end: string): string {
@@ -39,7 +38,8 @@ export function resultsComment(dayNumber: number, r: DayResult, pieces: readonly
     .filter(({ b }) => b.end !== 'success')
     .map(({ b, i }) => `${ballLabel(i, r)} ${endPhrase(b.end)}`);
   void endCells;
-  lines.push(`⚙️ **${r.score}/3 delivered.**${misses.length ? ` ${misses.join('; ')}.` : ' A perfect run!'}`);
+  const stars = '⭐'.repeat(r.score) + '☆'.repeat(3 - r.score);
+  lines.push(`${stars} **${r.score} of 3 balls reached the flag.**${misses.length ? ` ${misses.join('; ')}.` : ' A perfect run!'}`);
   const piece = (id: string | undefined): StoredPiece | undefined => pieces.find((p) => p.pieceId === id);
   const aw: string[] = [];
   const mvp = piece(r.awards.mvp?.pieceId);
@@ -48,10 +48,7 @@ export function resultsComment(dayNumber: number, r: DayResult, pieces: readonly
   if (r.awards.mostTouched && mt) aw.push(`👆 Most Touched: u/${r.awards.mostTouched.username}'s ${pieceName(mt.type)}`);
   if (r.awards.clutch) aw.push(`⏱ Clutch: u/${r.awards.clutch.username}, ${minutesBefore(r.lockedAt - r.awards.clutch.at)}`);
   if (aw.length) lines.push(aw.join(' · '));
-  const total = r.predictions.reduce((a, b) => a + b, 0);
-  const right = r.predictions[r.score] ?? 0;
-  const pred = total > 0 ? `🔮 ${pct(right, total)}% predicted ${r.score}.` : '🔮 Nobody predicted today.';
-  lines.push(`${pred} Streak: ${r.streak} ${r.streak === 1 ? 'day' : 'days'}. A new machine is up now — find it in the newest post.`);
+  lines.push(`Streak: ${r.streak} ${r.streak === 1 ? 'day' : 'days'}. A new machine is up now — find it in the newest post.`);
   lines.push('');
   lines.push(resultsMarker(dayNumber));
   return lines.join('\n\n').replace(/\n\n\n\n/g, '\n\n');

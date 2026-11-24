@@ -116,3 +116,10 @@ or where the implementation deviates from it. Newest last.
   schedule (install, Run now) runs at least 12 h, so the first day never produces a second new game
   the same day. Existing installs migrate once on the next tick (`scheduleVersion`), moving the open
   Day's lock to the next 02:00 that is at least 6 h away.
+
+## 2026-11-24 · Simpler rules, varied puzzles, sharper art
+- **No guessing.** The score prediction is gone from the game (the server still accepts it, nothing shows it). The night's result is stars: one per ball that reaches the flag. The results comment says "⭐⭐☆ 2 of 3 balls reached the flag".
+- **Varied puzzles (generator v2).** Measured over 60 days, v1 solutions were mostly ramps and never used a spring, and players got spare pieces of every type, so a ramp fixed everything. v2: no bumpers in new machines; at most one ramp (two on Fridays/Saturdays); each weekday features a spring or a fan (Friday both) with a fallback pass if it can't be built; stock is exactly the solution's pieces; the surprise-ball headroom allows 5/6 so spring days aren't all rejected. Test: 100 days, ≥25 spring days and ≥25 fan days, never one kind of piece.
+- **Sharp on phones.** The Phaser canvas is sized at devicePixelRatio and shown at 1/PX zoom; it was rendering at 1x and being stretched.
+- **A real fan.** Drawn in the pack's style (dev/assets/fan.svg.html): a housing with spinning blades, and moving wind in front of it.
+- **Plain names.** Surprise balls are Lefty, Righty, Heavy, Bouncy, Backwards, Slick, each with its own colour.

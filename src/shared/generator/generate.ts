@@ -8,7 +8,7 @@ import { planForOpenTime, type DayPlan } from './difficulty';
 import { validateMachine } from './validate';
 
 /** Bump whenever generator output could change (§5.5). */
-export const GENERATOR_VERSION = 1;
+export const GENERATOR_VERSION = 2;
 export const MAX_ATTEMPTS = 200;
 
 export type DayHistory = { families: string[]; startX: number };
@@ -45,6 +45,8 @@ export function tryAttempt(baseSeed: number, attempt: number, plan: DayPlan, his
   const c = construct(attemptSeed(baseSeed, attempt), plan);
   if (!c.machine) return { machine: null, sims: c.sims, why: `construct: ${c.why}` };
   const m = c.machine;
+  const used = new Set((m.solution ?? []).map((s) => s.type));
+  if (plan.require?.some((t) => !used.has(t))) return { machine: null, sims: c.sims, why: 'construct: missing featured piece' };
   m.gen = { ...m.gen!, baseSeed, attempt, version: GENERATOR_VERSION };
   const v = validateMachine(m, { tier: plan.tier, history, families: m.gen.families });
   if (!v.ok) return { machine: null, sims: c.sims + v.sims, why: `validate: ${v.failed}` };
@@ -60,13 +62,17 @@ export function generateDay(input: GenerateInput): GenerateOutput {
   if (input.pinAttempt !== undefined) order.push(input.pinAttempt);
   for (let a = 0; a < MAX_ATTEMPTS; a++) if (a !== input.pinAttempt) order.push(a);
   let tried = 0;
-  for (const attempt of order.slice(0, MAX_ATTEMPTS)) {
-    tried++;
-    const r = tryAttempt(baseSeed, attempt, plan, input.history);
-    sims += r.sims;
-    if (r.machine) return { machine: r.machine, attempt, attemptsTried: tried, sims, fallback: false, rejections };
-    const key = r.why.split(' (')[0]!.replace(/band \d/, 'band');
-    rejections[key] = (rejections[key] ?? 0) + 1;
+  // First pass wants the day's featured piece; the second takes any good machine.
+  for (const p of [plan, { ...plan, require: undefined }]) {
+    for (const attempt of order.slice(0, MAX_ATTEMPTS)) {
+      tried++;
+      const r = tryAttempt(baseSeed, attempt, p, input.history);
+      sims += r.sims;
+      if (r.machine) return { machine: r.machine, attempt, attemptsTried: tried, sims, fallback: false, rejections };
+      const key = r.why.split(' (')[0]!.replace(/band \d/, 'band');
+      rejections[key] = (rejections[key] ?? 0) + 1;
+    }
+    if (!p.require) break;
   }
   // Never fail to publish (§5.3): the next fallback fixture.
   const fx = FIXTURES[input.dayNumber % FIXTURES.length]!;

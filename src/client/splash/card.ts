@@ -14,10 +14,10 @@ export const el = (tag: string, cls: string, ...kids: Array<Node | string>): HTM
 };
 
 function countdown(ms: number): string {
-  if (ms <= 0) return 'Firing now';
+  if (ms <= 0) return 'Rolling now';
   const m = Math.floor(ms / 60000);
   const h = Math.floor(m / 60);
-  return h > 0 ? `${h}h ${String(m % 60).padStart(2, '0')}m left` : `${m}m left`;
+  return h > 0 ? `Rolls in ${h}h ${String(m % 60).padStart(2, '0')}m` : `Rolls in ${m}m`;
 }
 
 export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => void): void {
@@ -41,17 +41,17 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => vo
   };
   if (resolved) {
     const r = v.result!;
-    const ball = (ok: boolean): HTMLImageElement => {
+    const star = (ok: boolean): HTMLImageElement => {
       const i = document.createElement('img');
-      i.src = sprite('ball');
+      i.src = sprite('star');
       i.alt = '';
       if (!ok) i.className = 'miss';
       return i;
     };
-    info.append(el('div', 'score hud', `${r.score}/3`), el('div', 'balls3', ...r.perBall.map((b) => ball(b.end === 'success'))));
+    info.append(el('div', 'stars', ...r.perBall.map((b) => star(b.end === 'success'))), el('div', 'muted', `${r.score} of 3 made it`));
     cta('Watch');
   } else if (v.day.status !== 'OPEN') {
-    info.append(el('div', 'muted', 'Firing…'));
+    info.append(el('div', 'muted', 'Rolling now…'));
     cta('Watch');
   } else {
     info.append(el('div', 'muted', countdown(v.day.locksAt - v.serverNow)));

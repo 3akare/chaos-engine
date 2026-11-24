@@ -1,6 +1,6 @@
 /* Playtest shell around the real game: a plain feed in the same art style. */
 @import '../../src/client/lib/font.css';
-body { margin: 0; min-height: 100vh; color: #353541; font: 800 15px/1.3 'Nunito Variable', 'Nunito', system-ui, sans-serif; background: url(../../src/client/assets/bg_clouds.png) repeat-x left bottom fixed / 256px 256px, #c3e3ff; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100vh; color: #353541; font: 800 15px/1.3 'Nunito Variable', 'Nunito', system-ui, sans-serif; background: url(../../src/client/assets/bg_clouds.png) repeat-x left bottom fixed / 256px 256px, linear-gradient(180deg, #3d9df2 0%, #6cbcf7 45%, #bfe3ff 100%) fixed; -webkit-font-smoothing: antialiased; }
 .feed { max-width: 560px; margin: 0 auto; padding: 16px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
 .feed-head { display: flex; flex-direction: column; gap: 12px; }
 .sub-name { font: 22px 'Lilita One', system-ui, sans-serif; }

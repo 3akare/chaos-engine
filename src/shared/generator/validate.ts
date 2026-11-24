@@ -165,7 +165,7 @@ export function validateMachine(m: Machine, opts: ValidateOptions): Validation {
 
   // Cheap checks first: headroom and variety before the permutation and single-piece sweeps.
   const delivered = countVariantsDelivered(level, sol, run);
-  if (delivered < 1 || delivered > 4) return fail('headroom', `solution delivers ${delivered}/6 variants`, sims, { variantsDelivered: delivered });
+  if (delivered < 1 || delivered > 5) return fail('headroom', `solution delivers ${delivered}/6 variants`, sims, { variantsDelivered: delivered });
 
   if (opts.history && opts.families) {
     const v = varietyProblem(opts.history, opts.families, level.start.x);

@@ -1,2 +1,2 @@
 Art and icons by Kenney (www.kenney.nl), CC0 1.0 (public domain).
-New Platformer Pack, Game Icons. Derived files (ball, spot, bumper) are made by dev/assets/prepare.py.
+New Platformer Pack, Game Icons. Derived files (ball, spot, bumper) are made by dev/assets/prepare.py; the fan (fan, fan_blades, fan_icon) is drawn in dev/assets/fan.svg.html in the same style.

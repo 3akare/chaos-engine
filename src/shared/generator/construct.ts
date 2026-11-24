@@ -24,7 +24,8 @@ function pickFamilies(rng: Rng, plan: DayPlan): { bands: Slot[]; heights: number
   else if (fixes === 3) fixSlots = rng.pick([[true, true, true, false], [true, false, true, true], [false, true, true, true], [true, true, false, true]]);
   else fixSlots = rng.pick([[true, false, true, false], [false, true, false, true], [true, false, false, true], [false, true, true, false]]);
   const wantGate = plan.gate === 'required' || (plan.gate === 'likely' && rng.chance(7, 10)) || (plan.gate === 'optional' && rng.chance(1, 4));
-  const weights: Record<string, number> = plan.springFanWeighted ? { drop: 1, gap: 4, launch: 4, fan: 4 } : { drop: 3, gap: 2, launch: 2, fan: 2 };
+  const wantSpring = plan.require?.includes('SPRING') ?? false;
+  const weights: Record<string, number> = wantSpring ? { drop: 1, gap: 5, launch: 5, fan: 1 } : plan.springFanWeighted ? { drop: 1, gap: 4, launch: 4, fan: 3 } : { drop: 2, gap: 3, launch: 2, fan: 2 };
   for (let tries = 0; tries < 30; tries++) {
     const bands: Slot[] = [];
     const fixBandIdx = [0, 1, 2].filter((i) => fixSlots[i]);
@@ -98,6 +99,8 @@ export function construct(seed: number, plan: DayPlan): ConstructResult {
   let entryTick = 0;
   let y0 = 0;
   const bandRows: Array<[number, number]> = [];
+  const rampCap = plan.tier === 3 ? 2 : 1;
+  const rampsLeft = (): number => rampCap - fixes.filter((f) => f.type === 'RAMP').length;
 
   for (let bi = 0; bi < 3; bi++) {
     const slot = fam.bands[bi]!;
@@ -112,7 +115,7 @@ export function construct(seed: number, plan: DayPlan): ConstructResult {
     for (let t = 0; t < BAND_TRIES * alts.length && !accepted; t++) {
       if (t > 0 && t % BAND_TRIES === 0) slot.family = alts[t / BAND_TRIES]!;
       const g2 = grid.clone();
-      const plan2 = BUILDERS[slot.family]({ g: g2, rng, y0, h, ex, edx, reserved, start: { x: sx, y: 0 } });
+      const plan2 = BUILDERS[slot.family]({ g: g2, rng, y0, h, ex, edx, reserved, start: { x: sx, y: 0 }, rampsLeft: rampsLeft() });
       if (!plan2) continue;
       if (plan2.fixes.some((f) => g2.get(f.x, f.y) !== '.')) continue;
       const pieces = [...fixes, ...plan2.fixes].map(fixToPiece);
@@ -147,7 +150,8 @@ export function construct(seed: number, plan: DayPlan): ConstructResult {
   for (let x = 0; x < W; x++) grid.set(x, H - 1, '#');
   const ty = H - 2;
   let tx: number;
-  if (fam.finishFix) {
+  // The finish fix is a ramp; when the day already has its ramps, the tray needs no fix.
+  if (fam.finishFix && rampsLeft() > 0) {
     const d = edx !== 0 ? -edx : rng.int(2) === 0 ? -1 : 1;
     const k = rng.range(1, 3);
     tx = ex + d * k;
@@ -156,14 +160,19 @@ export function construct(seed: number, plan: DayPlan): ConstructResult {
       const wx = ex - d * rng.range(1, 2);
       if (wx >= 0 && wx < W && grid.isEmpty(wx, ty)) grid.set(wx, ty, '#');
     }
-    const useBumper = rng.chance(1, 4);
-    fixes.push(useBumper ? { x: ex, y: ty, type: 'BUMPER', dir: d > 0 ? 'R' : 'L' } : { x: ex, y: ty, type: 'RAMP', dir: d > 0 ? 'DR' : 'DL' });
+    fixes.push({ x: ex, y: ty, type: 'RAMP', dir: d > 0 ? 'DR' : 'DL' });
   } else {
     tx = edx === 0 ? ex : ex + edx * rng.range(1, 3);
     if (tx < 0 || tx >= W) tx = edx > 0 ? W - 1 : 0;
   }
   if (!grid.isEmpty(tx, ty)) return fail('target cell blocked');
   grid.set(tx, ty, 'T');
+
+  // Variety: a day is a mix of pieces, not ramps everywhere.
+  const count = (t: PieceType): number => fixes.filter((f) => f.type === t).length;
+  if (count('RAMP') > rampCap) return fail('too many ramps');
+  if (fixes.length < 2) return fail('too few pieces');
+  if (new Set(fixes.map((f) => f.type)).size < Math.min(2, fixes.length)) return fail('one kind of piece');
 
   const solPieces = fixes.map(fixToPiece);
   const solvedRun = run(grid, startDx, solPieces);
@@ -217,10 +226,9 @@ export function construct(seed: number, plan: DayPlan): ConstructResult {
   const nDecoys = Math.min(cand.length, rng.range(dlo, dhi));
   for (const i of rng.shuffle(cand).slice(0, nDecoys)) grid.set(i % W, Math.floor(i / W), 'o');
 
-  // Inventory = solution + tier extras.
+  // Inventory = exactly the solution's pieces: the puzzle is where each one goes.
   const inventory: Record<PieceType, number> = { RAMP: 0, SPRING: 0, FAN: 0, BUMPER: 0 };
   for (const f of fixes) inventory[f.type]++;
-  for (const t of ['RAMP', 'SPRING', 'FAN', 'BUMPER'] as const) inventory[t] += plan.tier === 1 ? 1 : plan.tier === 2 ? rng.range(1, 2) : 2;
 
   const families = fam.bands.filter((b) => b.fix).map((b) => b.family as string);
   if (fam.finishFix) families.push('finish');

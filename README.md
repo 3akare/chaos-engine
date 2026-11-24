@@ -3,85 +3,53 @@
 > **Build together. Let chaos take over.**
 > A daily cooperative machine-building game for Reddit, built on Devvit Web.
 
-Every day your subreddit gets **one shared, broken machine**. Everyone adds pieces (ramps, springs, fans and bumpers) to fix it: alone you can hold the whole fix, and on a busy day it's one piece each. Run the machine as often as you like to see what your piece does. At the daily lock the machine fires **three balls**: the standard ball you've been testing, plus **two secret variants** sealed with a published hash. The community scores 0–3, awards go to the pieces that mattered, and a fresh, procedurally generated machine opens the same minute.
+Every day your subreddit gets **one shared machine** with a red ball and a green flag. Everyone adds pieces (ramps, springs and fans) to get the ball to the flag. Press ▶ as often as you like to test. At **02:00 UTC** the machine rolls **three balls**: the red one you've been testing, plus **two surprise balls** that behave a little differently. **Each ball that reaches the flag is a ⭐**, and a new machine opens the same minute.
 
 <p align="center">
-  <img src="docs/img/splash-open.png" width="380" alt="Splash card for an open Day" />
-  <img src="docs/img/splash-resolved.png" width="380" alt="Splash card for a resolved Day" />
+  <img src="docs/img/splash-open.png" width="380" alt="The post in the feed" />
 </p>
 <p align="center">
-  <img src="docs/img/build.png" width="250" alt="Building: board, test run, place, predict" />
-  <img src="docs/img/reveal.png" width="250" alt="The seal opens and the secret balls are revealed" />
-  <img src="docs/img/run.png" width="250" alt="The run: the camera follows the ball, piece owners pop up" />
+  <img src="docs/img/build.png" width="250" alt="Placing a piece: the tray shows today's pieces" />
+  <img src="docs/img/reveal.png" width="250" alt="Tonight's three balls" />
+  <img src="docs/img/run.png" width="250" alt="A fan blowing the ball along" />
 </p>
-
-## Why it's different
-
-- **One cooperative machine per day.** No per-player boards, no PvP. The subreddit wins or loses together.
-- **Griefing is impossible by rule.** A piece can never lower the standard ball's progress, and you can only replace someone else's piece with a strictly better one. There's no voting.
-- **Secret balls with a provable seal.** The two variants are drawn from a random seed whose SHA-256 is shown when the Day opens. The seed is revealed at lock, so anyone can check nothing was changed after seeing your pieces.
-- **A new machine every day, proven solvable.** Machines are generated from parameterised "bands", built solved and then broken, and validated before they go live. There's no hand-made level list to run out of.
-- **Everyone has something to do.** Builders place pieces; everyone else can predict the score, inspect who placed what, and argue about coordinates (C7, F4) in the comments.
 
 ## How to play
 
-1. **Open today's post** and tap **Build**.
-2. **▶ Test run** shows what Ball 1 does right now. Runs are free and instant, so use as many as you like.
-3. **Tap a dashed socket** to add your piece. Tap a piece type to pick it, then tap it again to turn it. A **ghost preview** shows the old path faded and the new path bright, plus a verdict:
-   - `Better progress ✓`: Ball 1 gets further.
-   - `Same progress ✓`: Ball 1 does the same (maybe your piece is dormant… for now).
-   - `Lower progress ✗`: not allowed. The reason is spelled out, e.g. *"Ball 1 now falls into the void at E9 instead of reaching checkpoint ②."*
-4. **Confirm.** You can move, turn, swap or remove your pieces until lock. How many you can hold depends on who's building (see *Solo and community* below).
-5. **🔮 Predict** how many of the three balls will make it (0–3). You can change it until lock.
-6. **At lock** the seal opens, the two secret variants are revealed, and all three balls fire. Watch the replay, see the awards, then head to the newest post for tomorrow's machine.
+1. **Get the ball to the flag.**
+2. **Tap a +** to add a piece. The tray shows the pieces today's machine has; tap the chosen piece again to turn it. Dotted yellow is where the ball will go with your piece. Tap ✓ to place it.
+3. **Press ▶** to watch the ball roll. Test as often as you like.
+4. **At 02:00 UTC** three balls roll for real. Each one that reaches the flag is a star: ⭐⭐⭐ is a perfect day.
 
-> **Only Ball 1's progress is protected, not whether the machine will win.** The secret balls can be helped, or hurt, by any piece.
-
-### The rules
-
-| You hold | You tap | What happens | Allowed if Ball 1's progress… |
-|---|---|---|---|
-| nothing | an empty socket | **Place** | doesn't drop |
-| nothing | someone else's piece | **Replace**: theirs is removed and they may place again | strictly improves |
-| a piece | an empty socket | **Move** | doesn't drop |
-| a piece | your own piece | **Turn or swap type** | doesn't drop |
-| a piece | someone else's piece | **Move and replace** | strictly improves |
-| a piece | Remove | **Remove** | doesn't drop |
-| anything | a wall, gate, switch, target… | not allowed: the machine itself can't be changed | — |
-
-Each Day has limited **stock** of each piece type. Removed or replaced pieces go back into stock.
+Everyone builds the same machine. You can't make it worse: a piece that would send the red ball less far isn't allowed, and you can only replace someone's piece with one that does better.
 
 ### Solo and community
 
-There's no mode to pick. Today's fix needs 2–4 pieces, and that allowance is shared between everyone building today, rounded up: **pieces you can hold = pieces needed ÷ people building**. If you're the only engineer you can build the whole fix yourself; with two people on a 4-piece day it's two each; once there are as many engineers as pieces needed, it's one each. Pieces you already placed stay put if more people join — you just can't add more until you're under the new limit. At your limit, tapping an empty socket lets you pick which of your pieces moves there.
-
-**Progress** is compared in order: did the ball deliver? → how many checkpoints did it hit, in order? → how close did it get to the goal (measured on the machine's fixed walls)?
+There's no mode to pick. Today's fix needs 2–4 pieces, shared between everyone building today, rounded up: **pieces you can place = pieces needed ÷ people building**. Alone, you can build the whole fix; on a busy day it's one piece each. At your limit, tapping another + moves your piece there.
 
 ### The pieces
 
-| Piece | Orientations | What it does |
+| Piece | Turns | What it does |
 |---|---|---|
-| **Ramp** | ↘ ↙ | The ball passes through; it is sent diagonally down (or sideways) in the ramp's direction. |
-| **Spring** | ↑ ↗ ↖ | Launches a ball that lands on it. ↑ goes straight up 3 (and one step on if the ball was rolling); ↗/↖ throw an arc 4 columns wide. |
-| **Fan** | → ← ↑ | A solid block that blows a beam 3 cells long. Side fans push rolling balls and blow falling ones sideways; ↑ fans lift the ball and let it slip out at the top. |
-| **Bumper** | ▶ ◀ | Solid. Bounces a ball that hits it from the side back with a hop; a ball landing on it is kicked toward the bumper's side. |
+| **Ramp** | ↘ ↙ | Sends the ball down and to the side. |
+| **Spring** | ↑ ↗ ↖ | Launches a ball that lands on it, straight up or in an arc. |
+| **Fan** | → ← ↑ | Blows the ball along (you can see the wind), up to 3 squares. |
 
-The machine also has **walls**, **switches** (toggle linked gates the first time a ball passes), **gates**, **checkpoints** ①②③ (Saturdays: hit them in order before the goal counts) and the **goal** (a bell or a basket).
+Each day has exactly the pieces its solution needs, and every weekday features a different one (springs or fans), so no two days play the same. The machine also has **switches** that unlock **gates**, and on Saturdays numbered **coins** to collect in order.
 
-### The six secret variants
+### The surprise balls
 
-Balls 2 and 3 are two different variants from this public list:
+Balls 2 and 3 are two of these, each with its own colour:
 
-| Variant | Effect |
+| Ball | What's different |
 |---|---|
-| **Drifter (left)** | Spawns one column left of the start. |
-| **Drifter (right)** | Spawns one column right of the start. |
-| **Heavy** | Fans reach only 1 cell; springs launch one cell lower. |
-| **Bouncy** | Bumpers hop one cell higher; springs launch one cell higher. |
-| **Contrarian** | Starts rolling the opposite way. |
-| **Slick** | Ramps push it sideways only, with no diagonal drop. |
+| 🔵 **Lefty / Righty** | Starts one step to the side. |
+| ⚪ **Heavy** | Hard to push or launch. |
+| 🟢 **Bouncy** | Springs fling it higher. |
+| 🟣 **Backwards** | Rolls the other way. |
+| 🟡 **Slick** | Slides over ramps. |
 
-Build for robustness: the machine that only works for Ball 1 rarely scores 3/3.
+Build so it works for more than just the red ball.
 
 ### How fairness works (the seal)
 
@@ -92,8 +60,8 @@ When a Day opens, the server draws a random 32-byte secret and publishes `sha256
 - 🏆 **MVP**: the piece whose removal would have hurt the day's outcome most (computed by re-running the day without it).
 - 👆 **Most touched**: the piece the balls hit most often across all three runs.
 - ⏱ **Clutch**: the last placement before lock that improved Ball 1's progress.
-- **Community**: current streak of Days with at least one delivery, best streak, perfect (3/3) Days.
-- **You**: pieces placed, pieces that touched a ball in the final run, MVPs, prediction streak.
+- **Community**: current streak of Days with at least one star, best streak, perfect (⭐⭐⭐) Days.
+- **You**: pieces placed, pieces that touched a ball in the final run, MVPs.
 
 Awards are positive only; nobody is ever named as a "saboteur". If something happened to your piece while you were away (someone replaced it, or it became MVP), the game tells you the next time you open it.
 
@@ -115,7 +83,7 @@ Moderator menu items (subreddit menu → **Chaos Engine: …**):
 
 | Item | What it does |
 |---|---|
-| **Seed demo day** | Fills today's machine with labelled `(setup)` pieces (all but one piece of a known solution) and demo predictions. Great for a fresh subreddit. Players can replace setup pieces under the improve rule. |
+| **Seed demo day** | Fills today's machine with labelled `(setup)` pieces (all but one piece of a known solution) Great for a fresh subreddit. Players can replace setup pieces under the improve rule. |
 | **Run now** | Locks and resolves today's machine immediately, then opens the next one (same code path as the scheduler). |
 | **New post for today** | Recreates today's post if it was deleted. |
 | **Remove piece…** | Moderation override: remove the piece at a coordinate (e.g. `C7`). It returns to stock and its owner is notified. |

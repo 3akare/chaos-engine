@@ -9,6 +9,8 @@ import { ball1, decide, holdersFrom, type BoardState, type Decision } from '../.
 import { levelOf } from '../../shared/sim/board';
 import type { Level } from '../../shared/sim/level';
 import { PIECE_DIRS, PIECE_TYPES, W, type Dir, type PieceType, type SimResult } from '../../shared/types';
+
+const PIECE_NAME: Record<PieceType, string> = { RAMP: 'Ramp', SPRING: 'Spring', FAN: 'Fan', BUMPER: 'Kicker' };
 import { api } from '../lib/api';
 import type { BoardScene, ScenePiece } from './scenes/BoardScene';
 import { clearTag, closeCard, fmtCountdown, h, ico, pieceImg, spr, tag } from './ui/dom';
@@ -20,7 +22,7 @@ const POLL_MS = 15_000;
 
 /** `from`: which of your pieces moves here (null = a new piece). */
 type Candidate = { socket: string; type: PieceType; dir: Dir; from: string | null };
-type Mode = 'idle' | 'pick' | 'guess' | 'other';
+type Mode = 'idle' | 'pick' | 'other';
 
 export class GameApp {
   view!: DayView;
@@ -120,7 +122,8 @@ export class GameApp {
     if (!this.view) return;
     const open = this.view.day.status === 'OPEN';
     const left = this.view.day.locksAt - this.now();
-    this.els.time.textContent = open ? fmtCountdown(left) : '';
+    const t = open ? fmtCountdown(left) : '';
+    this.els.time.textContent = t ? `Rolls in ${t}` : '';
     if (open && left <= 0 && left > -1500 && !this.busy) {
       this.toIdle();
       void this.poll();
@@ -182,9 +185,9 @@ export class GameApp {
     const left = Math.max(0, me.allowance - me.sockets.length);
     this.els.dock.className = 'dock';
     this.els.dock.replaceChildren(
-      this.key('', `${left} pieces left`, () => this.hintSockets(), spr('spring_out'), h('span', { class: 'badge' }, String(left))),
+      this.key('', `You can place ${left} ${left === 1 ? 'piece' : 'pieces'}`, () => this.hintSockets(), spr('spot'), h('span', { class: 'badge' }, String(left))),
       this.key('go', 'Roll the ball', () => void this.testRun(), ico('right')),
-      this.key('blue', 'Guess the score', () => this.toGuess(), h('span', { class: 'n hud' }, me.prediction === null ? '?' : String(me.prediction))),
+      this.key('blue', 'How to play', () => howToPlay(), ico('question')),
     );
     this.els.dock.children[1]?.setAttribute('data-act', 'test');
   }
@@ -194,7 +197,7 @@ export class GameApp {
     for (let i = 0; i < this.level.socket.length; i++) if (this.level.socket[i]) all.push([i % W, Math.floor(i / W)]);
     this.scene.setHighlights(all);
     const left = Math.max(0, this.view.me.allowance - this.view.me.sockets.length);
-    tag(left > 0 ? `${left} ${left === 1 ? 'piece' : 'pieces'} to place` : 'Tap your piece to move it');
+    tag(left > 0 ? `Tap a + to add ${left === 1 ? 'your piece' : `your ${left} pieces`}` : 'Tap your piece to move it');
     window.setTimeout(() => {
       if (this.mode === 'idle') this.scene.setHighlights([]);
     }, 1600);
@@ -215,7 +218,7 @@ export class GameApp {
     btn?.replaceChildren(ico('right'));
     if (this.mode === 'idle') {
       this.scene.setGhost(r, undefined);
-      tag(r.end === 'success' ? 'It reached the flag!' : r.end === 'lost' ? 'Fell off' : r.end === 'loop' ? 'Going round in circles' : 'Got stuck', r.end === 'success' ? 'good' : 'bad');
+      tag(r.end === 'success' ? 'It reached the flag!' : 'Tap a + to help it', r.end === 'success' ? 'good' : 'same');
     }
   }
 
@@ -239,11 +242,11 @@ export class GameApp {
   private toOther(p: StoredPiece): void {
     this.mode = 'other';
     this.scene.setHighlights([parseCell(p.socket)!]);
-    tag(p.setup ? 'Starter piece' : `Placed by u/${p.username}`);
+    tag(p.setup ? 'This piece came with the machine' : `u/${p.username} put this here`);
     this.els.dock.className = 'dock';
     this.els.dock.replaceChildren(
       this.key('no', 'Back', () => this.toIdle(), ico('cross')),
-      this.key('blue', 'Swap it for a better one', () => this.toPick(p.socket), ico('return')),
+      this.key('blue wide hud', 'Replace it with a better one', () => this.toPick(p.socket), 'Replace'),
     );
   }
 
@@ -257,7 +260,8 @@ export class GameApp {
     let from: string | null = ownTarget ? null : (keep?.from ?? null);
     if (!ownTarget && from === null && mine.length >= this.view.me.allowance && mine.length > 0) from = mine[mine.length - 1]!.socket;
     const base = ownTarget ?? (from ? this.view.pieces.find((p) => p.socket === from) : undefined);
-    const type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? 'RAMP';
+    const firstInStock = PIECE_TYPES.find((t) => this.view.inventory[t] > 0) ?? 'RAMP';
+    const type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? firstInStock;
     let dir: Dir = ownTarget?.dir ?? (keep?.type === type ? keep.dir : undefined) ?? base?.dir ?? PIECE_DIRS[type][0]!;
     if (!PIECE_DIRS[type].includes(dir)) dir = PIECE_DIRS[type][0]!;
     this.candidate = { socket, type, dir, from };
@@ -299,14 +303,15 @@ export class GameApp {
     this.scene.setGhost(this.currentRun(), ball1(this.level, this.previewState().pieces));
 
     const stock = (t: PieceType): number => view.inventory[t] + (own?.type === t ? 1 : 0) + (replacing && occupant?.type === t ? 1 : 0);
-    const tiles = PIECE_TYPES.map((t) => {
+    // Only the pieces today's machine has; each tile shows the piece, its name and how many are left.
+    const tiles = PIECE_TYPES.filter((t) => stock(t) > 0 || t === c.type).map((t) => {
       const sel = t === c.type;
+      const n = stock(t) - (sel ? 1 : 0);
       return h(
         'button',
         {
           class: `key tile${sel ? ' sel' : ''}`,
-          disabled: stock(t) <= 0,
-          'aria-label': sel ? 'Turn it' : t.toLowerCase(),
+          'aria-label': sel ? `${PIECE_NAME[t]}: tap to turn it` : PIECE_NAME[t],
           onclick: () => {
             if (sel) {
               const dirs = PIECE_DIRS[t];
@@ -318,16 +323,18 @@ export class GameApp {
             this.renderPick();
           },
         },
-        pieceImg(t, sel ? c.dir : PIECE_DIRS[t][0]!),
+        h('span', { class: 'pic' }, pieceImg(t, sel ? c.dir : PIECE_DIRS[t][0]!), t === 'FAN' ? h('span', { class: `wind w-${sel ? c.dir : 'R'}` }, ico('arrowRight')) : null),
+        h('span', { class: 'name' }, PIECE_NAME[t]),
+        n > 0 ? h('span', { class: 'badge' }, `×${n}`) : null,
       );
     });
     const ok = !!d && d.ok;
     if (!d) tag('Log in to play', 'bad', true);
-    else if (d.ok) tag(d.after[0] ? 'Reaches the flag!' : d.verdict.kind === 'better' ? 'Better' : own && !replacing && own.socket !== c.socket ? 'Moves your piece here' : 'No change yet', d.verdict.kind === 'better' ? 'good' : 'same', true);
+    else if (d.ok) tag(d.after[0] ? 'Reaches the flag!' : d.verdict.kind === 'better' ? 'Gets closer!' : own && !replacing && own.socket !== c.socket ? 'Moves your piece here' : 'Doesn’t help yet: try turning it', d.verdict.kind === 'better' ? 'good' : 'same', true);
     else if (d.code === 'NO_CHANGE') tag('Tap the piece again to turn it', 'same', true);
-    else if (d.code === 'MUST_IMPROVE') tag('Not better than theirs', 'bad', true);
-    else if (d.code === 'WOULD_HURT') tag('Makes it worse', 'bad', true);
-    else if (d.code === 'OUT_OF_STOCK') tag('None of those left', 'bad', true);
+    else if (d.code === 'MUST_IMPROVE') tag('Only a better piece can replace it', 'bad', true);
+    else if (d.code === 'WOULD_HURT') tag('That makes it worse', 'bad', true);
+    else if (d.code === 'OUT_OF_STOCK') tag('None left', 'bad', true);
     else tag(d.message, 'bad', true);
 
     const left = own && own.socket === c.socket ? this.key('no', 'Remove your piece', () => void this.removeMine(), ico('cross')) : this.key('no', 'Cancel', () => this.toIdle(), ico('cross'));
@@ -363,27 +370,6 @@ export class GameApp {
       return;
     }
     this.setView(r.data.state);
-  }
-
-  // Guessing: the dock becomes 0 1 2 3.
-  private toGuess(): void {
-    this.mode = 'guess';
-    const v = this.view;
-    tag('How many balls make it tonight?', 'same', true);
-    const pick = async (n: number): Promise<void> => {
-      const r = await api.predict({ postId: this.postId ?? v.day.postId ?? undefined, balls: n });
-      if (!r.ok) {
-        tag(r.error.message, 'bad');
-        return;
-      }
-      this.setView(r.data.state);
-      tag(`Your guess: ${n}`, 'good');
-    };
-    this.els.dock.className = 'dock tight';
-    this.els.dock.replaceChildren(
-      this.key('no', 'Back', () => this.toIdle(), ico('cross')),
-      ...[0, 1, 2, 3].map((n) => this.key(`digit${v.me.prediction === n ? ' sel' : ''}`, `${n} of 3`, () => void pick(n), h('span', { class: 'n hud' }, String(n)))),
-    );
   }
 
   goToCurrent(): void {

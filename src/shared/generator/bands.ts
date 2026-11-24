@@ -22,6 +22,8 @@ export type BandCtx = {
   reserved: Set<number>;
   /** Cell that must stay clear (the Start). */
   start: { x: number; y: number };
+  /** How many more ramps this machine may use (variety: not ramps everywhere). */
+  rampsLeft?: number;
 };
 
 export type BandPlan = { fixes: Fix[] };
@@ -86,9 +88,9 @@ export function buildDrop(c: BandCtx): BandPlan | null {
   b.span(ex, xe, yL);
   b.clear(xe + d, yL);
   for (let y = y0; y < yL; y++) b.clear(ex, y);
-  const fixKind = rng.int(4); // 0,1 ramp · 2 bumper · 3 fan
+  const fixKind = (c.rampsLeft ?? 1) <= 0 ? 1 : rng.int(2); // 0 ramp · 1 fan (no bumpers: three clear pieces)
   let fix: Fix;
-  if (fixKind === 3) {
+  if (fixKind === 1) {
     const j = rng.range(1, 2);
     const fx = ex - d * j;
     if (!inX(fx)) return null;
@@ -97,13 +99,9 @@ export function buildDrop(c: BandCtx): BandPlan | null {
     fix = { x: fx, y: yL - 1, type: 'FAN', dir: d > 0 ? 'R' : 'L' };
   } else {
     deadEnd(b, c, -d, yL);
-    if (fixKind === 2) {
-      fix = { x: ex, y: yL - 1, type: 'BUMPER', dir: d > 0 ? 'R' : 'L' };
-    } else {
-      const lo = c.start.x === ex && c.start.y === y0 ? y0 + 1 : y0;
-      if (lo > yL - 1) return null;
-      fix = { x: ex, y: rng.range(lo, yL - 1), type: 'RAMP', dir: d > 0 ? 'DR' : 'DL' };
-    }
+    const lo = c.start.x === ex && c.start.y === y0 ? y0 + 1 : y0;
+    if (lo > yL - 1) return null;
+    fix = { x: ex, y: rng.range(lo, yL - 1), type: 'RAMP', dir: d > 0 ? 'DR' : 'DL' };
   }
   return b.ok ? { fixes: [fix] } : null;
 }
@@ -150,10 +148,10 @@ export function buildGap(c: BandCtx): BandPlan | null {
 /** Gate and switch: a closed gate blocks the ledge; the switch is off the natural path. Fix: ramp or bumper. */
 export function buildGate(c: BandCtx): BandPlan | null {
   const { rng, y0, h, ex } = c;
-  if (h < 4) return null;
+  if (h < 4 || (c.rampsLeft ?? 1) <= 0) return null;
   const yL = y0 + h - 1;
   const d = sign(rng);
-  const useBumper = rng.chance(1, 4) && h >= 5;
+  const useBumper = false;
   const ys = useBumper ? rng.range(y0 + 2, yL - 2) : rng.range(y0 + 1, yL - 2);
   const fy = ys - 1;
   if (c.start.x === ex && c.start.y === fy) return null;
@@ -203,7 +201,7 @@ export function buildLaunch(c: BandCtx): BandPlan | null {
   b.clear(xt, y0);
   for (let y = y0; y <= y1; y++) b.clear(xc, y);
   // A U spring needs four clear rows above the ball; near the top only the fan fits.
-  const spring = yL - 4 >= 0 && c.g.isEmpty(xp, yL - 4) && c.g.isEmpty(xt, yL - 4) && rng.chance(1, 3);
+  const spring = yL - 4 >= 0 && c.g.isEmpty(xp, yL - 4) && c.g.isEmpty(xt, yL - 4) && rng.chance(3, 4);
   const fix: Fix = spring ? { x: xp, y: yL, type: 'SPRING', dir: 'U' } : { x: xp, y: yL, type: 'FAN', dir: 'U' };
   return b.ok ? { fixes: [fix] } : null;
 }

@@ -1,6 +1,6 @@
 /**
  * The board, drawn entirely with sprites (Kenney's New Platformer Pack): grass blocks, a red ball,
- * springs, ramps, boosters, a goal flag. Takes taps, shows the predicted path, plays runs.
+ * springs, ramps, fans, a goal flag. Takes taps, shows the predicted path, plays runs.
  * Buttons and cards live in the DOM; this scene only knows about the board.
  */
 import * as Phaser from 'phaser';
@@ -21,6 +21,8 @@ export type PlayOptions = {
   /** Kept for callers; the whole board always stays in view. */
   follow?: boolean;
   startTick?: number;
+  /** Ball sprite (each surprise ball has its own colour). */
+  ball?: string;
 };
 
 type Playback = {
@@ -35,7 +37,8 @@ type Playback = {
 export const TICK_MS = 110;
 export const FONT = '"Lilita One", system-ui, sans-serif';
 const INK = 0x353541;
-const DPR = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+/** The game canvas is rendered at the screen's real pixel density (see main.ts); CSS px × PX = game px. */
+export const PX = Math.min(3, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
 
 const D = { spot: 1, wall: 2, thing: 3, path: 4, piece: 5, mark: 6, ball: 10, fx: 20, text: 30 };
 
@@ -50,6 +53,8 @@ export class BoardScene extends Phaser.Scene {
   private staticObjs: Phaser.GameObjects.GameObject[] = [];
   private pieceObjs = new Map<string, Phaser.GameObjects.Image>();
   private pieceExtras: Phaser.GameObjects.GameObject[] = [];
+  private blades: Array<{ id: string; img: Phaser.GameObjects.Image; boost: number }> = [];
+  private windT = 0;
   private cellObjs = new Map<number, Phaser.GameObjects.Image>();
   private cpTexts = new Map<number, Phaser.GameObjects.Text>();
   private hiObjs: Phaser.GameObjects.Image[] = [];
@@ -85,7 +90,7 @@ export class BoardScene extends Phaser.Scene {
     this.restBall = this.add.image(0, 0, 'ball').setDepth(D.ball).setVisible(false);
     this.time.addEvent({ delay: 380, loop: true, callback: () => this.flag?.setTexture(this.flag.texture.key === 'flag_a' ? 'flag_b' : 'flag_a') });
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
-      if (p.getDistance() > 12) return;
+      if (p.getDistance() > 12 * PX) return;
       const x = Math.floor((p.worldX - this.ox) / this.cell);
       const y = Math.floor((p.worldY - this.oy) / this.cell);
       if (x >= 0 && x < W && y >= 0 && y < H) this.onTap?.(x, y);
@@ -152,7 +157,7 @@ export class BoardScene extends Phaser.Scene {
       this.play = { run, t: start * TICK_MS, tick: start, opts, resolve, shownOwners: new Set() };
       for (const e of run.events) if (e.tick <= start) this.applyEvent(e, true);
       const f = run.frames[start]!;
-      this.ball.setPosition(this.px(f.x), this.py(f.y)).setScale(this.ballScale()).setAlpha(1).setAngle(0).setVisible(true);
+      this.ball.setTexture(opts.ball ?? 'ball').setPosition(this.px(f.x), this.py(f.y)).setScale(this.ballScale()).setAlpha(1).setAngle(0).setVisible(true);
       this.restBall.setVisible(false);
     });
   }
@@ -161,13 +166,13 @@ export class BoardScene extends Phaser.Scene {
     const t = this.add
       .text(this.px(x), this.py(y) - this.cell * 0.55, text, {
         fontFamily: FONT,
-        fontSize: `${Math.max(12, Math.round(this.cell * 0.34))}px`,
+        fontSize: `${Math.max(12 * PX, Math.round(this.cell * 0.34))}px`,
         color: '#ffffff',
         stroke: '#353541',
-        strokeThickness: 6,
+        strokeThickness: 6 * PX,
       })
       .setOrigin(0.5, 1)
-      .setResolution(DPR)
+      
       .setDepth(D.text);
     this.tweens.add({ targets: t, y: t.y - this.cell * 0.5, alpha: { from: 1, to: 0 }, delay: 700, duration: 700, onComplete: () => t.destroy() });
   }
@@ -182,8 +187,8 @@ export class BoardScene extends Phaser.Scene {
   private layout(): void {
     const w = this.scale.width;
     const h = this.scale.height;
-    const gut = this.showLabels ? 18 : 0;
-    this.cell = Math.max(16, Math.min(Math.floor((w - 16 - gut) / W), Math.floor((h - 12 - gut) / H), 80));
+    const gut = this.showLabels ? 18 * PX : 0;
+    this.cell = Math.max(16 * PX, Math.min(Math.floor((w - 12 * PX - gut) / W), Math.floor((h - 12 * PX - gut) / H), 80 * PX));
     this.ox = Math.round((w - this.cell * W + gut) / 2);
     this.oy = Math.round((h - this.cell * H + gut) / 2);
     this.redraw();
@@ -229,8 +234,8 @@ export class BoardScene extends Phaser.Scene {
     const s = this.cell;
     if (this.showLabels) {
       const style = { fontFamily: FONT, fontSize: `${Math.round(s * 0.3)}px`, color: '#353541' };
-      for (let x = 0; x < W; x++) this.staticObjs.push(this.add.text(this.px(x), this.oy - 10, 'ABCDEFGHI'[x]!, style).setOrigin(0.5).setResolution(DPR));
-      for (let y = 0; y < H; y++) this.staticObjs.push(this.add.text(this.ox - 10, this.py(y), String(y + 1), style).setOrigin(0.5).setResolution(DPR));
+      for (let x = 0; x < W; x++) this.staticObjs.push(this.add.text(this.px(x), this.oy - 10 * PX, 'ABCDEFGHI'[x]!, style).setOrigin(0.5));
+      for (let y = 0; y < H; y++) this.staticObjs.push(this.add.text(this.ox - 10 * PX, this.py(y), String(y + 1), style).setOrigin(0.5));
     }
     if (!L) return;
     const solid = (x: number, y: number): boolean => x >= 0 && x < W && y >= 0 && y < H && L.kinds[y * W + x] === 'solid';
@@ -239,7 +244,7 @@ export class BoardScene extends Phaser.Scene {
         const i = y * W + x;
         const k = L.kinds[i];
         if (k === 'solid') {
-          const o = this.img(`wall_${wallTile(solid(x, y - 1), solid(x, y + 1), solid(x - 1, y), solid(x + 1, y))}`, x, y, s + 0.75, D.wall);
+          const o = this.img(`wall_${wallTile(solid(x, y - 1), solid(x, y + 1), solid(x - 1, y), solid(x + 1, y))}`, x, y, s + 2 * PX, D.wall);
           this.staticObjs.push(o);
         } else if (k === 'target') {
           this.flag = this.img('flag_a', x, y, s * 1.05, D.thing);
@@ -256,9 +261,9 @@ export class BoardScene extends Phaser.Scene {
           const c = this.img('coin', x, y, s * 1.45, D.thing).setAlpha(n <= this.cpDone ? 0.3 : 1);
           this.cellObjs.set(i, c);
           const t = this.add
-            .text(this.px(x), this.py(y), String(n), { fontFamily: FONT, fontSize: `${Math.round(s * 0.36)}px`, color: '#ffffff', stroke: '#353541', strokeThickness: 4 })
+            .text(this.px(x), this.py(y), String(n), { fontFamily: FONT, fontSize: `${Math.round(s * 0.36)}px`, color: '#ffffff', stroke: '#353541', strokeThickness: 4 * PX })
             .setOrigin(0.5)
-            .setResolution(DPR)
+            
             .setDepth(D.mark)
             .setAlpha(n <= this.cpDone ? 0.3 : 1);
           this.cpTexts.set(i, t);
@@ -288,12 +293,23 @@ export class BoardScene extends Phaser.Scene {
     this.pieceObjs.clear();
     for (const o of this.pieceExtras) o.destroy();
     this.pieceExtras = [];
+    this.blades = [];
     const s = this.cell;
     for (const p of this.pieces) {
       const look = pieceLook(p.type, p.dir);
-      const o = this.img(look.key, p.x, p.y, s, p.ghost ? D.piece + 1 : D.piece);
-      o.setAngle(look.angle).setFlipX(look.flip);
-      if (p.ghost) this.tweens.add({ targets: o, alpha: { from: 0.55, to: 1 }, duration: 550, yoyo: true, repeat: -1 });
+      const depth = p.ghost ? D.piece + 1 : D.piece;
+      const o = this.img(p.type === 'FAN' ? 'fan' : look.key, p.x, p.y, s, depth);
+      if (p.type !== 'FAN') o.setAngle(look.angle).setFlipX(look.flip);
+      const pulse: Phaser.GameObjects.Image[] = [o];
+      if (p.type === 'FAN') {
+        // The ring's centre sits 6/128 above the tile centre.
+        const bl = this.add.image(this.px(p.x), this.py(p.y) - s * (6 / 128), 'fan_blades').setDepth(depth);
+        bl.setDisplaySize(s, s);
+        this.pieceExtras.push(bl);
+        this.blades.push({ id: p.id, img: bl, boost: 0 });
+        pulse.push(bl);
+      }
+      if (p.ghost) this.tweens.add({ targets: pulse, alpha: { from: 0.55, to: 1 }, duration: 550, yoyo: true, repeat: -1 });
       this.pieceObjs.set(p.id, o);
       if (p.mine && !p.ghost) {
         const star = this.add.image(this.px(p.x) + s * 0.36, this.py(p.y) - s * 0.36, 'star').setDepth(D.mark);
@@ -303,11 +319,12 @@ export class BoardScene extends Phaser.Scene {
     }
   }
 
-  /** Little wind dots in front of each booster. */
+  /** Wind streaks moving out of each fan, up to three cells. */
   private drawBeams(): void {
     const g = this.beamG;
     if (!g) return;
     g.clear();
+    const phase = (this.windT % 700) / 700;
     const L = this.level;
     if (!L) return;
     const s = this.cell;
@@ -320,15 +337,30 @@ export class BoardScene extends Phaser.Scene {
     for (const p of this.pieces) {
       if (p.type !== 'FAN') continue;
       const [dx, dy] = p.dir === 'L' ? [-1, 0] : p.dir === 'R' ? [1, 0] : [0, -1];
+      let reach = 0;
       for (let d = 1; d <= 3; d++) {
         const x = p.x + dx * d;
         const y = p.y + dy * d;
         if (x < 0 || x >= W || y < 0 || y >= H || blocked(x, y)) break;
-        for (const k of [-0.2, 0.2]) {
-          const bx = this.px(x) + (dx === 0 ? k * s : -dx * 0.1 * s);
-          const by = this.py(y) + (dx !== 0 ? k * s : 0.1 * s);
-          g.fillStyle(0xffffff, 0.9 - d * 0.2);
-          g.fillRoundedRect(bx - (dx ? s * 0.12 : s * 0.035), by - (dx ? s * 0.035 : s * 0.12), dx ? s * 0.24 : s * 0.07, dx ? s * 0.07 : s * 0.24, s * 0.035);
+        reach = d;
+      }
+      // Three lanes of streaks flowing outward; they fade as they travel.
+      for (let lane = -1; lane <= 1; lane++) {
+        for (let k = 0; k < reach; k++) {
+          const t = k + ((phase + (lane + 1) * 0.33) % 1);
+          if (t > reach) continue;
+          const along = 0.45 + t;
+          const cx = this.px(p.x) + dx * along * s + (dx === 0 ? lane * 0.24 * s : 0);
+          const cy = this.py(p.y) + dy * along * s + (dy === 0 ? lane * 0.22 * s : 0);
+          const a = Math.max(0, 0.95 - (t / Math.max(1, reach)) * 0.8);
+          const len = s * 0.3;
+          const th = Math.max(2 * PX, s * 0.08);
+          const w2 = dx ? len : th;
+          const h2 = dx ? th : len;
+          g.fillStyle(INK, a * 0.6);
+          g.fillRoundedRect(cx - w2 / 2 - PX, cy - h2 / 2 - PX, w2 + 2 * PX, h2 + 2 * PX, th / 2 + PX);
+          g.fillStyle(0xffffff, a);
+          g.fillRoundedRect(cx - w2 / 2, cy - h2 / 2, w2, h2, th / 2);
         }
       }
     }
@@ -359,17 +391,17 @@ export class BoardScene extends Phaser.Scene {
         if (seen.has(k)) continue;
         seen.add(k);
         g.fillStyle(INK, alpha);
-        g.fillCircle(this.px(f.x), this.py(f.y), rad + Math.max(1.5, s * 0.035));
+        g.fillCircle(this.px(f.x), this.py(f.y), rad + Math.max(1.5 * PX, s * 0.035));
         g.fillStyle(fill, alpha);
         g.fillCircle(this.px(f.x), this.py(f.y), rad);
       }
     };
     if (!this.ghost.now) {
-      dots(this.ghost.old, 0xffffff, 1, Math.max(3, s * 0.09));
+      dots(this.ghost.old, 0xffffff, 1, Math.max(3 * PX, s * 0.09));
       return;
     }
-    dots(this.ghost.old, 0xffffff, 0.55, Math.max(2.5, s * 0.07));
-    dots(this.ghost.now, 0xffc851, 1, Math.max(3, s * 0.1));
+    dots(this.ghost.old, 0xffffff, 0.55, Math.max(2.5 * PX, s * 0.07));
+    dots(this.ghost.now, 0xffc851, 1, Math.max(3 * PX, s * 0.1));
   }
 
   // ---------- run playback ----------
@@ -396,6 +428,12 @@ export class BoardScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
+    this.windT += delta;
+    for (const b of this.blades) {
+      b.img.rotation += delta * 0.008 * (1 + b.boost * 3);
+      if (b.boost > 0) b.boost = Math.max(0, b.boost - delta / 800);
+    }
+    if (this.blades.length) this.drawBeams();
     const p = this.play;
     if (!p) return;
     const speed = p.opts.speed ?? 1;
@@ -467,7 +505,10 @@ export class BoardScene extends Phaser.Scene {
       if (e.kind === 'launch' && piece.type === 'SPRING') this.squash(obj, 'spring', 'spring_out');
       else if (e.kind === 'deflect' && piece.type === 'BUMPER') this.squash(obj, 'bumper', 'bumper_out');
       else if (e.kind === 'deflect') this.tweens.add({ targets: obj, angle: { from: obj.angle - 8, to: obj.angle }, duration: 200, ease: 'Sine.easeOut' });
-      else if (e.kind === 'touch' && piece.type === 'FAN') this.pop(obj, 1.15);
+      else if (e.kind === 'touch' && piece.type === 'FAN') {
+        const b = this.blades.find((q) => q.id === piece.id);
+        if (b) b.boost = 1;
+      }
     }
     if (e.kind === 'touch' && piece && this.play?.opts.showOwners && piece.owner && !piece.setup && !this.play.shownOwners.has(piece.id)) {
       this.play.shownOwners.add(piece.id);

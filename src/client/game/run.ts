@@ -8,6 +8,7 @@ import { variantInfo } from '../../shared/sim/variants';
 import type { SimResult } from '../../shared/types';
 import type { GameApp } from './app';
 import type { BoardScene, ScenePiece } from './scenes/BoardScene';
+import { BALL_SPRITE } from '../assets';
 import { closeCard, h, ico, pieceImg, showCard, spr } from './ui/dom';
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -90,31 +91,32 @@ export class RunScreen {
   }
 
   private ballTitle(i: number): string {
-    return i === 0 ? 'Your ball' : variantInfo(this.run.variants[i]!).short;
+    return `${variantInfo(this.run.variants[i]!).short} ball`;
+  }
+  private ballSprite(i: number): string {
+    return BALL_SPRITE[this.run.variants[i]!];
   }
 
+  /** Tonight's three balls: red, then two surprise balls that flip over. */
   private async reveal(): Promise<void> {
     const card = (i: number): HTMLElement => {
       const info = variantInfo(this.run.variants[i]!);
-      return h(
-        'div',
-        { class: 'flip' },
-        h('div', { class: 'flip-in' }, h('div', { class: 'face front hud' }, '?'), h('div', { class: 'face back' }, spr('ball'), h('b', {}, info.short), h('small', {}, info.effect))),
-      );
+      const back = h('div', { class: 'face back' }, spr(this.ballSprite(i)), h('b', {}, info.short), h('small', {}, info.effect));
+      if (i === 0) return h('div', { class: 'flip flipped' }, h('div', { class: 'flip-in' }, h('div', { class: 'face front' }), back));
+      return h('div', { class: 'flip' }, h('div', { class: 'flip-in' }, h('div', { class: 'face front hud' }, '?'), back));
     };
-    const c1 = card(1);
-    const c2 = card(2);
+    const cards = [0, 1, 2].map(card);
     const done = new Promise<void>((resolve) => {
-      showCard(h('div', {}, h('h2', {}, 'Tonight’s surprise balls'), h('div', { class: 'flips' }, c1, c2)), null, () => {
+      showCard(h('div', {}, h('h2', {}, 'Tonight’s 3 balls'), h('div', { class: 'flips' }, ...cards), h('p', { class: 'note' }, 'Each one that reaches the flag is a star')), null, () => {
         this.skip = true;
         resolve();
       });
     });
-    await this.wait(500);
-    c1.classList.add('flipped');
-    await this.wait(400);
-    c2.classList.add('flipped');
-    await this.wait(2600);
+    await this.wait(700);
+    cards[1]!.classList.add('flipped');
+    await this.wait(450);
+    cards[2]!.classList.add('flipped');
+    await this.wait(3000);
     closeCard();
     this.skip = true;
     await Promise.race([done, sleep(250)]);
@@ -149,15 +151,15 @@ export class RunScreen {
     const r = this.run.balls[i]!;
     const keys = this.keyTicks(r);
     const slow = (tick: number): number => (keys.has(tick) || keys.has(tick + 1) ? 0.35 : 1);
-    this.banner.textContent = this.ballTitle(i);
+    this.banner.replaceChildren(spr(this.ballSprite(i)), this.ballTitle(i));
     this.banner.classList.add('show');
     if (show) await sleep(450);
-    await this.scene.playRun(r, { speed: this.speed, slowmo: slow, showOwners: true });
+    await this.scene.playRun(r, { speed: this.speed, slowmo: slow, showOwners: true, ball: this.ballSprite(i) });
     this.banner.classList.remove('show');
   }
 
   private async stamp(good: boolean): Promise<void> {
-    const el = h('div', { class: `stamp ${good ? 'good' : 'bad'}` }, ico(good ? 'checkmark' : 'cross'));
+    const el = h('div', { class: `stamp ${good ? 'good' : 'bad'}` }, good ? spr('star') : ico('cross'));
     this.board.append(el);
     requestAnimationFrame(() => el.classList.add('show'));
     await sleep(1000);
@@ -178,22 +180,20 @@ export class RunScreen {
 
   // ---------- dock & results ----------
 
+  /** Replay keys: one per ball (its colour, ⭐ or ✕), then the result. */
   private renderDock(): void {
-    const keys = [0, 1, 2].map((i) =>
-      h(
+    const keys = [0, 1, 2].map((i) => {
+      const ok = this.run.balls[i]!.end === 'success';
+      return h(
         'button',
-        {
-          class: `key tile${i === this.ball ? ' sel' : ''}`,
-          'aria-label': `Replay ${this.ballTitle(i)}`,
-          onclick: () => void this.replay(i),
-        },
-        spr('ball', this.run.balls[i]!.end === 'success' ? '' : 'miss'),
-        h('span', { class: `badge ${this.run.balls[i]!.end === 'success' ? 'ok' : 'x'}` }, ico(this.run.balls[i]!.end === 'success' ? 'checkmark' : 'cross')),
-      ),
-    );
-    const star = h('button', { class: 'key blue', 'aria-label': 'Score', onclick: () => this.showResults() }, ico('trophy'));
+        { class: `key ballkey${i === this.ball ? ' sel' : ''}`, 'aria-label': `Replay the ${this.ballTitle(i)}`, onclick: () => void this.replay(i) },
+        spr(this.ballSprite(i)),
+        h('span', { class: `badge ${ok ? 'star' : 'x'}` }, ok ? spr('star') : ico('cross')),
+      );
+    });
+    const res = h('button', { class: 'key blue', 'aria-label': 'Tonight’s result', onclick: () => this.showResults() }, spr('star', 'big'));
     this.dock.className = 'dock';
-    this.dock.replaceChildren(...keys, star);
+    this.dock.replaceChildren(...keys, res);
   }
 
   private async replay(i: number): Promise<void> {
@@ -208,6 +208,7 @@ export class RunScreen {
     }
   }
 
+  /** The night's result: one star per ball that reached the flag. */
   private showResults(): void {
     const v = this.app.view;
     const r = this.result;
@@ -215,24 +216,29 @@ export class RunScreen {
     const who = (label: string, a: { pieceId: string; username: string } | null): HTMLElement | null => {
       const p = a ? byId.get(a.pieceId) : undefined;
       if (!a || !p) return null;
-      return h('div', { class: 'who' }, pieceImg(p.type, p.dir), h('b', {}, `u/${a.username}`), h('span', { class: 'lbl' }, label));
+      return h('div', { class: 'who' }, pieceImg(p.type, p.dir), h('span', { class: 'nm' }, h('b', {}, `u/${a.username}`), h('span', { class: 'lbl' }, label)));
     };
     const cur = v.current;
     const hasNext = !!cur.postId && cur.postId !== v.day.postId;
-    const guess = v.me.prediction === null ? null : h('p', { class: 'note' }, v.me.prediction === r.score ? `You guessed ${r.score}. Spot on!` : `You guessed ${v.me.prediction}.`);
-    const mvp = who('Best piece', r.awards.mvp);
-    const clutch = r.awards.clutch && r.awards.clutch.pieceId !== r.awards.mvp?.pieceId ? who('Last save', r.awards.clutch) : null;
+    const title = r.score === 3 ? 'Perfect!' : r.score === 2 ? 'Great run!' : r.score === 1 ? 'One made it' : 'No stars tonight';
+    const stars = h(
+      'div',
+      { class: 'stars' },
+      ...this.run.balls.map((b, i) => {
+        const s = spr('star', b.end === 'success' ? '' : 'miss');
+        s.style.animationDelay = `${150 + i * 220}ms`;
+        return s;
+      }),
+    );
+    const balls = h(
+      'div',
+      { class: 'trio' },
+      ...this.run.balls.map((b, i) => h('span', { class: 'tb' }, spr(this.ballSprite(i), b.end === 'success' ? '' : 'miss'), h('i', { class: b.end === 'success' ? 'ok' : 'x' }, b.end === 'success' ? spr('star') : ico('cross')))),
+    );
+    const mvp = who('Most helpful piece', r.awards.mvp);
     showCard(
-      h(
-        'div',
-        {},
-        h('div', { class: 'score hud' }, `${r.score}/3`),
-        h('div', { class: 'trio' }, ...this.run.balls.map((b) => spr('ball', b.end === 'success' ? '' : 'miss'))),
-        guess,
-        mvp,
-        clutch,
-      ),
-      hasNext ? `Play Day ${cur.dayNumber}` : 'Done',
+      h('div', {}, h('h2', {}, title), stars, balls, mvp),
+      hasNext ? `Play Day ${cur.dayNumber}` : 'OK',
       undefined,
       hasNext ? () => this.app.goToCurrent() : undefined,
     );

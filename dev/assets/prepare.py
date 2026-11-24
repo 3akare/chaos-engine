@@ -21,7 +21,7 @@ copy = {
         'block_bottom', 'block_bottom_left', 'block_bottom_right',
         'horizontal_left', 'horizontal_middle', 'horizontal_right',
         'vertical_top', 'vertical_middle', 'vertical_bottom']},
-    'ramp': 'ramp', 'spring': 'spring', 'spring_out': 'spring_out', 'booster': 'conveyor',
+    'ramp': 'ramp', 'spring': 'spring', 'spring_out': 'spring_out',
     'flag_a': 'flag_green_a', 'flag_b': 'flag_green_b',
     'switch': 'switch_yellow', 'switch_on': 'switch_yellow_pressed', 'lock': 'lock_yellow',
     'coin': 'coin_gold', 'star': 'star',
@@ -54,16 +54,24 @@ for y in range(spring_out.height):
             p2[x, y] = (min(255, b), int(g * 0.5), int(r * 0.8), a)
 spring_out.save(out / 'bumper_out.png')
 
-# The ball: same outline weight and flat shading as the pack, drawn at 4x then reduced.
+# Balls: same outline weight and flat shading as the pack, drawn at 4x then reduced.
+# Red is the test ball; each surprise ball has its own colour.
 S = 512
-b = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-d = ImageDraw.Draw(b)
-d.ellipse((40, 40, S - 40, S - 40), fill=INK)
-d.ellipse((72, 72, S - 72, S - 72), fill=(229, 67, 65, 255))
-d.pieslice((72, 72, S - 72, S - 72), 20, 200, fill=(188, 36, 35, 255))
-d.ellipse((92, 80, S - 92, S - 120), fill=(229, 67, 65, 255))
-d.ellipse((150, 130, 240, 220), fill=(255, 255, 255, 230))
-b.resize((128, 128), Image.LANCZOS).save(out / 'ball.png')
+def ball(name, fill, shade):
+    b = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(b)
+    d.ellipse((40, 40, S - 40, S - 40), fill=INK)
+    d.ellipse((72, 72, S - 72, S - 72), fill=fill + (255,))
+    d.pieslice((72, 72, S - 72, S - 72), 20, 200, fill=shade + (255,))
+    d.ellipse((92, 80, S - 92, S - 120), fill=fill + (255,))
+    d.ellipse((150, 130, 240, 220), fill=(255, 255, 255, 230))
+    b.resize((128, 128), Image.LANCZOS).save(out / f'{name}.png')
+ball('ball', (229, 67, 65), (188, 36, 35))
+ball('ball_blue', (65, 159, 221), (54, 111, 191))
+ball('ball_green', (46, 204, 113), (26, 160, 116))
+ball('ball_purple', (155, 89, 182), (113, 54, 138))
+ball('ball_yellow', (255, 200, 81), (227, 155, 31))
+ball('ball_grey', (146, 161, 173), (100, 112, 125))
 
 # Build spot: a soft white tile with a plus, so empty places read as "a piece goes here".
 s = Image.new('RGBA', (S, S), (0, 0, 0, 0))
@@ -76,8 +84,8 @@ s.resize((128, 128), Image.LANCZOS).save(out / 'spot.png')
 
 # UI icons (white).
 icons = src / 'game-icons/PNG/White/2x'
-for k in ['right', 'stop', 'cross', 'checkmark', 'question', 'star', 'trophy', 'arrowLeft', 'fastForward', 'return', 'pause']:
+for k in ['right', 'stop', 'cross', 'checkmark', 'question', 'star', 'trophy', 'arrowLeft', 'arrowRight', 'fastForward', 'return', 'pause']:
     shutil.copy(icons / f'{k}.png', out / 'icons' / f'{k}.png')
 (out / 'LICENSE.md').write_text('Art and icons by Kenney (www.kenney.nl), CC0 1.0 (public domain).\n'
-                                'New Platformer Pack, Game Icons. Derived files (ball, spot, bumper) are made by dev/assets/prepare.py.\n')
+                                'New Platformer Pack, Game Icons. Derived files (ball, spot, bumper) are made by dev/assets/prepare.py; the fan (fan, fan_blades, fan_icon) is drawn in dev/assets/fan.svg.html in the same style.\n')
 print('ok', len(list(out.glob('*.png'))), 'sprites')

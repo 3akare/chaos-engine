@@ -36,18 +36,30 @@ describe('generator', () => {
     expect(JSON.stringify(c.machine)).not.toBe(JSON.stringify(a.machine));
   });
 
-  it('100 consecutive days all produce validated machines within 200 attempts', () => {
+  it('100 consecutive days all produce validated, varied machines', () => {
     const hist: DayHistory[] = [];
     const attempts: number[] = [];
+    let springDays = 0;
+    let fanDays = 0;
     for (let n = 1; n <= 100; n++) {
       const out = generateDay({ installSalt: 'gate', dayNumber: n, openMs: T0 + n * DAY, history: hist.slice(0, 2) });
       expect(out.fallback).toBe(false);
-      expect(out.attemptsTried).toBeLessThanOrEqual(200);
+      expect(out.attemptsTried).toBeLessThanOrEqual(400);
+      // Variety: never one kind of piece, never a pile of ramps, and exactly the pieces needed.
+      const types = (out.machine.solution ?? []).map((s) => s.type);
+      expect(new Set(types).size).toBeGreaterThanOrEqual(2);
+      expect(types.filter((t) => t === 'RAMP').length).toBeLessThanOrEqual(out.machine.gen!.tier === 3 ? 2 : 1);
+      const stock = Object.values(out.machine.inventory).reduce((a, b) => a + b, 0);
+      expect(stock).toBe(types.length);
+      if (types.includes('SPRING')) springDays++;
+      if (types.includes('FAN')) fanDays++;
       const v = validateMachine(out.machine, { tier: out.machine.gen!.tier, history: hist.slice(0, 2), families: out.machine.gen!.families });
       expect(v.reason).toBe('ok');
       attempts.push(out.attemptsTried);
       hist.unshift(historyOf(out.machine));
     }
+    expect(springDays).toBeGreaterThanOrEqual(25);
+    expect(fanDays).toBeGreaterThanOrEqual(25);
     attempts.sort((a, b) => a - b);
     console.log(`generator: median attempts ${attempts[50]}, max ${attempts[99]}`);
   });
@@ -72,10 +84,11 @@ describe('generator', () => {
     expect(sat.machine.gen!.tier).toBe(3);
   });
 
-  it('tiers decide the solution size', () => {
+  it('tiers decide the solution size (the finish ramp is skipped once a day has its ramps)', () => {
     for (const [wd, size] of [[1, 2], [3, 3], [5, 4]] as const) {
       const out = generateDay({ installSalt: 'size', dayNumber: wd, openMs: T0 + (wd - 1) * DAY, history: [] });
-      expect(out.machine.solution).toHaveLength(size);
+      expect(out.machine.solution!.length).toBeGreaterThanOrEqual(2);
+      expect(out.machine.solution!.length).toBeLessThanOrEqual(size);
     }
   });
 
@@ -114,9 +127,9 @@ describe('§5.3 checks reject crafted failures', () => {
       solution: [{ socket: 'E8', type: 'RAMP', dir: 'DR' }],
       inventory: { RAMP: 1, SPRING: 1, FAN: 1, BUMPER: 0 },
     });
-  it('secret-ball headroom', () => {
+  it('secret-ball headroom: 5 of 6 surprise balls delivering is allowed (spring days), all 6 is not', () => {
     const v = validateMachine(single(false), { tier: 1 });
-    expect(v.failed).toBe('headroom');
+    expect(v.failed).not.toBe('headroom');
     expect(v.variantsDelivered).toBe(5);
   });
   it('no trivial fix', () => {
