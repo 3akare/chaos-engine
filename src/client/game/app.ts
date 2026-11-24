@@ -347,7 +347,7 @@ export class GameApp {
     if (ownTarget) from = null;
     else if (from === null && mine.length >= this.view.me.allowance && mine.length === 1) from = mine[0]!.socket;
     const base = ownTarget ?? (from ? this.view.pieces.find((p) => p.socket === from) : undefined);
-    let type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? occupant?.type ?? 'RAMP';
+    const type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? occupant?.type ?? 'RAMP';
     let dir: Dir = ownTarget?.dir ?? keep?.dir ?? base?.dir ?? occupant?.dir ?? PIECE_DIRS[type][0]!;
     if (!PIECE_DIRS[type].includes(dir)) dir = PIECE_DIRS[type][0]!;
     this.candidate = { socket, type, dir, from };

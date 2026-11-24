@@ -4,7 +4,6 @@ import { K } from '../src/server/core/keys';
 import { readMeta } from '../src/server/core/day';
 import { installWith, makeDeps } from './server-helpers';
 
-const H = 3_600_000;
 
 describe('daily schedule: one new machine a day at 02:00 UTC', () => {
   it('a Day opened at the 02:00 hand-off locks 24 h later', () => {
