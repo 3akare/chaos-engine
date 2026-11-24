@@ -123,3 +123,8 @@ or where the implementation deviates from it. Newest last.
 - **Sharp on phones.** The Phaser canvas is sized at devicePixelRatio and shown at 1/PX zoom; it was rendering at 1x and being stretched.
 - **A real fan.** Drawn in the pack's style (dev/assets/fan.svg.html): a housing with spinning blades, and moving wind in front of it.
 - **Plain names.** Surprise balls are Lefty, Righty, Heavy, Bouncy, Backwards, Slick, each with its own colour.
+
+## 2026-11-24 · Solo and Team, three fixed balls
+- **Two ways to play, chosen on the post.** Solo: your own copy of the day's machine with its full stock; ▶ rolls the three balls; `/api/solo` re-simulates the arrangement server-side and keeps your best (hash `ce:day:{id}:solo`). Team: the shared board as before (allowance = ceil(needed / builders), improve-only replacement), ▶ shows what it would score now, and at 02:00 UTC the real roll.
+- **Three fixed balls: normal, heavy, bouncy.** Same every day, shown up front; the random secret variants and the reveal are gone from the game (the server still stores the commit/secret, harmlessly). Every generated machine's solution must get all three home (the hand-made fallbacks are exempt and only need the normal ball).
+- **No per-ball replay keys.** ▶ (Solo/Team test) or "Watch again" (night) rolls all three again.

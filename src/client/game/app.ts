@@ -1,52 +1,80 @@
 /**
- * Game controller. The frame never changes: top line · board · dock. Every interaction
- * swaps what the dock holds (play / place / guess / swap) instead of opening panels.
+ * The game screen. One frame: Solo/Team switch on top, the board, the dock.
+ *
+ * Solo: your own copy of today's machine with every piece it has. Build, press ▶, the three
+ *   balls roll, you get stars. Your best is saved. Nobody else sees your board.
+ * Team: the same machine, shared by everyone in the subreddit. Pieces are split between
+ *   today's builders, nobody can make it worse, and at 02:00 UTC the three balls roll for real.
  */
 import { navigateTo } from '@devvit/web/client';
 import { parseCell } from '../../shared/coords';
-import type { DayView, StoredPiece } from '../../shared/protocol';
-import { ball1, decide, holdersFrom, type BoardState, type Decision } from '../../shared/rules/placement';
+import type { DayView, SoloPiece, StoredPiece } from '../../shared/protocol';
+import { boardPieces, decide, holdersFrom, type BoardState, type Decision } from '../../shared/rules/placement';
 import { levelOf } from '../../shared/sim/board';
 import type { Level } from '../../shared/sim/level';
-import { PIECE_DIRS, PIECE_TYPES, W, type Dir, type PieceType, type SimResult } from '../../shared/types';
-
-const PIECE_NAME: Record<PieceType, string> = { RAMP: 'Ramp', SPRING: 'Spring', FAN: 'Fan', BUMPER: 'Kicker' };
+import { DAY_BALLS, runBalls, type DayRun } from '../../shared/sim/runDay';
+import { PIECE_DIRS, PIECE_TYPES, W, type BoardPiece, type Dir, type PieceType, type SimResult } from '../../shared/types';
 import { api } from '../lib/api';
 import type { BoardScene, ScenePiece } from './scenes/BoardScene';
-import { clearTag, closeCard, fmtCountdown, h, ico, pieceImg, spr, tag } from './ui/dom';
+import { ballRow, confetti, rollThree, scoreTitle, starRow } from './show';
+import { cardOpen, clearTag, closeCard, fmtCountdown, h, ico, pieceImg, showCard, spr, tag } from './ui/dom';
 import { howToPlay, reportModal, welcome } from './ui/modals';
 import { markWelcomed, welcomeSeen } from './ui/welcome';
-import { RunScreen } from './run';
 
 const POLL_MS = 15_000;
+export const PIECE_NAME: Record<PieceType, string> = { RAMP: 'Ramp', SPRING: 'Spring', FAN: 'Fan', BUMPER: 'Kicker' };
 
-/** `from`: which of your pieces moves here (null = a new piece). */
-type Candidate = { socket: string; type: PieceType; dir: Dir; from: string | null };
-type Mode = 'idle' | 'pick' | 'other';
+export type PlayMode = 'solo' | 'team';
+/** A piece being placed or edited. `from`: (team) which of your pieces moves here. */
+type Edit = { socket: string; type: PieceType; dir: Dir; from: string | null };
+
+const store = {
+  get(k: string): string | null {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set(k: string, v: string): void {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      /* private mode */
+    }
+  },
+};
+
+export function initialMode(): PlayMode {
+  const q = new URLSearchParams(location.search).get('mode');
+  const m = q ?? store.get('ce_mode');
+  return m === 'team' ? 'team' : 'solo';
+}
 
 export class GameApp {
   view!: DayView;
   level!: Level;
+  private mode: PlayMode = initialMode();
   private skew = 0;
-  private speed = 1.4;
-  private mode: Mode = 'idle';
-  private candidate: Candidate | null = null;
+  private edit: Edit | null = null;
   private busy = false;
-  private run: RunScreen | null = null;
-  private els!: { day: HTMLElement; time: HTMLElement; board: HTMLElement; dock: HTMLElement; top: HTMLElement };
+  private rolling = false;
+  private solo: Record<string, { type: PieceType; dir: Dir }> = {};
+  private els: { tabs: HTMLElement; pill: HTMLElement; board: HTMLElement; dock: HTMLElement; top: HTMLElement };
 
   constructor(
     root: HTMLElement,
     private scene: BoardScene,
     private postId: string | undefined,
   ) {
-    const day = h('button', { class: 'day hud', 'aria-label': 'How to play', onclick: () => howToPlay() });
-    const time = h('div', { class: 'time' });
-    const top = h('header', { class: 'top' }, day, time);
+    const tab = (m: PlayMode, label: string): HTMLButtonElement => h('button', { class: 'tab', 'data-mode': m, onclick: () => this.switchMode(m) }, label);
+    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('solo', 'Solo'), tab('team', 'Team'));
+    const pill = h('div', { class: 'pill' });
+    const top = h('header', { class: 'top' }, tabs, pill);
     const board = h('div', { id: 'board' });
     const dock = h('nav', { class: 'dock' });
     root.append(top, board, dock);
-    this.els = { day, time, board, dock, top };
+    this.els = { tabs, pill, board, dock, top };
   }
 
   async start(): Promise<void> {
@@ -56,7 +84,11 @@ export class GameApp {
       return;
     }
     this.setView(r.data);
-    window.setInterval(() => this.tickClock(), 1000);
+    if (!welcomeSeen()) {
+      markWelcomed();
+      welcome(() => this.afterWelcome());
+    } else this.afterWelcome();
+    window.setInterval(() => this.tickPill(), 1000);
     window.setInterval(() => void this.poll(), POLL_MS);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') void this.poll();
@@ -67,246 +99,396 @@ export class GameApp {
     return this.els.board;
   }
 
+  private afterWelcome(): void {
+    if (this.mode === 'team') this.teamHello();
+  }
+
   private now(): number {
     return Date.now() + this.skew;
   }
 
   private setView(v: DayView): void {
-    const firstLoad = !this.view;
-    if (!this.view || this.view.day.dayId !== v.day.dayId) this.level = levelOf({ ...v.level, solution: [] });
+    const newDay = !this.view || this.view.day.dayId !== v.day.dayId;
+    if (newDay) {
+      this.level = levelOf({ ...v.level, solution: [] });
+      this.loadSolo(v.day.dayId);
+    }
     this.view = v;
     this.skew = v.serverNow - Date.now();
-    this.els.day.textContent = `Day ${v.day.dayNumber}`;
-    this.tickClock();
-    const open = v.day.status === 'OPEN' && v.serverNow < v.day.locksAt;
-    if (open) {
-      this.run?.destroy();
-      this.run = null;
-      this.els.board.querySelector('.spinner')?.remove();
-      this.scene.setBoard(this.level, this.scenePieces(), v.level.target ?? 'bell');
+    this.render();
+  }
+
+  private switchMode(m: PlayMode): void {
+    if (this.rolling || m === this.mode) return;
+    this.scene.stop();
+    closeCard();
+    this.mode = m;
+    store.set('ce_mode', m);
+    this.edit = null;
+    this.render();
+    if (m === 'team') this.teamHello();
+  }
+
+  /** Draw everything for the current mode and state. */
+  private render(): void {
+    for (const b of this.els.tabs.querySelectorAll<HTMLElement>('.tab')) b.classList.toggle('on', b.dataset.mode === this.mode);
+    this.els.board.querySelector('.spinner')?.remove();
+    this.tickPill();
+    if (this.mode === 'solo') {
+      this.scene.setBoard(this.level, this.soloScenePieces(), this.view.level.target ?? 'bell');
       this.scene.onTap = (x, y) => this.onTap(x, y);
       this.toIdle();
-      if (firstLoad) {
-        if (!welcomeSeen()) {
-          markWelcomed();
-          welcome(() => this.showInbox());
-        } else this.showInbox();
-      }
+      return;
+    }
+    const v = this.view;
+    const open = v.day.status === 'OPEN' && v.serverNow < v.day.locksAt;
+    this.scene.setBoard(this.level, this.teamScenePieces(), v.level.target ?? 'bell');
+    if (open) {
+      this.scene.onTap = (x, y) => this.onTap(x, y);
+      this.toIdle();
     } else if (!v.result) {
       this.scene.onTap = null;
-      this.scene.setBoard(this.level, this.scenePieces(), v.level.target ?? 'bell');
       this.scene.setGhost(undefined, undefined);
-      if (!this.els.board.querySelector('.spinner')) this.els.board.append(spr('coin', 'spinner'));
+      this.els.board.append(spr('coin', 'spinner'));
       this.els.dock.replaceChildren();
+      tag('The balls are rolling…', 'same', true);
     } else {
       this.scene.onTap = null;
-      this.els.board.querySelector('.spinner')?.remove();
-      if (!this.run) {
-        this.run = new RunScreen(this, this.scene, this.els.dock, this.els.board);
-        void this.run.start(firstLoad);
-      }
+      void this.nightResult();
     }
   }
 
-  showInbox(): void {
-    if (this.view.me.inbox.length) reportModal(this.view.me.inbox, () => void api.ackInbox(this.postId));
+  private tickPill(): void {
+    if (!this.view) return;
+    const pill = this.els.pill;
+    if (this.mode === 'solo') {
+      const best = this.view.solo.best;
+      pill.replaceChildren(h('span', {}, 'Best'), ...[0, 1, 2].map((i) => spr('star', best !== null && i < best ? '' : 'miss')));
+      return;
+    }
+    const v = this.view;
+    const left = v.day.locksAt - this.now();
+    if (v.day.status === 'OPEN' && left > 0) pill.replaceChildren(h('span', {}, `Rolls in ${fmtCountdown(left)}`));
+    else if (v.result) pill.replaceChildren(h('span', {}, 'Team'), ...[0, 1, 2].map((i) => spr('star', i < v.result!.score ? '' : 'miss')));
+    else pill.replaceChildren(h('span', {}, 'Rolling'));
+    if (v.day.status === 'OPEN' && left <= 0 && left > -1500 && !this.busy) void this.poll();
   }
 
   async poll(): Promise<void> {
-    if (document.visibilityState !== 'visible' || this.scene.isPlaying() || this.mode !== 'idle' || this.busy) return;
+    if (document.visibilityState !== 'visible' || this.scene.isPlaying() || this.rolling || this.edit || this.busy) return;
     const r = await api.state(this.postId);
-    if (r.ok) this.setView(r.data);
+    if (!r.ok) return;
+    const sameDay = r.data.day.dayId === this.view.day.dayId;
+    // Solo boards and finished days don't change under you: just refresh the numbers.
+    if (sameDay && (this.mode === 'solo' || (this.view.result && r.data.result) || cardOpen())) {
+      this.view = r.data;
+      this.tickPill();
+    } else this.setView(r.data);
   }
 
-  private tickClock(): void {
-    if (!this.view) return;
-    const open = this.view.day.status === 'OPEN';
-    const left = this.view.day.locksAt - this.now();
-    const t = open ? fmtCountdown(left) : '';
-    this.els.time.textContent = t ? `Rolls in ${t}` : '';
-    if (open && left <= 0 && left > -1500 && !this.busy) {
-      this.toIdle();
-      void this.poll();
+  // ---------- pieces on the board ----------
+
+  private loadSolo(dayId: string): void {
+    try {
+      this.solo = JSON.parse(store.get(`ce_solo_${dayId}`) ?? '{}') as GameApp['solo'];
+    } catch {
+      this.solo = {};
     }
   }
+  private saveSolo(): void {
+    store.set(`ce_solo_${this.view.day.dayId}`, JSON.stringify(this.solo));
+  }
 
-  // ---------- board helpers ----------
+  private soloBoard(): BoardPiece[] {
+    return Object.entries(this.solo).map(([socket, p], i) => {
+      const c = parseCell(socket)!;
+      return { id: `solo${i}-${socket}`, type: p.type, dir: p.dir, x: c[0], y: c[1] };
+    });
+  }
 
-  private boardState(): BoardState {
+  private soloScenePieces(edit?: Edit): ScenePiece[] {
+    const out: ScenePiece[] = this.soloBoard()
+      .filter((p) => !edit || cellName(p.x, p.y) !== edit.socket)
+      .map((p) => ({ ...p }));
+    if (edit) out.push(this.ghostPiece(edit));
+    return out;
+  }
+
+  private teamScenePieces(edit?: Edit): ScenePiece[] {
+    const me = this.view.me.userId;
+    const out: ScenePiece[] = [];
+    for (const p of this.view.pieces) {
+      if (edit && (p.socket === edit.socket || p.socket === edit.from)) continue;
+      const c = parseCell(p.socket)!;
+      out.push({ id: p.pieceId, type: p.type, dir: p.dir, x: c[0], y: c[1], owner: p.username, setup: p.setup === true, mine: p.userId === me && !p.setup });
+    }
+    if (edit) out.push(this.ghostPiece(edit));
+    return out;
+  }
+
+  private ghostPiece(e: Edit): ScenePiece {
+    const c = parseCell(e.socket)!;
+    return { id: 'edit', type: e.type, dir: e.dir, x: c[0], y: c[1], ghost: true, mine: true };
+  }
+
+  private scenePieces(edit?: Edit): ScenePiece[] {
+    return this.mode === 'solo' ? this.soloScenePieces(edit) : this.teamScenePieces(edit);
+  }
+
+  /** The pieces on the board right now, for the sim. */
+  private boardNow(): BoardPiece[] {
+    if (this.mode === 'solo') return this.soloBoard();
+    return boardPieces(this.teamState().pieces);
+  }
+
+  private teamState(): BoardState {
     const pieces: Record<string, StoredPiece> = {};
     for (const p of this.view.pieces) pieces[p.socket] = p;
     return { pieces, inventory: { ...this.view.inventory }, holders: holdersFrom(pieces) };
   }
 
-  private mine(): StoredPiece[] {
-    return this.view.pieces.filter((p) => p.userId === this.view.me.userId && !p.setup);
+  private redRun(pieces = this.boardNow()): SimResult {
+    return runBalls({ level: this.level, pieces }, DAY_BALLS).balls[0];
   }
 
-  private moving(c: Candidate): StoredPiece | undefined {
-    const target = this.view.pieces.find((p) => p.socket === c.socket);
-    if (target && target.userId === this.view.me.userId && !target.setup) return target;
-    if (c.from) return this.view.pieces.find((p) => p.socket === c.from);
-    return undefined;
+  /** How many of each piece are left to place. */
+  private stock(t: PieceType): number {
+    if (this.mode === 'team') return this.view.inventory[t];
+    const used = Object.values(this.solo).filter((p) => p.type === t).length;
+    return (this.view.level.inventory[t] ?? 0) - used;
   }
 
-  private scenePieces(extra?: Candidate): ScenePiece[] {
-    const me = this.view.me.userId;
-    const out: ScenePiece[] = [];
-    for (const p of this.view.pieces) {
-      const c = parseCell(p.socket)!;
-      if (extra && (p.socket === extra.socket || p.socket === extra.from)) continue;
-      out.push({ id: p.pieceId, type: p.type, dir: p.dir, x: c[0], y: c[1], owner: p.username, setup: p.setup === true, mine: p.userId === me && !p.setup });
-    }
-    if (extra) {
-      const c = parseCell(extra.socket)!;
-      out.push({ id: 'candidate', type: extra.type, dir: extra.dir, x: c[0], y: c[1], ghost: true, mine: true, owner: this.view.me.username ?? 'you' });
-    }
-    return out;
+  private piecesLeft(): number {
+    if (this.mode === 'solo') return PIECE_TYPES.reduce((a, t) => a + Math.max(0, this.stock(t)), 0);
+    return Math.max(0, this.view.me.allowance - this.view.me.sockets.length);
   }
 
-  currentRun(): SimResult {
-    return ball1(this.level, this.boardState().pieces);
-  }
+  // ---------- dock ----------
 
-  // ---------- dock modes ----------
-
-  private key(cls: string, label: string, onclick: () => void, ...kids: Array<Node | string>): HTMLButtonElement {
+  private key(cls: string, label: string, onclick: () => void, ...kids: Array<Node | string | null>): HTMLButtonElement {
     return h('button', { class: `key ${cls}`, 'aria-label': label, onclick }, ...kids);
   }
 
   private toIdle(): void {
-    this.mode = 'idle';
-    this.candidate = null;
+    this.edit = null;
     clearTag();
     this.scene.setHighlights([]);
     this.scene.setPieces(this.scenePieces());
-    this.scene.setGhost(this.currentRun(), undefined);
-    const me = this.view.me;
-    const left = Math.max(0, me.allowance - me.sockets.length);
+    this.scene.setGhost(this.redRun(), undefined);
+    const left = this.piecesLeft();
+    const play = this.mode === 'solo' ? 'Play: roll all 3 balls' : 'Test: roll all 3 balls';
     this.els.dock.className = 'dock';
     this.els.dock.replaceChildren(
-      this.key('', `You can place ${left} ${left === 1 ? 'piece' : 'pieces'}`, () => this.hintSockets(), spr('spot'), h('span', { class: 'badge' }, String(left))),
-      this.key('go', 'Roll the ball', () => void this.testRun(), ico('right')),
+      this.key('', left === 1 ? '1 piece to place' : `${left} pieces to place`, () => this.hintSpots(), spr('spot'), h('span', { class: 'badge' }, String(left))),
+      this.key('go', play, () => void this.play(), ico('right')),
       this.key('blue', 'How to play', () => howToPlay(), ico('question')),
     );
-    this.els.dock.children[1]?.setAttribute('data-act', 'test');
   }
 
-  private hintSockets(): void {
+  private hintSpots(): void {
     const all: Array<[number, number]> = [];
     for (let i = 0; i < this.level.socket.length; i++) if (this.level.socket[i]) all.push([i % W, Math.floor(i / W)]);
     this.scene.setHighlights(all);
-    const left = Math.max(0, this.view.me.allowance - this.view.me.sockets.length);
-    tag(left > 0 ? `Tap a + to add ${left === 1 ? 'your piece' : `your ${left} pieces`}` : 'Tap your piece to move it');
+    const left = this.piecesLeft();
+    tag(left > 0 ? `Tap a + to place ${left === 1 ? 'your piece' : `your ${left} pieces`}` : 'Tap one of your pieces to move it');
     window.setTimeout(() => {
-      if (this.mode === 'idle') this.scene.setHighlights([]);
+      if (!this.edit) this.scene.setHighlights([]);
     }, 1600);
   }
 
-  private async testRun(): Promise<void> {
-    const btn = this.els.dock.querySelector('[data-act="test"]');
-    if (this.scene.isPlaying()) {
-      this.scene.stop();
-      btn?.replaceChildren(ico('right'));
-      this.scene.setGhost(this.currentRun(), undefined);
-      return;
-    }
-    const r = this.currentRun();
+  private teamHello(): void {
+    if (this.mode !== 'team') return;
+    const v = this.view;
+    if (v.day.status !== 'OPEN') return;
+    const n = Math.max(v.counts.builders, 1);
+    const k = v.me.allowance;
+    tag(`${n} ${n === 1 ? 'builder' : 'builders'} today · you can place ${k}`, 'same');
+    if (v.me.inbox.length) reportModal(v.me.inbox, () => void api.ackInbox(this.postId));
+  }
+
+  // ---------- rolling the three balls ----------
+
+  private async play(): Promise<void> {
+    if (this.rolling) return;
+    this.rolling = true;
+    clearTag();
+    const pieces = this.boardNow();
+    const run = runBalls({ level: this.level, pieces }, DAY_BALLS);
     this.scene.setGhost(undefined, undefined);
-    btn?.replaceChildren(ico('stop'));
-    await this.scene.playRun(r, { speed: this.speed, showOwners: true });
-    btn?.replaceChildren(ico('right'));
-    if (this.mode === 'idle') {
-      this.scene.setGhost(r, undefined);
-      tag(r.end === 'success' ? 'It reached the flag!' : 'Tap a + to help it', r.end === 'success' ? 'good' : 'same');
-    }
+    const mine = new Set(this.mode === 'solo' ? pieces.map((p) => p.id) : this.view.pieces.filter((p) => !p.setup).map((p) => p.pieceId));
+    await rollThree(run, { scene: this.scene, board: this.els.board, dock: this.els.dock, playerPieceIds: mine, target: this.level.target, showOwners: this.mode === 'team' });
+    this.rolling = false;
+    if (this.mode === 'solo') await this.soloResult(run);
+    else this.testResult(run);
+    this.toIdle();
   }
 
-  private onTap(x: number, y: number): void {
-    if (this.scene.isPlaying() || this.busy) return;
-    if (!this.level.socket[y * W + x]) {
-      if (this.mode !== 'idle') this.toIdle();
-      return;
-    }
-    if (!this.view.me.userId) {
-      tag('Log in to Reddit to play', 'bad');
-      return;
-    }
-    const name = `${'ABCDEFGHI'[x]}${y + 1}`;
-    const occupant = this.view.pieces.find((p) => p.socket === name);
-    if (occupant && (occupant.userId !== this.view.me.userId || occupant.setup)) this.toOther(occupant);
-    else this.toPick(name);
-  }
-
-  // Someone else's piece: who placed it, and a way to swap it.
-  private toOther(p: StoredPiece): void {
-    this.mode = 'other';
-    this.scene.setHighlights([parseCell(p.socket)!]);
-    tag(p.setup ? 'This piece came with the machine' : `u/${p.username} put this here`);
-    this.els.dock.className = 'dock';
-    this.els.dock.replaceChildren(
-      this.key('no', 'Back', () => this.toIdle(), ico('cross')),
-      this.key('blue wide hud', 'Replace it with a better one', () => this.toPick(p.socket), 'Replace'),
+  private async soloResult(run: DayRun): Promise<void> {
+    const pieces: SoloPiece[] = Object.entries(this.solo).map(([socket, p]) => ({ socket, ...p }));
+    const r = await api.solo({ postId: this.postId ?? this.view.day.postId ?? undefined, pieces });
+    if (r.ok) this.view.solo = { best: r.data.best, players: r.data.players, perfect: r.data.perfect };
+    this.tickPill();
+    if (run.score > 0) confetti(this.els.board, run.score * 14);
+    const others = this.view.solo.players - 1;
+    const note = run.score === 3 ? (others > 0 ? `${this.view.solo.perfect} of ${this.view.solo.players} players got all 3` : 'All three made it!') : run.score === 0 ? 'Change your pieces so the balls reach the flag' : 'Try to get every ball home';
+    showCard(
+      h(
+        'div',
+        {},
+        h('h2', {}, scoreTitle(run.score)),
+        starRow(run),
+        ballRow(run),
+        h('p', { class: 'note' }, note),
+        run.score === 3 ? h('button', { class: 'key cta2 hud', onclick: () => this.switchMode('team') }, 'Now build it with the team') : null,
+      ),
+      run.score === 3 ? 'Play again' : 'Keep building',
     );
   }
 
-  // Placing: the dock becomes the piece tray.
-  private toPick(socket: string): void {
-    this.mode = 'pick';
-    const mine = this.mine();
+  private testResult(run: DayRun): void {
+    showCard(
+      h('div', {}, h('h2', {}, 'If it rolled now'), starRow(run), ballRow(run), h('p', { class: 'note' }, `It rolls for real in ${fmtCountdown(this.view.day.locksAt - this.now()) || 'a moment'}.`)),
+      'Keep building',
+    );
+  }
+
+  /** The night's real result: played once automatically, then the score card. */
+  private async nightResult(): Promise<void> {
+    const v = this.view;
+    const run = runBalls({ level: this.level, pieces: boardPieces(this.teamState().pieces) }, DAY_BALLS);
+    const seenKey = `ce_seen_${v.day.dayId}`;
+    const seen = store.get(seenKey) === '1';
+    store.set(seenKey, '1');
+    const watch = async (): Promise<void> => {
+      if (this.rolling) return;
+      this.rolling = true;
+      closeCard();
+      await rollThree(run, { scene: this.scene, board: this.els.board, dock: this.els.dock, playerPieceIds: new Set(v.pieces.filter((p) => !p.setup).map((p) => p.pieceId)), target: this.level.target, showOwners: true });
+      this.rolling = false;
+      this.nightCard(run, watch);
+    };
+    if (!seen) await watch();
+    else this.nightCard(run, watch);
+  }
+
+  private nightCard(run: DayRun, watch: () => Promise<void>): void {
+    if (this.mode !== 'team') return;
+    const v = this.view;
+    const r = v.result!;
+    this.els.dock.className = 'dock';
+    this.els.dock.replaceChildren(this.key('go wide hud', 'Watch again', () => void watch(), 'Watch again'));
+    if (r.score > 0) confetti(this.els.board, r.score * 14);
+    const byId = new Map(v.pieces.map((p) => [p.pieceId, p]));
+    const mvp = r.awards.mvp ? byId.get(r.awards.mvp.pieceId) : undefined;
+    const cur = v.current;
+    const next = !!cur.postId && cur.postId !== v.day.postId;
+    showCard(
+      h(
+        'div',
+        {},
+        h('h2', {}, `Team: ${scoreTitle(r.score)}`),
+        starRow(run),
+        ballRow(run),
+        mvp && r.awards.mvp ? h('div', { class: 'who' }, pieceImg(mvp.type, mvp.dir), h('span', { class: 'nm' }, h('b', {}, `u/${r.awards.mvp.username}`), h('span', { class: 'lbl' }, 'Most helpful piece'))) : null,
+        h('p', { class: 'note' }, r.builders === 0 ? 'Nobody built on this one.' : `${r.builders} ${r.builders === 1 ? 'builder' : 'builders'} worked on this one.`),
+      ),
+      next ? `Play Day ${cur.dayNumber}` : 'OK',
+      undefined,
+      next ? () => this.goToCurrent() : undefined,
+    );
+  }
+
+  // ---------- placing ----------
+
+  private onTap(x: number, y: number): void {
+    if (this.scene.isPlaying() || this.busy || this.rolling) return;
+    if (!this.level.socket[y * W + x]) {
+      if (this.edit) this.toIdle();
+      return;
+    }
+    const socket = cellName(x, y);
+    if (this.mode === 'solo') return this.soloEdit(socket);
+    if (!this.view.me.userId) return tag('Log in to Reddit to build with the team', 'bad');
+    const occupant = this.view.pieces.find((p) => p.socket === socket);
+    if (occupant && (occupant.userId !== this.view.me.userId || occupant.setup)) return this.toOther(occupant);
+    this.teamEdit(socket);
+  }
+
+  private firstInStock(): PieceType | null {
+    return PIECE_TYPES.find((t) => this.stock(t) > 0) ?? null;
+  }
+
+  private soloEdit(socket: string): void {
+    const own = this.solo[socket];
+    const keep = this.edit;
+    const type = own?.type ?? (keep && this.stock(keep.type) > 0 ? keep.type : this.firstInStock());
+    if (!type) return tag('All pieces are placed. Tap one to change it', 'same');
+    let dir = own?.dir ?? (keep?.type === type ? keep.dir : PIECE_DIRS[type][0]!);
+    if (!PIECE_DIRS[type].includes(dir)) dir = PIECE_DIRS[type][0]!;
+    this.edit = { socket, type, dir, from: null };
+    this.renderEdit();
+  }
+
+  private teamEdit(socket: string): void {
+    const mine = this.view.pieces.filter((p) => p.userId === this.view.me.userId && !p.setup);
     const occupant = this.view.pieces.find((p) => p.socket === socket);
     const ownTarget = occupant && occupant.userId === this.view.me.userId && !occupant.setup ? occupant : undefined;
-    const keep = this.candidate;
+    const keep = this.edit;
     let from: string | null = ownTarget ? null : (keep?.from ?? null);
     if (!ownTarget && from === null && mine.length >= this.view.me.allowance && mine.length > 0) from = mine[mine.length - 1]!.socket;
     const base = ownTarget ?? (from ? this.view.pieces.find((p) => p.socket === from) : undefined);
-    const firstInStock = PIECE_TYPES.find((t) => this.view.inventory[t] > 0) ?? 'RAMP';
-    const type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? firstInStock;
+    const type: PieceType = ownTarget?.type ?? keep?.type ?? base?.type ?? this.firstInStock() ?? 'RAMP';
     let dir: Dir = ownTarget?.dir ?? (keep?.type === type ? keep.dir : undefined) ?? base?.dir ?? PIECE_DIRS[type][0]!;
     if (!PIECE_DIRS[type].includes(dir)) dir = PIECE_DIRS[type][0]!;
-    this.candidate = { socket, type, dir, from };
+    this.edit = { socket, type, dir, from };
+    this.renderEdit();
+  }
+
+  /** Someone else's piece on the team board: who placed it, and a way to replace it. */
+  private toOther(p: StoredPiece): void {
+    this.scene.setHighlights([parseCell(p.socket)!]);
+    tag(p.setup ? 'This piece came with the machine' : `u/${p.username} put this here`);
+    this.els.dock.className = 'dock';
+    this.els.dock.replaceChildren(this.key('no', 'Back', () => this.toIdle(), ico('cross')), this.key('blue wide hud', 'Replace it with a better one', () => this.teamEdit(p.socket), 'Replace'));
+  }
+
+  private teamDecision(): Decision | null {
+    const e = this.edit;
+    if (!e || !this.view.me.userId) return null;
+    return decide(this.level, this.teamState(), { userId: this.view.me.userId, username: this.view.me.username ?? 'you' }, { kind: 'set', socket: e.socket, type: e.type, dir: e.dir, from: e.from ?? undefined }, this.now(), 'edit', {
+      piecesNeeded: this.view.me.piecesNeeded,
+    });
+  }
+
+  /** The pieces with the edit applied (for the yellow preview path). */
+  private previewPieces(): BoardPiece[] {
+    const e = this.edit!;
+    const c = parseCell(e.socket)!;
+    const keep = this.boardNow().filter((p) => {
+      const n = cellName(p.x, p.y);
+      return n !== e.socket && n !== e.from;
+    });
+    return [...keep, { id: 'edit', type: e.type, dir: e.dir, x: c[0], y: c[1] }];
+  }
+
+  /** Stock for the tray: what's left, plus the piece being edited (it goes back if you change it). */
+  private trayStock(t: PieceType): number {
+    const e = this.edit!;
+    if (this.mode === 'solo') return this.stock(t) + (this.solo[e.socket]?.type === t ? 1 : 0);
+    const own = this.view.pieces.find((p) => p.socket === e.socket) ?? (e.from ? this.view.pieces.find((p) => p.socket === e.from) : undefined);
+    return this.view.inventory[t] + (own?.type === t ? 1 : 0);
+  }
+
+  private renderEdit(): void {
+    const e = this.edit!;
     this.scene.setHighlights([]);
-    this.renderPick();
-  }
+    this.scene.setPieces(this.scenePieces(e));
+    const after = this.redRun(this.previewPieces());
+    this.scene.setGhost(this.redRun(), after);
 
-  private decision(): Decision | null {
-    const c = this.candidate;
-    if (!c || !this.view.me.userId) return null;
-    return decide(
-      this.level,
-      this.boardState(),
-      { userId: this.view.me.userId, username: this.view.me.username ?? 'you' },
-      { kind: 'set', socket: c.socket, type: c.type, dir: c.dir, from: c.from ?? undefined },
-      this.now(),
-      'candidate',
-      { piecesNeeded: this.view.me.piecesNeeded },
-    );
-  }
-
-  private previewState(): BoardState {
-    const s = this.boardState();
-    const c = this.candidate!;
-    const own = this.moving(c);
-    if (own) delete s.pieces[own.socket];
-    s.pieces[c.socket] = { pieceId: 'candidate', socket: c.socket, type: c.type, dir: c.dir, userId: this.view.me.userId ?? '', username: '', placedAt: 0 };
-    return s;
-  }
-
-  private renderPick(): void {
-    const c = this.candidate!;
-    const view = this.view;
-    const own = this.moving(c);
-    const occupant = view.pieces.find((p) => p.socket === c.socket);
-    const replacing = occupant && occupant !== own;
-    const d = this.decision();
-    this.scene.setPieces(this.scenePieces(c));
-    this.scene.setGhost(this.currentRun(), ball1(this.level, this.previewState().pieces));
-
-    const stock = (t: PieceType): number => view.inventory[t] + (own?.type === t ? 1 : 0) + (replacing && occupant?.type === t ? 1 : 0);
-    // Only the pieces today's machine has; each tile shows the piece, its name and how many are left.
-    const tiles = PIECE_TYPES.filter((t) => stock(t) > 0 || t === c.type).map((t) => {
-      const sel = t === c.type;
-      const n = stock(t) - (sel ? 1 : 0);
+    const tiles = PIECE_TYPES.filter((t) => this.trayStock(t) > 0 || t === e.type).map((t) => {
+      const sel = t === e.type;
+      const n = this.trayStock(t) - (sel ? 1 : 0);
       return h(
         'button',
         {
@@ -315,60 +497,80 @@ export class GameApp {
           onclick: () => {
             if (sel) {
               const dirs = PIECE_DIRS[t];
-              c.dir = dirs[(dirs.indexOf(c.dir) + 1) % dirs.length]!;
+              e.dir = dirs[(dirs.indexOf(e.dir) + 1) % dirs.length]!;
             } else {
-              c.type = t;
-              c.dir = PIECE_DIRS[t].includes(c.dir) ? c.dir : PIECE_DIRS[t][0]!;
+              e.type = t;
+              e.dir = PIECE_DIRS[t].includes(e.dir) ? e.dir : PIECE_DIRS[t][0]!;
             }
-            this.renderPick();
+            this.renderEdit();
           },
         },
-        h('span', { class: 'pic' }, pieceImg(t, sel ? c.dir : PIECE_DIRS[t][0]!), t === 'FAN' ? h('span', { class: `wind w-${sel ? c.dir : 'R'}` }, ico('arrowRight')) : null),
+        h('span', { class: 'pic' }, pieceImg(t, sel ? e.dir : PIECE_DIRS[t][0]!), t === 'FAN' ? h('span', { class: `wind w-${sel ? e.dir : 'R'}` }, ico('arrowRight')) : null),
         h('span', { class: 'name' }, PIECE_NAME[t]),
         n > 0 ? h('span', { class: 'badge' }, `×${n}`) : null,
       );
     });
-    const ok = !!d && d.ok;
-    if (!d) tag('Log in to play', 'bad', true);
-    else if (d.ok) tag(d.after[0] ? 'Reaches the flag!' : d.verdict.kind === 'better' ? 'Gets closer!' : own && !replacing && own.socket !== c.socket ? 'Moves your piece here' : 'Doesn’t help yet: try turning it', d.verdict.kind === 'better' ? 'good' : 'same', true);
-    else if (d.code === 'NO_CHANGE') tag('Tap the piece again to turn it', 'same', true);
-    else if (d.code === 'MUST_IMPROVE') tag('Only a better piece can replace it', 'bad', true);
-    else if (d.code === 'WOULD_HURT') tag('That makes it worse', 'bad', true);
-    else if (d.code === 'OUT_OF_STOCK') tag('None left', 'bad', true);
-    else tag(d.message, 'bad', true);
 
-    const left = own && own.socket === c.socket ? this.key('no', 'Remove your piece', () => void this.removeMine(), ico('cross')) : this.key('no', 'Cancel', () => this.toIdle(), ico('cross'));
+    let ok = true;
+    if (this.mode === 'solo') {
+      tag(after.end === 'success' ? 'The red ball reaches the flag!' : 'Tap the piece again to turn it', after.end === 'success' ? 'good' : 'same', true);
+    } else {
+      const d = this.teamDecision();
+      ok = !!d && d.ok;
+      if (!d) tag('Log in to play', 'bad', true);
+      else if (d.ok) tag(d.after[0] ? 'The red ball reaches the flag!' : d.verdict.kind === 'better' ? 'Gets closer!' : 'Doesn’t help yet: tap it to turn it', d.verdict.kind === 'better' ? 'good' : 'same', true);
+      else if (d.code === 'NO_CHANGE') tag('Tap the piece again to turn it', 'same', true);
+      else if (d.code === 'MUST_IMPROVE') tag('Only a better piece can replace it', 'bad', true);
+      else if (d.code === 'WOULD_HURT') tag('That makes it worse for the team', 'bad', true);
+      else if (d.code === 'OUT_OF_STOCK') tag('None left', 'bad', true);
+      else tag(d.message, 'bad', true);
+    }
+
+    const existing = this.mode === 'solo' ? !!this.solo[e.socket] : !!this.view.pieces.find((p) => p.socket === e.socket && p.userId === this.view.me.userId && !p.setup);
+    const left = existing ? this.key('no', 'Remove this piece', () => void this.removePiece(), ico('trashcan')) : this.key('no', 'Cancel', () => this.toIdle(), ico('cross'));
+    const place = this.key('go', 'Place it', () => void this.confirm(), ico('checkmark'));
+    place.disabled = !ok || this.busy;
     this.els.dock.className = 'dock tight';
-    this.els.dock.replaceChildren(left, ...tiles, this.key('go', 'Place it', () => void this.confirm(), ico('checkmark')));
-    (this.els.dock.lastElementChild as HTMLButtonElement).disabled = !ok || this.busy;
+    this.els.dock.replaceChildren(left, ...tiles, place);
   }
 
   private async confirm(): Promise<void> {
-    const c = this.candidate;
-    if (!c || this.busy) return;
+    const e = this.edit;
+    if (!e || this.busy) return;
+    if (this.mode === 'solo') {
+      this.solo[e.socket] = { type: e.type, dir: e.dir };
+      this.saveSolo();
+      this.toIdle();
+      return;
+    }
     this.busy = true;
-    const r = await api.place({ postId: this.postId ?? this.view.day.postId ?? undefined, socketId: c.socket, type: c.type, dir: c.dir, from: c.from ?? undefined });
+    const r = await api.place({ postId: this.postId ?? this.view.day.postId ?? undefined, socketId: e.socket, type: e.type, dir: e.dir, from: e.from ?? undefined });
     this.busy = false;
     if (!r.ok) {
       tag(r.error.message, 'bad');
       const fresh = await api.state(this.postId);
       if (fresh.ok) this.view = fresh.data;
-      if (this.candidate) this.renderPick();
+      if (this.edit) this.renderEdit();
       return;
     }
-    this.view = r.data.state;
+    this.edit = null;
     this.setView(r.data.state);
   }
 
-  private async removeMine(): Promise<void> {
-    if (this.busy) return;
-    this.busy = true;
-    const r = await api.remove(this.postId ?? this.view.day.postId ?? undefined, this.candidate?.socket);
-    this.busy = false;
-    if (!r.ok) {
-      tag(r.error.message, 'bad');
+  private async removePiece(): Promise<void> {
+    const e = this.edit;
+    if (!e || this.busy) return;
+    if (this.mode === 'solo') {
+      delete this.solo[e.socket];
+      this.saveSolo();
+      this.toIdle();
       return;
     }
+    this.busy = true;
+    const r = await api.remove(this.postId ?? this.view.day.postId ?? undefined, e.socket);
+    this.busy = false;
+    if (!r.ok) return tag(r.error.message, 'bad');
+    this.edit = null;
     this.setView(r.data.state);
   }
 
@@ -378,3 +580,5 @@ export class GameApp {
     if (url) navigateTo(url);
   }
 }
+
+const cellName = (x: number, y: number): string => `${'ABCDEFGHI'[x]}${y + 1}`;

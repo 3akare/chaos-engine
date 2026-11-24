@@ -1,22 +1,29 @@
 /** Cards: welcome, how to play, "while you were away". Pictures first, few words. */
 import type { InboxItem } from '../../../shared/protocol';
-import { VARIANTS } from '../../../shared/sim/variants';
-import { BALL_SPRITE } from '../../assets';
 import { h, ico, showCard, spr } from './dom';
 
-const play = (): HTMLElement => h('span', { class: 'mini-key' }, ico('right'));
+const playKey = (): HTMLElement => h('span', { class: 'mini-key' }, ico('right'));
+const threeBalls = (): HTMLElement => h('span', { class: 'balls3' }, spr('ball'), spr('ball_grey'), spr('ball_green'));
 
 const steps = (): HTMLElement =>
   h(
     'div',
     { class: 'rows' },
-    h('div', { class: 'row' }, spr('flag_a'), h('span', {}, h('b', {}, 'Get the ball to the flag.'))),
-    h('div', { class: 'row' }, spr('spot'), h('span', {}, 'Tap a ', h('b', {}, '+'), ' to add a ramp, spring or fan. Press ', play(), ' to test.')),
-    h('div', { class: 'row' }, spr('star'), h('span', {}, 'Everyone builds the same machine. Tonight 3 balls roll: each one that makes it is a star.')),
+    h('div', { class: 'row' }, spr('flag_a'), h('span', {}, h('b', {}, 'Get the balls to the flag.'))),
+    h('div', { class: 'row' }, spr('spot'), h('span', {}, 'Tap a ', h('b', {}, '+'), ' to add a ramp, spring or fan. Press ', playKey(), ' to roll.')),
+    h('div', { class: 'row' }, threeBalls(), h('span', {}, 'Three balls roll: ', h('b', {}, 'normal, heavy, bouncy'), '. Each one that makes it is a star.')),
+  );
+
+const modes = (): HTMLElement =>
+  h(
+    'div',
+    { class: 'modes' },
+    h('div', {}, h('b', {}, 'Solo'), h('span', {}, 'Your own board. Try as often as you like.')),
+    h('div', {}, h('b', {}, 'Team'), h('span', {}, 'One board for everyone. It rolls at 02:00 UTC.')),
   );
 
 export function welcome(onDone: () => void): void {
-  showCard(h('div', {}, h('h2', {}, 'Chaos Engine'), steps()), 'Let’s go', onDone);
+  showCard(h('div', {}, h('h2', {}, 'Chaos Engine'), h('h3', {}, 'Build of the Day'), steps(), modes()), 'Let’s go', onDone);
 }
 
 export function howToPlay(): void {
@@ -26,15 +33,30 @@ export function howToPlay(): void {
       {},
       h('h2', {}, 'How to play'),
       steps(),
-      h('h3', {}, 'The surprise balls'),
-      h('div', { class: 'list' }, ...VARIANTS.filter((v) => v.id !== 'OFFSET_R').map((v) => h('div', {}, spr(BALL_SPRITE[v.id]), h('span', {}, h('b', {}, v.id === 'OFFSET_L' ? 'Lefty / Righty' : v.name), h('i', {}, v.id === 'OFFSET_L' ? 'Starts one step to the side.' : v.effect))))),
+      modes(),
+      h('h3', {}, 'The balls'),
+      h(
+        'div',
+        { class: 'list' },
+        h('div', {}, spr('ball'), h('span', {}, h('b', {}, 'Normal'), h('i', {}, 'The one you see the path for.'))),
+        h('div', {}, spr('ball_grey'), h('span', {}, h('b', {}, 'Heavy'), h('i', {}, 'Fans push it less. Springs throw it lower.'))),
+        h('div', {}, spr('ball_green'), h('span', {}, h('b', {}, 'Bouncy'), h('i', {}, 'Springs throw it higher.'))),
+      ),
+      h('h3', {}, 'The pieces'),
+      h(
+        'div',
+        { class: 'list' },
+        h('div', {}, spr('ramp'), h('span', {}, h('b', {}, 'Ramp'), h('i', {}, 'Sends the ball down and to the side.'))),
+        h('div', {}, spr('spring_out'), h('span', {}, h('b', {}, 'Spring'), h('i', {}, 'Launches the ball up or in an arc.'))),
+        h('div', {}, spr('fan_icon'), h('span', {}, h('b', {}, 'Fan'), h('i', {}, 'Blows the ball along, up to 3 squares.'))),
+      ),
     ),
     'Got it',
   );
 }
 
 export function reportModal(items: InboxItem[], onDone: () => void): void {
-  const shown = items.filter((i) => !/guess/i.test(i.text)).slice(0, 2);
+  const shown = items.filter((i) => i.kind !== 'prediction').slice(0, 2);
   if (!shown.length) {
     onDone();
     return;

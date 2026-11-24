@@ -6,6 +6,7 @@ import { K } from './keys';
 import { publicMachine } from './levels';
 import { allowanceFor } from '../../shared/rules/placement';
 import { piecesNeeded } from './placement';
+import { soloStats } from './solo';
 
 export const INBOX_SHOWN = 10;
 
@@ -53,10 +54,11 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
   const userId = ctx.userId ?? null;
   void holderH;
   const mineSockets = userId ? pieces.filter((p) => p.userId === userId && !p.setup).map((p) => p.socket) : [];
-  const [inbox, stats, sub] = await Promise.all([
+  const [inbox, stats, sub, solo] = await Promise.all([
     userId ? readInbox(deps, userId) : Promise.resolve([]),
     userId ? readUserStats(store, userId) : readUserStats(store, '-'),
     readSubStats(store),
+    soloStats(deps, dayId, userId),
   ]);
 
   // Newest Day (for "Build today's machine →") and yesterday's score.
@@ -99,6 +101,7 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
       predictors: Object.keys(predH).length,
       histogram: resolved ? histogram : null,
     },
+    solo,
     result,
     sub,
     current: { dayNumber: cur?.dayNumber ?? meta.dayNumber, postId: cur?.postId ?? null, url: cur?.postId ? deps.reddit.postUrl(cur.postId) : null },

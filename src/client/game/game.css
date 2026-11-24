@@ -47,10 +47,15 @@ img { display: block; -webkit-user-drag: none; user-select: none; pointer-events
 
 /* ---------- frame ---------- */
 #app { position: fixed; inset: 0; display: grid; grid-template-rows: 60px minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); overflow: hidden; padding-top: env(safe-area-inset-top, 0px); }
-.top { display: flex; align-items: center; gap: 12px; padding: 0 16px; }
-.top .day { font-size: 30px; }
-.top .time { margin-left: auto; height: 38px; padding: 0 14px; display: inline-flex; align-items: center; border-radius: 999px; background: var(--paper); border: var(--line) solid var(--ink); font-size: 17px; font-variant-numeric: tabular-nums; }
-.top .time:empty { display: none; }
+.top { display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+/* Solo | Team switch */
+.tabs { display: flex; padding: 4px; gap: 4px; border-radius: 16px; background: var(--paper); border: var(--line) solid var(--ink); }
+.tab { height: 36px; padding: 0 14px; border-radius: 11px; font-family: 'Lilita One', system-ui, sans-serif; font-size: 18px; color: var(--muted); }
+.tab.on { background: var(--yellow); color: var(--ink); box-shadow: inset 0 -4px 0 var(--yellow-d); }
+.pill { margin-left: auto; height: 40px; padding: 0 12px; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: var(--paper); border: var(--line) solid var(--ink); font-family: 'Lilita One', system-ui, sans-serif; font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill span { margin-right: 4px; }
+.pill img { width: 20px; height: 20px; }
+.pill img.miss { filter: grayscale(1) brightness(1.4) opacity(0.45); }
 #board { position: relative; min-height: 0; }
 #board canvas { display: block; }
 .dock { height: calc(108px + env(safe-area-inset-bottom, 0px)); padding: 0 16px env(safe-area-inset-bottom, 0px); display: flex; align-items: center; justify-content: center; gap: 14px; min-width: 0; }
@@ -109,11 +114,18 @@ img { display: block; -webkit-user-drag: none; user-select: none; pointer-events
 .card { width: 100%; max-width: 344px; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; border-radius: 24px; background: var(--paper); border: var(--line) solid var(--ink); box-shadow: inset 0 -8px 0 #dbe5ee; padding: 22px 20px 26px; display: flex; flex-direction: column; gap: 16px; transform: scale(0.9); transition: transform 0.22s cubic-bezier(0.3, 1.5, 0.5, 1); }
 .veil.show .card { transform: none; }
 .card h2 { margin: 0; font-size: 28px; font-weight: 400; text-align: center; line-height: 1.1; }
-.card h3 { margin: 2px 0 -8px; font-size: 18px; font-weight: 400; color: var(--ink); text-align: center; }
+.card h3 { margin: -10px 0 -4px; font-size: 18px; font-weight: 400; color: var(--muted); text-align: center; }
+.card h3:not(:nth-child(2)) { margin: 4px 0 -8px; color: var(--ink); }
 .card .cta { --c: var(--green); --d: var(--green-d); width: 100%; height: 60px; border-radius: 18px; font-size: 26px; flex: none; color: #fff; -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; }
 .rows { display: flex; flex-direction: column; gap: 12px; }
-.row { display: grid; grid-template-columns: 48px 1fr; align-items: center; gap: 14px; font-size: 16px; }
-.row img { width: 48px; height: 48px; object-fit: contain; }
+.row { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 14px; font-size: 16px; }
+.row > img { width: 48px; height: 48px; object-fit: contain; justify-self: center; }
+.balls3 { display: flex; width: 56px; }
+.balls3 img { width: 24px; height: 24px; margin-right: -8px; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modes > div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 14px; background: var(--well); font-size: 13px; font-weight: 700; color: var(--muted); line-height: 1.25; }
+.modes b { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; font-size: 18px; color: var(--ink); }
+.card .cta2 { --c: var(--blue); --d: var(--blue-d); width: 100%; height: 52px; border-radius: 16px; font-size: 20px; color: #fff; -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; }
 .row b { font-weight: 900; }
 .mini-key { display: inline-flex; vertical-align: middle; width: 26px; height: 26px; border-radius: 8px; background: var(--green); border: 3px solid var(--ink); align-items: center; justify-content: center; margin: -4px 1px 0; }
 .mini-key img { width: 14px; height: 14px; }

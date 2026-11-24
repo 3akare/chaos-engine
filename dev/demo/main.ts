@@ -1,6 +1,6 @@
 /** Browser playtest: a fake subreddit feed and the real game, with the real server running in-page. */
 import type { DayView } from '../../src/shared/protocol';
-import { renderCard } from '../../src/client/splash/card';
+import { rememberMode, renderCard } from '../../src/client/splash/card';
 import { boot, call, nextDay, now, persist, reddit, resetAll, seedDemo, state } from './backend';
 import { openPost } from './devvit-client';
 import { icon } from '../../src/client/assets';
@@ -50,7 +50,10 @@ const advance = async (): Promise<void> => {
   note(stages ? 'The machine fired. A new one is open.' : 'Nothing to resolve yet.');
   // Watch the results on the post that just resolved.
   const prev = reddit.posts.length >= 2 ? reddit.posts[reddit.posts.length - 2]!.id : undefined;
-  if (prev && stages) openPost(prev);
+  if (prev && stages) {
+    rememberMode('team');
+    openPost(prev);
+  }
   else location.reload();
 };
 
@@ -77,11 +80,12 @@ async function renderFeed(): Promise<void> {
     const wrap = h('article', { class: 'post' }, head, card);
     list.append(wrap);
     const res = await call('GET', `/api/state?postId=${p.id}`);
-    if (res.ok) renderCard(card, (await res.json()) as DayView, () => openPost(p.id));
-    card.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).closest('button')) return;
-      openPost(p.id);
-    });
+    if (res.ok)
+      renderCard(card, (await res.json()) as DayView, (_e, mode) => {
+        rememberMode(mode);
+        openPost(p.id);
+      });
+
   }
 }
 
@@ -96,18 +100,16 @@ function ago(ms: number): string {
 async function renderGame(): Promise<void> {
   document.body.append(h('div', { id: 'app' }));
   await import('../../src/client/game/main');
-  // Two small demo-only keys in the game's own top line: back to the feed, and skip to the next day.
-  const top = document.querySelector('.top');
-  const back = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Back to feed' }, img('arrowLeft'));
+  // Two small demo-only keys: back to the feed, and skip to the next day.
+  const back = h('button', { type: 'button', class: 'demo-key l', 'aria-label': 'Back to feed' }, img('arrowLeft'));
   back.addEventListener('click', () => {
     state.view = { screen: 'feed' };
     persist();
     location.reload();
   });
-  const skip = h('button', { type: 'button', class: 'demo-key', 'aria-label': 'Next day (playtest)' }, img('fastForward'));
+  const skip = h('button', { type: 'button', class: 'demo-key r', 'aria-label': 'Next day (playtest)' }, img('fastForward'));
   skip.addEventListener('click', () => void advance());
-  top?.prepend(back);
-  top?.append(skip);
+  document.body.append(back, skip);
 }
 
 async function start(): Promise<void> {

@@ -84,7 +84,7 @@ s.resize((128, 128), Image.LANCZOS).save(out / 'spot.png')
 
 # UI icons (white).
 icons = src / 'game-icons/PNG/White/2x'
-for k in ['right', 'stop', 'cross', 'checkmark', 'question', 'star', 'trophy', 'arrowLeft', 'arrowRight', 'fastForward', 'return', 'pause']:
+for k in ['right', 'stop', 'cross', 'checkmark', 'question', 'star', 'trophy', 'arrowLeft', 'arrowRight', 'fastForward', 'return', 'pause', 'trashcan']:
     shutil.copy(icons / f'{k}.png', out / 'icons' / f'{k}.png')
 (out / 'LICENSE.md').write_text('Art and icons by Kenney (www.kenney.nl), CC0 1.0 (public domain).\n'
                                 'New Platformer Pack, Game Icons. Derived files (ball, spot, bumper) are made by dev/assets/prepare.py; the fan (fan, fan_blades, fan_icon) is drawn in dev/assets/fan.svg.html in the same style.\n')

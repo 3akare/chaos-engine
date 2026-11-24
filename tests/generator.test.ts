@@ -151,12 +151,14 @@ describe('§5.3 checks reject crafted failures', () => {
   });
   it('variety', () => {
     const fams = good.gen!.families;
-    expect(validateMachine(good, { tier: 1, history: [{ families: ['x'], startX: 0 }, { families: fams, startX: 0 }], families: fams }).failed).toBe('variety');
-    expect(validateMachine(good, { tier: 1, history: [{ families: ['x'], startX: 3 }], families: fams }).failed).toBe('variety');
-    expect(validateMachine(good, { tier: 1, history: [{ families: ['x'], startX: 0 }], families: fams }).ok).toBe(true);
+    expect(validateMachine(good, { tier: 1, redOnly: true, history: [{ families: ['x'], startX: 0 }, { families: fams, startX: 0 }], families: fams }).failed).toBe('variety');
+    expect(validateMachine(good, { tier: 1, redOnly: true, history: [{ families: ['x'], startX: 3 }], families: fams }).failed).toBe('variety');
+    expect(validateMachine(good, { tier: 1, redOnly: true, history: [{ families: ['x'], startX: 0 }], families: fams }).ok).toBe(true);
   });
   it('budget', () => {
-    expect(validateMachine(good, { tier: 1, simsSpent: SIM_BUDGET - 10 }).failed).toBe('budget');
+    expect(validateMachine(good, { tier: 1, redOnly: true, simsSpent: SIM_BUDGET - 10 }).failed).toBe('budget');
+    // Generated machines must get all three of the day's balls home; this fallback doesn't.
+    expect(validateMachine(good, { tier: 1 }).failed).toBe('headroom');
   });
   it('headroom counter', () => {
     expect(countVariantsDelivered(levelOf(good), solutionPieces(good))).toBe(4);

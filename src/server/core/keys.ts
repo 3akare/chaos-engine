@@ -12,6 +12,8 @@ export const K = {
   inv: (dayId: string) => `ce:day:${dayId}:inv`,
   holder: (dayId: string) => `ce:day:${dayId}:holder`,
   pred: (dayId: string) => `ce:day:${dayId}:pred`,
+  /** Solo best stars per user: hash userId → 0..3. */
+  solo: (dayId: string) => `ce:day:${dayId}:solo`,
   events: (dayId: string) => `ce:day:${dayId}:events`,
   result: (dayId: string) => `ce:day:${dayId}:result`,
   post: (postId: string) => `ce:post:${postId}`,

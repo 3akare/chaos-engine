@@ -1,11 +1,12 @@
 import { Hono, type Context } from 'hono';
-import type { ApiError, DayView, PlaceRequest, PredictRequest } from '../../shared/protocol';
+import type { ApiError, DayView, PlaceRequest, PredictRequest, SoloRequest } from '../../shared/protocol';
 import { PIECE_DIRS, PIECE_TYPES, type PieceType } from '../../shared/types';
 import type { AppEnv } from '../app';
 import { dayIdForPost } from '../core/day';
 import { applyAction } from '../core/placement';
 import { predict } from '../core/predict';
 import { ackInbox, buildView } from '../core/state';
+import { playSolo } from '../core/solo';
 
 const bad = (c: Context, e: ApiError, status: 400 | 401 | 404 | 409 = 400) => c.json(e, status);
 
@@ -66,6 +67,18 @@ export function apiRoutes(env: AppEnv): Hono {
     const out = await predict(deps, dayId, ctx.userId, Number(b.balls));
     if ('error' in out) return bad(c, out);
     return c.json({ ok: true, state: await stateFor(c, postId) });
+  });
+
+  api.post('/solo', async (c) => {
+    const ctx = await env.ctx(c.req.raw);
+    const b = await body<SoloRequest>(c);
+    const postId = b.postId ?? ctx.postId;
+    const dayId = await dayIdForPost(deps.store, postId);
+    if (!dayId) return bad(c, { error: 'NO_DAY', message: 'No machine is running here yet.' }, 404);
+    if (!Array.isArray(b.pieces) || b.pieces.length > 12) return bad(c, { error: 'BAD_REQUEST', message: "That arrangement isn't valid." });
+    const out = await playSolo(deps, dayId, ctx.userId ?? null, b.pieces);
+    if ('error' in out) return bad(c, { error: out.error === 'NO_DAY' ? 'NO_DAY' : 'BAD_REQUEST', message: out.message });
+    return c.json(out);
   });
 
   api.post('/inbox/ack', async (c) => {

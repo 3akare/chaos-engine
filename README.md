@@ -3,29 +3,39 @@
 > **Build together. Let chaos take over.**
 > A daily cooperative machine-building game for Reddit, built on Devvit Web.
 
-Every day your subreddit gets **one shared machine** with a red ball and a green flag. Everyone adds pieces (ramps, springs and fans) to get the ball to the flag. Press ▶ as often as you like to test. At **02:00 UTC** the machine rolls **three balls**: the red one you've been testing, plus **two surprise balls** that behave a little differently. **Each ball that reaches the flag is a ⭐**, and a new machine opens the same minute.
+Every day your subreddit gets a **Build of the Day**: one machine with a ball chute and a green flag. Open the post and pick how to play:
+
+- **Solo** — your own copy of the machine with every piece it has. Place the pieces, press ▶ and three balls roll: **normal, heavy and bouncy**. Each one that reaches the flag is a ⭐. Try as often as you like; your best is saved.
+- **Team** — the same machine, but one board for the whole subreddit. The pieces are split between today's builders, nobody can make it worse, and at **02:00 UTC** the three balls roll for real. Then a new machine opens.
 
 <p align="center">
-  <img src="docs/img/splash-open.png" width="380" alt="The post in the feed" />
+  <img src="docs/img/splash-open.png" width="380" alt="The post in the feed with Solo and Team buttons" />
 </p>
 <p align="center">
-  <img src="docs/img/build.png" width="250" alt="Placing a piece: the tray shows today's pieces" />
-  <img src="docs/img/reveal.png" width="250" alt="Tonight's three balls" />
-  <img src="docs/img/run.png" width="250" alt="A fan blowing the ball along" />
+  <img src="docs/img/build.png" width="250" alt="Placing a piece" />
+  <img src="docs/img/reveal.png" width="250" alt="Rolling the three balls" />
+  <img src="docs/img/run.png" width="250" alt="The result in stars" />
 </p>
 
 ## How to play
 
-1. **Get the ball to the flag.**
-2. **Tap a +** to add a piece. The tray shows the pieces today's machine has; tap the chosen piece again to turn it. Dotted yellow is where the ball will go with your piece. Tap ✓ to place it.
-3. **Press ▶** to watch the ball roll. Test as often as you like.
-4. **At 02:00 UTC** three balls roll for real. Each one that reaches the flag is a star: ⭐⭐⭐ is a perfect day.
+1. **Get the balls to the flag.**
+2. **Tap a +** to add a piece. The tray shows the pieces today's machine has; tap the chosen piece again to turn it. The yellow dots show where the normal ball will go. Tap ✓ to place it.
+3. **Press ▶** to roll all three balls. Build so the heavy and bouncy balls make it too.
 
-Everyone builds the same machine. You can't make it worse: a piece that would send the red ball less far isn't allowed, and you can only replace someone's piece with one that does better.
+### The three balls
 
-### Solo and community
+| Ball | What's different |
+|---|---|
+| 🔴 **Normal** | The one the dotted path shows. |
+| ⚪ **Heavy** | Fans push it less; springs throw it lower. |
+| 🟢 **Bouncy** | Springs throw it higher. |
 
-There's no mode to pick. Today's fix needs 2–4 pieces, shared between everyone building today, rounded up: **pieces you can place = pieces needed ÷ people building**. Alone, you can build the whole fix; on a busy day it's one piece each. At your limit, tapping another + moves your piece there.
+They're the same three every day, and every machine is checked to have a build that gets all three home.
+
+### Team play: how pieces are shared
+
+Today's fix needs 2–4 pieces. They're split between everyone building today, rounded up: **pieces you can place = pieces needed ÷ people building**. Alone, you can build the whole fix; with four people on a four-piece day it's one each. A piece can only be replaced by one that gets the normal ball further, so nobody can wreck the board. In Team, ▶ shows what the board would score if it rolled right now.
 
 ### The pieces
 
@@ -36,20 +46,6 @@ There's no mode to pick. Today's fix needs 2–4 pieces, shared between everyone
 | **Fan** | → ← ↑ | Blows the ball along (you can see the wind), up to 3 squares. |
 
 Each day has exactly the pieces its solution needs, and every weekday features a different one (springs or fans), so no two days play the same. The machine also has **switches** that unlock **gates**, and on Saturdays numbered **coins** to collect in order.
-
-### The surprise balls
-
-Balls 2 and 3 are two of these, each with its own colour:
-
-| Ball | What's different |
-|---|---|
-| 🔵 **Lefty / Righty** | Starts one step to the side. |
-| ⚪ **Heavy** | Hard to push or launch. |
-| 🟢 **Bouncy** | Springs fling it higher. |
-| 🟣 **Backwards** | Rolls the other way. |
-| 🟡 **Slick** | Slides over ramps. |
-
-Build so it works for more than just the red ball.
 
 ### How fairness works (the seal)
 

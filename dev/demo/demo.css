@@ -15,9 +15,11 @@ body { margin: 0; min-height: 100vh; color: #353541; font: 800 15px/1.3 'Nunito 
 .post-head { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-bottom: 4px solid #353541; }
 .post-head b { font-weight: 900; font-size: 15px; }
 .post-head span { font-weight: 700; color: #6b7a90; font-size: 12px; }
-.post-card { height: 300px; cursor: pointer; }
+.post-card { height: 320px; }
 .demo-note { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 100; background: #fff; border: 4px solid #353541; padding: 10px 14px; border-radius: 14px; max-width: 92vw; }
-/* Game screen: two small demo keys inside the game's own top line. */
-.demo-key { flex: none; width: 40px; height: 40px; border-radius: 12px; border: 4px solid #353541; background: #419fdd; box-shadow: inset 0 -4px 0 #366fbf; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; color: #353541; }
+/* Game screen: two small demo-only keys in the bottom corners, beside the dock. */
+.demo-key { position: fixed; top: calc(66px + env(safe-area-inset-top, 0px)); z-index: 20; width: 34px; height: 34px; border-radius: 12px; border: 4px solid #353541; background: #419fdd; box-shadow: inset 0 -4px 0 #366fbf; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; color: #353541; }
 .demo-key:active { transform: translateY(2px); }
 .demo-key img { width: 60%; height: 60%; display: block; pointer-events: none; }
+.demo-key.l { left: 10px; }
+.demo-key.r { right: 10px; }

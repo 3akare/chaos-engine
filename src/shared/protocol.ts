@@ -81,6 +81,8 @@ export type DayView = {
     stats: UserStats;
   };
   counts: { builders: number; predictors: number; histogram: [number, number, number, number] | null };
+  /** Solo play on this Day: your best stars, how many played, how many got all three. */
+  solo: { best: number | null; players: number; perfect: number };
   result: DayResult | null;
   sub: SubStats;
   /** The newest Day's post, for "Build today's machine →". */
@@ -88,6 +90,11 @@ export type DayView = {
   yesterday: { dayNumber: number; score: number } | null;
   serverNow: number;
 };
+
+/** Solo play: a whole arrangement on your own copy of the machine. */
+export type SoloPiece = { socket: string; type: PieceType; dir: Dir };
+export type SoloRequest = { postId?: string | undefined; pieces: SoloPiece[] };
+export type SoloResult = { stars: number; perBall: [EndReason, EndReason, EndReason]; best: number; players: number; perfect: number };
 
 export type PlaceRequest = { postId?: string | undefined; socketId: string; type: PieceType; dir: Dir; from?: string | undefined };
 export type PredictRequest = { postId?: string | undefined; balls: number };

@@ -1,5 +1,6 @@
 /** Machine validation (§5.3). Every published machine passes every check. */
 import { idx, parseCell } from '../coords';
+import { DAY_BALLS } from '../sim/runDay';
 import { simulate } from '../sim/engine';
 import { LevelError, parseLevel, type Level } from '../sim/level';
 import { compareProgress, distanceField, UNREACHABLE } from '../sim/progress';
@@ -40,6 +41,8 @@ export type ValidateOptions = {
   families?: string[];
   /** Sims already spent on this Day before validation (budget check). */
   simsSpent?: number;
+  /** Hand-made fallback machines predate the fixed three balls; they only need the red ball. */
+  redOnly?: boolean;
 };
 
 const fail = (failed: CheckId, reason: string, sims: number, extra?: Partial<Validation>): Validation => ({
@@ -163,9 +166,9 @@ export function validateMachine(m: Machine, opts: ValidateOptions): Validation {
   const solved = run(level, sol);
   if (solved.end !== 'success') return fail('solvable', `stored solution ends with ${solved.end}`, sims);
 
-  // Cheap checks first: headroom and variety before the permutation and single-piece sweeps.
+  // Cheap checks first. Three stars must be possible: the solution gets all three of the day's balls home.
   const delivered = countVariantsDelivered(level, sol, run);
-  if (delivered < 1 || delivered > 5) return fail('headroom', `solution delivers ${delivered}/6 variants`, sims, { variantsDelivered: delivered });
+  for (const v of opts.redOnly ? [] : DAY_BALLS.slice(1)) if (run(level, sol, v).end !== 'success') return fail('headroom', `solution misses the ${v.toLowerCase()} ball`, sims, { variantsDelivered: delivered });
 
   if (opts.history && opts.families) {
     const v = varietyProblem(opts.history, opts.families, level.start.x);

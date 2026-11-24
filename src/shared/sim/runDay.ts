@@ -1,7 +1,6 @@
 import type { BoardPiece, Progress, SimResult, VariantId } from '../types';
 import { simulate } from './engine';
 import type { Board } from './board';
-import { pickVariants } from './variants';
 
 export type BallTrio = [SimResult, SimResult, SimResult];
 /** [balls delivered, total checkpoints, summed distance progress] — compared lexicographically (§2.8). */
@@ -35,10 +34,12 @@ export function summarize(balls: readonly SimResult[]): { score: number; checkpo
 
 export const compareOutcome = (a: Outcome, b: Outcome): number => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 
-/** The three balls for a Day seed: Ball 1 standard, Balls 2–3 the seed's secret variants (§2.6). */
-export function dayVariants(seed: number): [VariantId, VariantId, VariantId] {
-  const [a, b] = pickVariants(seed);
-  return ['STANDARD', a, b];
+/** The same three balls every day, known to everyone: normal (red), heavy (grey), bouncy (green). */
+export const DAY_BALLS: readonly [VariantId, VariantId, VariantId] = ['STANDARD', 'HEAVY', 'BOUNCY'];
+
+/** Kept for callers that pass a seed; the balls no longer depend on it. */
+export function dayVariants(_seed?: number): [VariantId, VariantId, VariantId] {
+  return [...DAY_BALLS];
 }
 
 /** runDay(board, seed) (§4.8): the three runs and the community score. Awards: see awards.ts. */
