@@ -154,7 +154,7 @@ const CAT_BALL = 0x2, CAT_WORLD = 0x1;
 function rect(x, y, w, h, a, opts = {}) { return Bodies.rectangle(x, y, w, h, { isStatic: true, angle: (a * Math.PI) / 180, friction: 0.002, frictionStatic: 0, restitution: 0.3, ...opts }); }
 
 function buildWorld(level, pieces) {
-  const engine = Engine.create({ gravity: { x: 0, y: 1, scale: 0.001 }, positionIterations: 8, velocityIterations: 6 });
+  const engine = Engine.create({ gravity: { x: 0, y: 1, scale: 0.001 }, positionIterations: 10, velocityIterations: 8 });
   const world = engine.world;
   const statics = [];
   for (const b of level.blocks) statics.push(rect(b.x, b.y, b.w, b.h, b.a, { label: 'block' }));
@@ -169,7 +169,10 @@ function buildWorld(level, pieces) {
   const fans = [];
   for (const p of pieces) {
     if (p.type === 'ramp') pieceBodies.push(rect(p.x, p.y, 84, 12, p.a, { label: 'ramp', friction: 0.02 }));
-    if (p.type === 'spring') pieceBodies.push(rect(p.x, p.y + 6, 44, 14, p.a, { label: 'spring', piece: p }));
+    if (p.type === 'spring') {
+      const ar = (p.a * Math.PI) / 180;
+      pieceBodies.push(rect(p.x + Math.sin(ar) * 12, p.y - Math.cos(ar) * 12, 40, 34, p.a, { label: 'spring', piece: p, restitution: 0.2 }));
+    }
     if (p.type === 'bumper') pieceBodies.push(Bodies.circle(p.x, p.y, 17, { isStatic: true, label: 'bumper', restitution: 1.1, piece: p }));
     if (p.type === 'fan') { pieceBodies.push(Bodies.circle(p.x, p.y, 15, { isStatic: true, label: 'fanbody' })); fans.push(p); }
   }
@@ -205,6 +208,7 @@ function step(S, level, rand, onEvent) {
   }
   Engine.update(engine, 1000 / 60);
   S.t++;
+  for (const b of S.balls) if (b.speed > 14) Body.setVelocity(b, { x: (b.velocity.x / b.speed) * 14, y: (b.velocity.y / b.speed) * 14 });
   // Count, remove lost balls.
   for (let i = S.balls.length - 1; i >= 0; i--) {
     const b = S.balls[i];
@@ -218,17 +222,35 @@ function step(S, level, rand, onEvent) {
   if (S.spawned >= BALLS && (S.balls.every((b) => b.caught) || S.settle > 180 || S.t > 60 * 40)) S.done = true;
 }
 
+/** Launch a ball that touches the spring's pad (its top face), straight out along the spring. */
+function springKick(S, ball, spring, first) {
+  const up = { x: Math.sin(spring.angle), y: -Math.cos(spring.angle) };
+  const rx = ball.position.x - spring.position.x, ry = ball.position.y - spring.position.y;
+  if (rx * up.x + ry * up.y < 10) return false; // hit the side or the base: just a normal bounce
+  if (ball.kickedAt !== undefined && S.t - ball.kickedAt < 6) return true;
+  ball.kickedAt = S.t;
+  const tx = -up.y, ty = up.x, side = (ball.velocity.x * tx + ball.velocity.y * ty) * 0.25;
+  Body.setVelocity(ball, { x: up.x * 11 + tx * side, y: up.y * 11 + ty * side });
+  if (first || S.t - (spring.soundAt ?? -99) > 8) { S.events.push(['spring', spring]); spring.soundAt = S.t; }
+  return true;
+}
+
 function wireCollisions(S) {
+  const pairBall = (pr) => {
+    const a = pr.bodyA, b = pr.bodyB;
+    const ball = a.label === 'ball' ? a : b.label === 'ball' ? b : null;
+    return ball ? [ball, ball === a ? b : a] : [null, null];
+  };
+  // Balls resting or pushed onto a spring get launched too, not only on first contact.
+  Events.on(S.engine, 'collisionActive', (ev) => {
+    for (const pr of ev.pairs) { const [ball, other] = pairBall(pr); if (ball && other.label === 'spring') springKick(S, ball, other, false); }
+  });
   Events.on(S.engine, 'collisionStart', (ev) => {
     for (const pr of ev.pairs) {
-      const a = pr.bodyA, b = pr.bodyB;
-      const ball = a.label === 'ball' ? a : b.label === 'ball' ? b : null;
-      const other = ball === a ? b : a;
+      const [ball, other] = pairBall(pr);
       if (!ball || other.label === 'catch') continue;
       if (other.label === 'spring') {
-        const ang = other.angle - Math.PI / 2;
-        Body.setVelocity(ball, { x: Math.cos(ang) * 11, y: Math.sin(ang) * 11 });
-        S.events.push(['spring', other]);
+        if (!springKick(S, ball, other, true)) S.events.push(['hit', ball]);
       } else if (other.label === 'bumper') {
         const dx = ball.position.x - other.position.x, dy = ball.position.y - other.position.y, d = Math.hypot(dx, dy) || 1;
         Body.setVelocity(ball, { x: (dx / d) * 8.5, y: (dy / d) * 8.5 });
@@ -429,16 +451,19 @@ function switchLevel(i) { if (mode === 'pour') return; li = i; store.set('pour_l
 let drag = null, selected = null;
 function toWorld(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left - ox) / scale, y: (e.clientY - r.top - oy) / scale, inside: e.clientY >= r.top && e.clientY <= r.bottom }; }
 function startDrag(e, piece, fresh) {
-  drag = { piece, fresh, moved: false, start: { x: e.clientX, y: e.clientY }, onBoard: false };
-  moveDrag(e);
+  const w = toWorld(e);
+  drag = { piece, fresh, moved: false, start: { x: e.clientX, y: e.clientY }, onBoard: !fresh, grab: fresh ? null : { x: piece.x - w.x, y: piece.y - w.y } };
+  if (fresh) moveDrag(e);
   window.addEventListener('pointermove', moveDrag); window.addEventListener('pointerup', endDrag, { once: true });
 }
 function moveDrag(e) {
   if (!drag) return;
-  if (Math.hypot(e.clientX - drag.start.x, e.clientY - drag.start.y) > 6) drag.moved = true;
+  if (Math.hypot(e.clientX - drag.start.x, e.clientY - drag.start.y) > 8) drag.moved = true;
+  if (!drag.fresh && !drag.moved) return; // a tap turns the piece; it must not move
   const w = toWorld(e);
-  // Hold the piece a little above the finger so you can see it.
-  drag.piece.x = Math.max(12, Math.min(W - 12, w.x)); drag.piece.y = Math.max(40, Math.min(H - 30, w.y - (e.pointerType === 'touch' ? 36 : 0)));
+  // New pieces ride a little above the finger so you can see them; placed pieces keep where you grabbed them.
+  const gx = drag.grab ? drag.grab.x : 0, gy = drag.grab ? drag.grab.y : e.pointerType === 'touch' ? -36 : 0;
+  drag.piece.x = Math.max(12, Math.min(W - 12, w.x + gx)); drag.piece.y = Math.max(40, Math.min(H - 30, w.y + gy));
   drag.onBoard = w.inside && w.y > 30 && w.y < H + 10;
 }
 function endDrag() {
