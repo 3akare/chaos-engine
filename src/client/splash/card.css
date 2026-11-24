@@ -1,34 +1,68 @@
-/* Feed card: the sky, the machine, the top three and one button. Same art and fonts as the game. */
+/* Feed card: a live machine, an arcade scoreboard, one big button. Same art and fonts as the game. */
 @import '../lib/font.css';
 .ce-card, .ce-card * { box-sizing: border-box; }
-.ce-card { height: 100%; display: flex; gap: 12px; padding: 14px; color: #353541; background: url(../assets/bg_clouds.png) repeat-x left bottom / 160px 160px, linear-gradient(180deg, #3d9df2 0%, #6cbcf7 50%, #bfe3ff 100%); font: 800 14px/1.2 'Nunito Variable', 'Nunito', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
-.ce-card .mini { flex: 0 0 auto; height: 100%; max-width: 44%; cursor: pointer; }
-.ce-card .mini canvas { width: 100%; height: 100%; display: block; }
-.ce-card .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-.ce-card .hud, .ce-card .play, .ce-card b, .ce-card .medal { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; }
-.ce-card .hud { color: #fff; -webkit-text-stroke: 6px #353541; paint-order: stroke fill; }
-.ce-card .title { font-size: 30px; line-height: 0.95; }
-.ce-card .kicker { align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 10px; border-radius: 12px; background: #fff; border: 3px solid #353541; font-size: 12.5px; }
-.ce-card .sub { color: #fff; font-size: 13px; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); }
-.ce-card .top3 { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
-.ce-card .top3 li { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px 0 3px; border-radius: 10px; background: rgba(255, 255, 255, 0.92); }
-.ce-card .top3 li.me { box-shadow: inset 0 0 0 3px #ffc851; }
-.ce-card .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-.ce-card .top3 b { font-size: 17px; }
-.ce-card .medal { width: 22px; height: 22px; border-radius: 11px; border: 2.5px solid #353541; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #fff; -webkit-text-stroke: 2.5px #353541; paint-order: stroke fill; flex: none; }
-.ce-card .medal.m1 { background: #ffc851; }
-.ce-card .medal.m2 { background: #c9d6e2; }
-.ce-card .medal.m3 { background: #e0915a; }
-.ce-card .empty { padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.92); font-size: 13px; }
-.ce-card .mine { font-size: 13px; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); }
-.ce-card .mine b { font-size: 16px; }
-.ce-card .spacer { flex: 1; min-height: 0; }
-.ce-card .meter { display: flex; flex-direction: column; gap: 3px; }
-.ce-card .meter .lbl { display: flex; justify-content: space-between; font-size: 12px; color: #353541; }
-.ce-card .meter .track { height: 13px; border-radius: 7px; border: 3px solid #353541; background: #fff; overflow: hidden; }
-.ce-card .meter .fill { height: 100%; background: #2ecc71; }
-.ce-card .meter.full .fill { background: #ffc851; }
-.ce-card .play { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 52px; border-radius: 16px; border: 4px solid #353541; background: #2ecc71; box-shadow: inset 0 -5px 0 #1aa074; color: #fff; font-size: 22px; -webkit-text-stroke: 5px #353541; paint-order: stroke fill; cursor: pointer; flex: none; }
-.ce-card .play img { width: 26px; height: 26px; display: block; }
-.ce-card .play:active { transform: translateY(2px); }
-@media (max-height: 300px) { .ce-card .top3 li:nth-child(n + 3), .ce-card .sub { display: none; } }
+.ce-card {
+  --ink: #353541;
+  container-type: size;
+  height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 14px 14px; overflow: hidden;
+  color: var(--ink); font: 800 14px/1.15 'Nunito Variable', 'Nunito', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  background: url(../assets/bg_clouds.png) repeat-x left bottom / 200px 200px, linear-gradient(180deg, #3d9df2 0%, #6cbcf7 55%, #bfe3ff 100%);
+}
+.ce-card b, .ce-card .play, .ce-card .day span, .ce-card .v, .ce-card .g, .ce-card .hook, .ce-card .k { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; }
+
+/* Header: stacked logo, day sticker. */
+.ce-card .head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.ce-card .logo { display: flex; flex-direction: column; line-height: 0.82; transform: rotate(-3deg); transform-origin: left center; }
+.ce-card .logo b { font-size: 31px; color: #fff; -webkit-text-stroke: 7px var(--ink); paint-order: stroke fill; letter-spacing: 0.01em; }
+.ce-card .logo b + b { color: #ffc851; margin-left: 14px; }
+.ce-card .day { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 0; }
+.ce-card .day span { padding: 3px 12px; border-radius: 12px; background: #ffc851; border: 3.5px solid var(--ink); box-shadow: inset 0 -4px 0 #e39b1f; font-size: 19px; transform: rotate(3deg); }
+.ce-card .day i { font-style: normal; color: #fff; font-size: 12.5px; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* Middle: the live machine and the scoreboard. */
+.ce-card .mid { display: flex; gap: 12px; min-height: 0; }
+.ce-card .screen { position: relative; flex: none; height: 100%; border-radius: 18px; border: 4px solid var(--ink); background: linear-gradient(180deg, #5cb2f5, #a9d8ff); box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.12); overflow: hidden; cursor: pointer; }
+.ce-card .screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ce-card .screen .tag { position: absolute; left: 6px; top: 6px; padding: 2px 8px; border-radius: 9px; background: rgba(53, 53, 65, 0.78); color: #fff; font-size: 11px; }
+.ce-card .side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ce-card .hook { font-size: 22px; line-height: 1; color: #fff; -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; }
+
+.ce-card .sb { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 18px; background: #2b2d3a; border: 4px solid var(--ink); box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 2px #3d4052; color: #fff; }
+.ce-card .stat { display: flex; flex-direction: column; min-width: 0; }
+.ce-card .k { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #8f96b3; }
+.ce-card .v { font-size: 30px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.ce-card .hi .v { font-size: 46px; color: #ffc851; text-shadow: 0 0 14px rgba(255, 200, 81, 0.45); }
+.ce-card .goal { margin-top: auto; }
+.ce-card .none { font-size: 15px; color: #cfd4e6; padding: 2px 0; }
+.ce-card .hi .none { color: #ffc851; font-family: 'Lilita One', system-ui, sans-serif; font-size: 20px; }
+.ce-card .chasers { list-style: none; margin: -2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.ce-card .chasers li { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #cfd4e6; }
+.ce-card .chasers li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ce-card .chasers b { font-size: 14px; color: #fff; }
+.ce-card .chasers li b:first-child { width: 18px; height: 18px; border-radius: 9px; background: #3d4052; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #8f96b3; }
+.ce-card .s { font-size: 12.5px; color: #cfd4e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ce-card .goal .g { font-size: 17px; font-variant-numeric: tabular-nums; }
+.ce-card .goal .g span { color: #8f96b3; font-size: 13px; }
+.ce-card .track { margin-top: 4px; height: 10px; border-radius: 5px; background: #3d4052; overflow: hidden; }
+.ce-card .fill { height: 100%; border-radius: 5px; background: #2ecc71; }
+.ce-card .goal.full .fill { background: #ffc851; }
+
+/* One big button. */
+.ce-card .play { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 58px; border-radius: 18px; border: 4px solid var(--ink); background: #2ecc71; box-shadow: inset 0 -6px 0 #1aa074; color: #fff; font-size: 26px; -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; cursor: pointer; animation: nudge 2.4s ease-in-out infinite; }
+.ce-card .play img { width: 28px; height: 28px; display: block; }
+.ce-card .play:active { transform: translateY(2px); animation: none; }
+@keyframes nudge { 0%, 80%, 100% { transform: scale(1); } 88% { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { .ce-card .play { animation: none; } }
+
+/* Short cards (320px): drop the extras. */
+@container (max-height: 380px) {
+  .ce-card { gap: 8px; padding: 10px 12px 12px; }
+  .ce-card .logo b { font-size: 25px; }
+  .ce-card .day i, .ce-card .hook, .ce-card .screen .tag, .ce-card .chasers, .ce-card .stat:not(.hi) .s { display: none; }
+  .ce-card .hi .v { font-size: 34px; }
+  .ce-card .v { font-size: 22px; }
+  .ce-card .sb { padding: 7px 10px; gap: 4px; }
+  .ce-card .goal .g { font-size: 14px; }
+  .ce-card .none { font-size: 13px; }
+  .ce-card .play { height: 50px; font-size: 22px; }
+}
