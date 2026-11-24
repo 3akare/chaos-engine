@@ -1,8 +1,8 @@
-/** First-open welcome: what the game is, in three short steps. Shown once. */
+/** First open: three pictures, three short lines. */
 import type { DayView } from '../../../shared/protocol';
 import { h, showModal } from './dom';
 
-const KEY = 'ce_welcome_v1';
+const KEY = 'ce_welcome_v2';
 
 export function welcomeSeen(): boolean {
   try {
@@ -12,25 +12,22 @@ export function welcomeSeen(): boolean {
   }
 }
 
-export function welcome(v: DayView, onDone: () => void): void {
+export function welcome(_v: DayView, onDone: () => void): void {
   try {
     localStorage.setItem(KEY, '1');
   } catch {
     /* private mode */
   }
-  const goal = v.level.target === 'basket' ? 'the basket 🧺' : 'the bell 🔔';
-  const step = (n: string, title: string, body: string) => h('div', { class: 'wstep' }, h('div', { class: 'wnum' }, n), h('div', {}, h('b', {}, title), h('div', { class: 'muted' }, body)));
   showModal(
     h(
       'div',
-      { class: 'welcome' },
-      h('h2', {}, 'Welcome to Chaos Engine'),
-      h('p', {}, `Every day there's one broken machine, shared by the whole subreddit. Your job: get the ball into ${goal}.`),
-      step('1', 'Watch it fail', 'Tap ▶ Test run to see where the ball goes wrong. Test as often as you like.'),
-      step('2', 'Add pieces', 'Tap a dashed square to add a ramp, spring, fan or bumper. A piece can never make the ball do worse.'),
-      step('3', 'The big run', 'Once a day the machine fires three balls: yours, plus two surprise balls with a twist (heavier, bouncier…). Guess how many make it!'),
+      { class: 'howto' },
+      h('h2', {}, 'Get the ball home'),
+      h('div', { class: 'hrow' }, h('span', { class: 'hicon play' }, h('span', { class: 'tri sm' })), h('p', {}, 'Run it and watch it fail.')),
+      h('div', { class: 'hrow' }, h('span', { class: 'hicon dimple' }), h('p', {}, 'Tap a dimple to add a piece.')),
+      h('div', { class: 'hrow' }, h('span', { class: 'hicon goal' }), h('p', {}, 'Every night, three balls fire. Guess how many make it.')),
     ),
     onDone,
-    "Let's play",
+    'Play',
   );
 }

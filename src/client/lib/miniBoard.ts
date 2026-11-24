@@ -4,8 +4,8 @@ import type { Dir, PieceType } from '../../shared/types';
 type MiniPiece = { socket: string; type: PieceType; dir: Dir };
 type Frame = { x: number; y: number };
 
-const LIGHT = { board: '#fbf3e6', edge: '#ead9bf', wall: '#6b779f', wallTop: '#8e9ac2', socket: '#c9b597', blue: '#3d7ef0', orange: '#f28c28', yellow: '#f6c945', red: '#e5484d', ink: '#2b2d3a', path: '#3d7ef0' };
-const DARK = { board: '#1e2648', edge: '#141a36', wall: '#3b4682', wallTop: '#5867ad', socket: '#5a66a3', blue: '#4f8dff', orange: '#ffa64d', yellow: '#ffd45e', red: '#ff6b70', ink: '#e8ecff', path: '#7fb0ff' };
+const LIGHT = { board: '#fff4ea', edge: '#fff4ea', wall: '#f1cdbb', wallTop: '#ffffff', socket: '#f1c8b4', blue: '#7ab8ff', orange: '#ffc95e', yellow: '#ffc95e', red: '#ff8f8f', ink: '#5a3442', path: '#ff7b5c' };
+const DARK = { board: '#3a2a4a', edge: '#3a2a4a', wall: '#c99f86', wallTop: '#f3d9c4', socket: '#5a4570', blue: '#8ec4ff', orange: '#ffd27a', yellow: '#ffd27a', red: '#ff9d9d', ink: '#fbe9dc', path: '#ff8f6b' };
 const COL = { ...LIGHT };
 function pickTheme(): void {
   const t = document.documentElement.dataset.theme;
@@ -56,10 +56,10 @@ export function drawMini(canvas: HTMLCanvasElement, rows: readonly string[], opt
   const ox = Math.round((cssW - s * W + gut) / 2);
   const oy = Math.round((cssH - s * H + gut) / 2);
   ctx.fillStyle = COL.edge;
-  roundRect(ctx, ox - 3, oy - 3, s * W + 6, s * H + 6, 7);
+  roundRect(ctx, ox - 3, oy - 3, s * W + 6, s * H + 6, 14);
   ctx.fill();
   ctx.fillStyle = COL.board;
-  roundRect(ctx, ox - 1, oy - 1, s * W + 2, s * H + 2, 6);
+  roundRect(ctx, ox - 1, oy - 1, s * W + 2, s * H + 2, 12);
   ctx.fill();
   if (opts.labels) {
     ctx.fillStyle = '#8b7f6a';
@@ -86,14 +86,12 @@ export function drawMini(canvas: HTMLCanvasElement, rows: readonly string[], opt
         ctx.fillStyle = COL.wallTop;
         ctx.fillRect(px, py - (rows[y - 1]?.[x] === '#' ? 0 : lift), s, rows[y + 1]?.[x] === '#' ? s + lift : s - lift + (rows[y - 1]?.[x] === '#' ? lift : 0));
       } else if (ch === 'o' && !p) {
-        ctx.strokeStyle = COL.socket;
-        ctx.lineWidth = Math.max(1, s * 0.06);
-        ctx.setLineDash([Math.max(1.5, s * 0.15), Math.max(1.5, s * 0.1)]);
-        roundRect(ctx, px + s * 0.12, py + s * 0.12, s * 0.76, s * 0.76, s * 0.12);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        ctx.fillStyle = COL.socket;
+        ctx.beginPath();
+        ctx.arc(cx, cy, s * 0.2, 0, Math.PI * 2);
+        ctx.fill();
       } else if (ch === 'S') {
-        ctx.fillStyle = COL.ink;
+        ctx.fillStyle = COL.wall;
         ctx.beginPath();
         ctx.moveTo(px + s * 0.12, py + s * 0.05);
         ctx.lineTo(px + s * 0.88, py + s * 0.05);
@@ -101,23 +99,14 @@ export function drawMini(canvas: HTMLCanvasElement, rows: readonly string[], opt
         ctx.closePath();
         ctx.fill();
       } else if (ch === 'T') {
-        ctx.fillStyle = opts.target === 'basket' ? COL.orange : COL.yellow;
-        ctx.strokeStyle = COL.ink;
-        ctx.lineWidth = Math.max(1, s * 0.07);
+        ctx.fillStyle = '#7fd6a0';
         ctx.beginPath();
-        if (opts.target === 'basket') {
-          ctx.moveTo(px + s * 0.12, py + s * 0.35);
-          ctx.lineTo(px + s * 0.88, py + s * 0.35);
-          ctx.lineTo(px + s * 0.75, py + s * 0.88);
-          ctx.lineTo(px + s * 0.25, py + s * 0.88);
-        } else {
-          ctx.arc(cx, cy, s * 0.32, Math.PI, 0);
-          ctx.lineTo(px + s * 0.85, py + s * 0.78);
-          ctx.lineTo(px + s * 0.15, py + s * 0.78);
-        }
-        ctx.closePath();
+        ctx.ellipse(cx, cy + s * 0.08, s * 0.4, s * 0.26, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + s * 0.08, s * 0.22, s * 0.12, 0, 0, Math.PI * 2);
+        ctx.fill();
       } else if (ch >= '1' && ch <= '9') {
         ctx.strokeStyle = COL.blue;
         ctx.lineWidth = Math.max(1, s * 0.1);
@@ -142,7 +131,7 @@ export function drawMini(canvas: HTMLCanvasElement, rows: readonly string[], opt
         for (let k = 0; k < 3; k++) ctx.fillRect(px + s * (0.15 + k * 0.28), py + s * 0.1, s * 0.16, s * 0.8);
       }
       if (p) {
-        const color = p.type === 'RAMP' ? COL.blue : p.type === 'SPRING' ? COL.orange : p.type === 'FAN' ? COL.wallTop : COL.red;
+        const color = p.type === 'RAMP' ? COL.blue : p.type === 'SPRING' ? COL.orange : p.type === 'FAN' ? '#7fd6a0' : COL.red;
         ctx.fillStyle = color;
         roundRect(ctx, px + s * 0.1, py + s * 0.1, s * 0.8, s * 0.8, s * (p.type === 'BUMPER' ? 0.4 : 0.18));
         ctx.fill();

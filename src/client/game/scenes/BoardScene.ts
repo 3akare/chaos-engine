@@ -303,12 +303,8 @@ export class BoardScene extends Phaser.Scene {
     const bw = s * W;
     const bh = s * H;
     // The floor: one soft slab with a faint dot grid.
-    fg.fillStyle(C.shadow, C.shadowAlpha * 0.6);
-    fg.fillRoundedRect(this.ox - 2, this.oy + 4, bw + 4, bh + 4, 18);
     fg.fillStyle(C.floor, 1);
-    fg.fillRoundedRect(this.ox - 4, this.oy - 4, bw + 8, bh + 8, 18);
-    fg.fillStyle(C.floorDot, 1);
-    for (let y = 1; y < H; y++) for (let x = 1; x < W; x++) fg.fillCircle(this.ox + x * s, this.oy + y * s, Math.max(1, s * 0.04));
+    fg.fillRoundedRect(this.ox - 6, this.oy - 6, bw + 12, bh + 12, 28);
     // Edge labels are off by default: players found coordinates noise.
     const fs = Math.max(10, Math.min(13, Math.round(s * 0.34)));
     const style = { fontFamily: FONT, fontSize: `${fs}px`, color: '#8b7f6a', fontStyle: 'bold' };
@@ -467,23 +463,21 @@ export class BoardScene extends Phaser.Scene {
     if (!g) return;
     g.clear();
     const s = this.cell;
-    const line = (r: SimResult | undefined, color: number, alpha: number, width: number, dots: boolean): void => {
+    // Paths are soft dotted trails, not lines.
+    const dots = (r: SimResult | undefined, color: number, alpha: number, radius: number): void => {
       if (!r) return;
-      const pts = r.frames.filter((f) => f.x >= -1 && f.x <= W && f.y >= -1 && f.y <= H);
-      if (pts.length < 2) return;
-      g.lineStyle(width, color, alpha);
-      g.beginPath();
-      g.moveTo(this.px(pts[0]!.x), this.py(pts[0]!.y));
-      for (const p of pts.slice(1)) g.lineTo(this.px(p.x), this.py(p.y));
-      g.strokePath();
-      if (dots) {
-        const last = pts[pts.length - 1]!;
+      const seen = new Set<string>();
+      for (const f of r.frames) {
+        if (f.x < 0 || f.x >= W || f.y < 0 || f.y >= H) continue;
+        const k = `${f.x},${f.y}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
         g.fillStyle(color, alpha);
-        g.fillCircle(this.px(last.x), this.py(last.y), s * 0.16);
+        g.fillCircle(this.px(f.x), this.py(f.y), radius);
       }
     };
-    line(this.ghost.old, C.pathOld, 0.55, Math.max(2, s * 0.09), true);
-    line(this.ghost.now, C.pathNew, 0.9, Math.max(3, s * 0.12), true);
+    dots(this.ghost.old, C.pathOld, 0.9, Math.max(2, s * 0.07));
+    dots(this.ghost.now, C.pathNew, 0.95, Math.max(3, s * 0.1));
   }
 
   // ---------- playback ----------

@@ -50,7 +50,7 @@ export function box(g: G, s: number, top: number, side: number, inset: number, r
 export function drawWall(g: G, s: number, n: { up: boolean; down: boolean; left: boolean; right: boolean }): void {
   const h = s / 2;
   const d = depth(s);
-  const r = Math.round(s * 0.16);
+  const r = Math.round(s * 0.24);
   const corners: Corners = {
     tl: n.up || n.left ? 0 : r,
     tr: n.up || n.right ? 0 : r,
@@ -65,13 +65,6 @@ export function drawWall(g: G, s: number, n: { up: boolean; down: boolean; left:
   }
   g.fillStyle(C.wallTop, 1);
   g.fillRoundedRect(x0, -h - d, x1 - x0, n.down ? s + d : s, corners);
-  // A soft highlight along exposed top edges (continuous across merged cells).
-  if (!n.up) {
-    const hx0 = n.left ? -h : x0 + 2;
-    const hx1 = n.right ? h : x1 - 2;
-    g.fillStyle(0xffffff, 0.16);
-    g.fillRect(hx0, -h - d + 2, hx1 - hx0, Math.max(2, s * 0.08));
-  }
 }
 
 /** Shadow footprint for a solid cell (drawn into the shared shadow layer). */
@@ -81,41 +74,12 @@ export function shadowRect(g: G, s: number, sx: number, sy: number): void {
 }
 
 export function drawSocket(g: G, s: number, highlight = false): void {
-  const h = s * 0.4;
-  const r = s * 0.14;
+  // A soft dimple in the clay floor.
+  g.fillStyle(highlight ? C.pathNew : C.socket, highlight ? 0.55 : 0.75);
+  g.fillCircle(0, 0, s * (highlight ? 0.3 : 0.2));
   if (highlight) {
-    g.fillStyle(C.blue, 0.22);
-    g.fillRoundedRect(-h, -h, h * 2, h * 2, r);
-  } else {
-    g.fillStyle(C.socket, 0.6);
-    g.fillRoundedRect(-h, -h, h * 2, h * 2, r);
-  }
-  // Dashed outline: an empty slot, not a block.
-  g.lineStyle(Math.max(1.5, s * 0.05), highlight ? C.blue : C.socketEdge, highlight ? 1 : 0.7);
-  const dash = s * 0.13;
-  const gap = s * 0.09;
-  const edges: Array<[number, number, number, number]> = [
-    [-h + r, -h, h - r, -h],
-    [h, -h + r, h, h - r],
-    [h - r, h, -h + r, h],
-    [-h, h - r, -h, -h + r],
-  ];
-  for (const [ax, ay, bx, by] of edges) {
-    const len = Math.hypot(bx - ax, by - ay);
-    const ux = (bx - ax) / len;
-    const uy = (by - ay) / len;
-    for (let t = 0; t < len; t += dash + gap) {
-      const e = Math.min(len, t + dash);
-      g.beginPath();
-      g.moveTo(ax + ux * t, ay + uy * t);
-      g.lineTo(ax + ux * e, ay + uy * e);
-      g.strokePath();
-    }
-  }
-  for (const [cx, cy, a0] of [[-h + r, -h + r, Math.PI], [h - r, -h + r, -Math.PI / 2], [h - r, h - r, 0], [-h + r, h - r, Math.PI / 2]] as const) {
-    g.beginPath();
-    g.arc(cx, cy, r, a0, a0 + Math.PI / 2);
-    g.strokePath();
+    g.lineStyle(Math.max(2, s * 0.06), C.pathNew, 0.9);
+    g.strokeCircle(0, 0, s * 0.38);
   }
 }
 
@@ -125,55 +89,25 @@ export function drawStart(g: G, s: number, dx: number): void {
   g.fillTriangle(-h * 0.85, -h * 0.95, h * 0.85, -h * 0.95, 0, -h * 0.05);
   g.fillStyle(C.wallTop, 1);
   g.fillTriangle(-h * 0.85, -h * 1.05, h * 0.85, -h * 1.05, 0, -h * 0.2);
-  g.fillStyle(C.yellow, 1);
-  g.fillCircle(0, -h * 0.62, s * 0.08);
-  if (dx !== 0) arrow(g, s, dx > 0 ? 0 : Math.PI, C.ink, 0, h * 0.35, 0.8);
+  if (dx !== 0) arrow(g, s, dx > 0 ? 0 : Math.PI, C.pathOld, 0, h * 0.35, 0.7);
 }
 
-export function drawTarget(g: G, s: number, kind: 'bell' | 'basket'): void {
-  const h = s / 2;
-  const d = depth(s);
-  if (kind === 'bell') {
-    g.fillStyle(0xc99a1c, 1);
-    g.fillEllipse(0, h * 0.62, s * 0.78, s * 0.22);
-    g.fillStyle(C.yellow, 1);
-    g.beginPath();
-    g.moveTo(-h * 0.72, h * 0.6);
-    g.lineTo(-h * 0.5, -h * 0.25);
-    g.arc(0, -h * 0.25, h * 0.5, Math.PI, 0);
-    g.lineTo(h * 0.72, h * 0.6);
-    g.closePath();
-    g.fillPath();
-    g.fillStyle(0xffffff, 0.45);
-    g.fillEllipse(-h * 0.22, -h * 0.2, s * 0.12, s * 0.3);
-    g.fillStyle(0x9a6f0c, 1);
-    g.fillCircle(0, h * 0.68, s * 0.08);
-  } else {
-    g.fillStyle(0xb85d12, 1);
-    g.beginPath();
-    g.moveTo(-h * 0.82, -h * 0.25 + d * 0.4);
-    g.lineTo(h * 0.82, -h * 0.25 + d * 0.4);
-    g.lineTo(h * 0.58, h * 0.78);
-    g.lineTo(-h * 0.58, h * 0.78);
-    g.closePath();
-    g.fillPath();
-    g.fillStyle(C.orange, 1);
-    g.beginPath();
-    g.moveTo(-h * 0.82, -h * 0.25);
-    g.lineTo(h * 0.82, -h * 0.25);
-    g.lineTo(h * 0.62, h * 0.62);
-    g.lineTo(-h * 0.62, h * 0.62);
-    g.closePath();
-    g.fillPath();
-    g.fillStyle(0x7a3c07, 1);
-    g.fillEllipse(0, -h * 0.25, s * 0.82, s * 0.18);
-  }
+export function drawTarget(g: G, s: number, _kind: 'bell' | 'basket'): void {
+  const d = depth(s) * 0.6;
+  g.fillStyle(C.fanSide, 1);
+  g.fillEllipse(0, s * 0.08 + d, s * 0.82, s * 0.5);
+  g.fillStyle(C.fan, 1);
+  g.fillEllipse(0, s * 0.08, s * 0.82, s * 0.5);
+  g.fillStyle(0xffffff, 0.55);
+  g.fillEllipse(0, s * 0.08, s * 0.46, s * 0.24);
+  g.fillStyle(C.fan, 1);
+  g.fillEllipse(0, s * 0.1, s * 0.26, s * 0.12);
 }
 
 export function drawCheckpoint(g: G, s: number, done: boolean): void {
-  g.fillStyle(done ? C.blue : C.socket, done ? 0.9 : 1);
+  g.fillStyle(done ? C.blue : C.floor, 1);
   g.fillCircle(0, 0, s * 0.3);
-  g.lineStyle(Math.max(2, s * 0.08), C.blue, 1);
+  g.lineStyle(Math.max(2, s * 0.07), C.blue, 1);
   g.strokeCircle(0, 0, s * 0.3);
 }
 

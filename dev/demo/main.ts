@@ -53,8 +53,7 @@ async function renderFeed(): Promise<void> {
     h(
       'header',
       { class: 'feed-head' },
-      h('div', { class: 'sub-name' }, 'r/chaos_engine_game_dev'),
-      h('p', { class: 'lede' }, 'Playtest build. This is the same game and server code that runs on Reddit, running in your browser. Switch players to see how it plays with more people.'),
+      h('div', { class: 'sub-name' }, 'r/chaos_engine_game_dev · playtest'),
       h('div', { class: 'demo-controls' }, playerPicker(), button('⏩ Next day', advance, 'primary'), button('Seed demo', async () => note(await seedDemo())), button('Start over', () => {
         resetAll();
         location.reload();
