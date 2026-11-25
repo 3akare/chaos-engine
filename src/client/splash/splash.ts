@@ -1,7 +1,7 @@
 /** Inline feed card. Plain TS + canvas. */
 import { context, requestExpandedMode } from '@devvit/web/client';
 import { api } from '../lib/api';
-import { el, renderCard } from './card';
+import { el, rememberMode, renderCard } from './card';
 import './splash.css';
 
 const qs = new URLSearchParams(location.search);
@@ -15,6 +15,9 @@ async function main(): Promise<void> {
     root.replaceChildren(el('div', 'info', el('div', 'title hud', 'Chaos Engine'), el('div', 'kicker', r.error.message)));
     return;
   }
-  renderCard(root, r.data, (e) => requestExpandedMode(e as MouseEvent, 'game'));
+  renderCard(root, r.data, (e, mode) => {
+    rememberMode(mode);
+    requestExpandedMode(e as MouseEvent, 'game');
+  });
 }
 void main();

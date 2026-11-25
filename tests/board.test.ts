@@ -83,3 +83,17 @@ describe('leaderboard', () => {
     expect((await tick(env.deps)).stages).toEqual([]);
   });
 });
+
+describe('Personal progress', () => {
+  it('keeps each player’s best per level, and never lowers it', async () => {
+    const { api } = await setup();
+    expect((await api.as('alice').post('/api/personal', { level: 0, claimed: 40 })).json.personal[0]).toBe(40);
+    expect((await api.as('alice').post('/api/personal', { level: 0, claimed: 12 })).json.personal[0]).toBe(40);
+    expect((await api.as('alice').post('/api/personal', { level: 1, claimed: 999 })).json.personal[1]).toBe(100);
+    const s = await api.as('alice').get('/api/state');
+    expect(s.json.me.personal.slice(0, 3)).toEqual([40, 100, null]);
+    expect((await api.as('bob').get('/api/state')).json.me.personal[0]).toBeNull();
+    expect((await api.as('alice').post('/api/personal', { level: 99, claimed: 5 })).status).toBe(400);
+    expect((await api.as('').post('/api/personal', { level: 0, claimed: 5 })).status).toBe(401);
+  });
+});

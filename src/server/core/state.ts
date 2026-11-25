@@ -5,6 +5,7 @@ import { currentDayId, dayIdForPost, readMachine, readMeta, readSubStats, readUs
 import { bestBuild, rankOf, readBest, readTotals, topEntries } from './board';
 import { K } from './keys';
 import { publicMachine } from './machines';
+import { readPersonal } from './personal';
 
 export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | undefined): Promise<DayView | null> {
   const { store } = deps;
@@ -24,6 +25,7 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
     readTotals(deps, dayId, meta.goal),
     readSubStats(store),
   ]);
+  const personal = await readPersonal(deps, userId);
   const rawResult = await store.get(K.result(dayId));
   const result = rawResult ? (JSON.parse(rawResult) as DayResult) : null;
 
@@ -42,7 +44,7 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
   return {
     day: { dayId, dayNumber: meta.dayNumber, status: meta.status, openedAt: meta.openedAt, locksAt: meta.locksAt, postId: meta.postId ?? null, title: meta.title },
     machine: publicMachine(machine),
-    me: { userId, username: ctx.username ?? null, best: best?.s ?? null, build: best ? bestBuild(best) : null, rank, pours: Number(pours ?? 0), stats },
+    me: { userId, username: ctx.username ?? null, best: best?.s ?? null, build: best ? bestBuild(best) : null, rank, pours: Number(pours ?? 0), stats, personal },
     board,
     totals,
     result,

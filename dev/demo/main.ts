@@ -1,7 +1,11 @@
-/** Browser playtest: a fake subreddit feed and the real game, with the real server running in-page. */
+/**
+ * Browser playtest. Shows today's post exactly as it would sit in a subreddit, and opens the real
+ * game when you tap it, with the real server running in the page. Only the post and the game are
+ * part of the app; the folded "Playtest tools" at the bottom exist only here, for testing.
+ */
 import type { DayView } from '../../src/shared/protocol';
-import { renderCard } from '../../src/client/splash/card';
-import { boot, call, fillBoard, nextDay, now, persist, reddit, resetAll, state } from './backend';
+import { rememberMode, renderCard } from '../../src/client/splash/card';
+import { boot, call, fillBoard, nextDay, persist, reddit, resetAll, state } from './backend';
 import { openPost } from './devvit-client';
 import { icon } from '../../src/client/assets';
 import './demo.css';
@@ -28,7 +32,14 @@ function note(text: string): void {
   setTimeout(() => n.remove(), 3200);
 }
 
-function playerPicker(): HTMLElement {
+function button(label: string, onClick: () => void | Promise<void>, cls = ''): HTMLButtonElement {
+  const b = h('button', { type: 'button', class: `demo-btn ${cls}` }, label);
+  b.addEventListener('click', () => void onClick());
+  return b;
+}
+
+/** Testing only: switch player, end the day, add rivals, reset. Folded away by default. */
+function tools(): HTMLElement {
   const sel = h('select', { id: 'demo-player', 'aria-label': 'Playing as' });
   for (const p of PLAYERS) sel.append(new Option(`u/${p}`, p, false, p === state.user));
   sel.addEventListener('change', () => {
@@ -36,78 +47,69 @@ function playerPicker(): HTMLElement {
     persist();
     location.reload();
   });
-  return h('label', { class: 'demo-field' }, 'Playing as ', sel);
+  const prev = reddit.posts.length >= 2 ? reddit.posts[reddit.posts.length - 2]!.id : null;
+  const box = h(
+    'details',
+    { class: 'demo-tools' },
+    h('summary', {}, 'Playtest tools'),
+    h('p', {}, 'Not part of the game. These are only here so you can test it.'),
+    h('div', { class: 'demo-controls' }, h('label', { class: 'demo-field' }, 'Playing as ', sel)),
+    h(
+      'div',
+      { class: 'demo-controls' },
+      button('Add rival players', async () => {
+        note(await fillBoard());
+        setTimeout(() => location.reload(), 600);
+      }),
+      button('End the day now', async () => {
+        const stages = await nextDay();
+        note(stages ? 'Day over. A new machine is up.' : 'Nothing to end yet.');
+        setTimeout(() => location.reload(), 600);
+      }),
+      ...(prev ? [button("Open yesterday's post", () => openPost(prev))] : []),
+      button('Start over', () => {
+        resetAll();
+        location.reload();
+      }),
+    ),
+  );
+  if (state.toolsOpen) box.setAttribute('open', '');
+  box.addEventListener('toggle', () => {
+    state.toolsOpen = (box as HTMLDetailsElement).open;
+    persist();
+  });
+  return box;
 }
-
-function button(label: string, onClick: () => void | Promise<void>, cls = ''): HTMLButtonElement {
-  const b = h('button', { type: 'button', class: `demo-btn ${cls}` }, label);
-  b.addEventListener('click', () => void onClick());
-  return b;
-}
-
-const advance = async (): Promise<void> => {
-  const stages = await nextDay();
-  note(stages ? 'The machine fired. A new one is open.' : 'Nothing to resolve yet.');
-  // Watch the results on the post that just resolved.
-  const prev = reddit.posts.length >= 2 ? reddit.posts[reddit.posts.length - 2]!.id : undefined;
-  if (prev && stages) openPost(prev);
-  else location.reload();
-};
 
 async function renderFeed(): Promise<void> {
   const root = h('main', { class: 'feed' });
-  const list = h('div', { class: 'posts' });
-  root.append(
-    h(
-      'header',
-      { class: 'feed-head' },
-      h('div', { class: 'sub-name' }, 'Chaos Engine playtest'),
-      h('div', { class: 'demo-controls' }, playerPicker(), button('Next day', advance, 'primary'), button('Fill board', async () => {
-        note(await fillBoard());
-        location.reload();
-      }), button('Start over', () => {
-        resetAll();
-        location.reload();
-      })),
-    ),
-    list,
-  );
   document.body.append(root);
-  const posts = [...reddit.posts].reverse();
-  for (const p of posts) {
+  const p = reddit.posts[reddit.posts.length - 1];
+  if (p) {
     const card = h('div', { class: 'post-card' });
-    const head = h('div', { class: 'post-head' }, h('b', {}, p.title), h('span', {}, `u/${p.authorName} · ${ago(now() - p.createdAt)}`));
-    const wrap = h('article', { class: 'post' }, head, card);
-    list.append(wrap);
+    root.append(h('article', { class: 'post' }, h('div', { class: 'post-head' }, h('span', {}, 'r/yoursubreddit · u/chaos-engine-game'), h('b', {}, p.title)), card));
     const res = await call('GET', `/api/state?postId=${p.id}`);
     if (res.ok)
-      renderCard(card, (await res.json()) as DayView, () => openPost(p.id));
-
+      renderCard(card, (await res.json()) as DayView, (_e, mode) => {
+        rememberMode(mode);
+        openPost(p.id);
+      });
   }
-}
-
-function ago(ms: number): string {
-  const m = Math.round(ms / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m} min ago`;
-  const hr = Math.round(m / 60);
-  return hr < 48 ? `${hr} h ago` : `${Math.round(hr / 24)} days ago`;
+  root.append(tools());
 }
 
 async function renderGame(): Promise<void> {
   document.body.classList.add('demo-game');
   document.body.append(h('div', { id: 'app' }));
   await import('../../src/client/game/main');
-  // Two small demo-only keys: back to the feed, and skip to the next day.
-  const back = h('button', { type: 'button', class: 'demo-key l', 'aria-label': 'Back to feed' }, img('arrowLeft'));
+  // Stands in for Reddit's own close button.
+  const back = h('button', { type: 'button', class: 'demo-back', 'aria-label': 'Back to the post' }, img('arrowLeft'), 'Back to the post');
   back.addEventListener('click', () => {
     state.view = { screen: 'feed' };
     persist();
     location.reload();
   });
-  const skip = h('button', { type: 'button', class: 'demo-key r', 'aria-label': 'Next day (playtest)' }, img('fastForward'));
-  skip.addEventListener('click', () => void advance());
-  document.body.append(back, skip);
+  document.body.append(back);
 }
 
 async function start(): Promise<void> {

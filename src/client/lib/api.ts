@@ -1,5 +1,5 @@
 /** Typed fetch to /api/*. */
-import type { ApiError, DayView, PourRequest, PourResult } from '../../shared/protocol';
+import type { ApiError, DayView, PersonalRequest, PersonalResult, PourRequest, PourResult } from '../../shared/protocol';
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
@@ -23,4 +23,5 @@ const q = (postId: string | undefined): string => (postId ? `?postId=${encodeURI
 export const api = {
   state: (postId?: string) => call<DayView>('GET', `/api/state${q(postId)}`),
   pour: (req: PourRequest) => call<PourResult>('POST', '/api/pour', req),
+  personal: (req: PersonalRequest) => call<PersonalResult>('POST', '/api/personal', req),
 };

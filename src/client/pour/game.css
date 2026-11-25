@@ -111,3 +111,39 @@ img { display: block; -webkit-user-drag: none; pointer-events: none; }
   .wide { font-size: 15px; height: 56px; }
   .top .name { font-size: 16px; }
 }
+
+/* Personal | Group tabs */
+.tabs { display: flex; gap: 3px; padding: 3px; border-radius: 16px; background: var(--paper); border: 4px solid var(--ink); flex: none; }
+.tab { height: 32px; padding: 0 12px; border-radius: 11px; font: 17px var(--display); color: var(--muted); }
+.tab.on { background: var(--yellow); color: var(--ink); box-shadow: inset 0 -4px 0 var(--yellow-d); }
+.top .grow { flex: 1; min-width: 0; }
+
+/* Stars */
+.stars { display: inline-flex; align-items: flex-end; gap: 2px; }
+.stars img.off { filter: grayscale(1) brightness(1.45) opacity(0.45); }
+.stars.mini img { width: 18px; height: 18px; }
+.stars.big { gap: 6px; }
+.stars.big img { width: 54px; height: 54px; animation: pop .4s cubic-bezier(.3, 1.6, .5, 1) both; }
+.stars.big img:nth-child(2) { width: 68px; height: 68px; margin-bottom: 8px; }
+.starslot { display: flex; justify-content: center; min-height: 76px; align-items: flex-end; }
+
+/* Level picker */
+.levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
+.lv { aspect-ratio: 1; border-radius: 14px; border: 4px solid var(--ink); background: var(--paper); box-shadow: inset 0 -4px 0 #c9d6e2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.lv b { font: 22px var(--display); }
+.lv .stars.mini img { width: 13px; height: 13px; }
+.lv.on { background: #fff3cf; box-shadow: inset 0 -4px 0 var(--yellow-d); }
+.lv.locked { background: #e4eef7; color: var(--muted); }
+.lv .lock { width: 18px; height: 18px; opacity: .6; }
+.lv:active:not(.locked) { transform: translateY(2px); }
+
+@media (max-width: 359px) {
+  .tab { padding: 0 9px; font-size: 15px; }
+  .chip { padding: 0 9px; font-size: 15px; }
+  .stars.mini img { width: 15px; height: 15px; }
+}
+@media (max-height: 640px) {
+  .stars.big img { width: 44px; height: 44px; }
+  .stars.big img:nth-child(2) { width: 56px; height: 56px; }
+  .starslot { min-height: 62px; }
+}

@@ -1,8 +1,11 @@
 /**
- * The game screen: place pieces on today's machine, pour 100 balls, climb the leaderboard.
+ * The game screen. Two ways to play:
+ * - Personal: levels in order, stars for 25 / 50 / 75 balls, a star opens the next level;
+ * - Group: today's machine for the whole subreddit, your best on the leaderboard.
  * Physics runs here at a fixed 1/60 s step with the same code the server uses to check scores.
  */
 import { fitPiece, snap } from '../../shared/pour/build';
+import { LEVELS, STARS, starsFor, unlocked } from '../../shared/pour/levels';
 import { Pour } from '../../shared/pour/sim';
 import { BALLS, H, type Machine, type Piece, type Tool, TOOL_NAME, TOOLS, TURN, W } from '../../shared/pour/types';
 import type { DayView, Entry, PourResult, Totals } from '../../shared/protocol';
@@ -13,6 +16,7 @@ import { artReady, drawBumper, drawPlank, img, INK, View } from './draw';
 
 const STEP = 1000 / 60;
 type Mode = 'build' | 'pour' | 'done' | 'closed' | 'replay';
+export type Play = 'personal' | 'group';
 
 export type Nav = { navigateTo(url: string): void };
 
@@ -33,6 +37,9 @@ export class Game {
   private replayOf: Piece[] | null = null;
   /** Server clock minus ours. */
   private skew = 0;
+  /** Personal level being played, and the best on each level. */
+  private level = 0;
+  private personal: (number | null)[] = [];
 
   private readonly top = h('header', { class: 'top' });
   private readonly stage = h('div', { class: 'stage' });
@@ -45,6 +52,7 @@ export class Game {
     root: HTMLElement,
     private readonly postId: string | undefined,
     private readonly nav: Nav,
+    private play: Play = 'group',
   ) {
     this.stage.append(this.canvas, this.tip);
     root.replaceChildren(this.top, this.stage, this.bar);
@@ -60,18 +68,12 @@ export class Game {
     }
     this.v = r.data;
     this.skew = r.data.serverNow - Date.now();
-    this.machine = r.data.machine;
+    this.personal = mergeBest(r.data.me.personal, localPersonal());
+    const saved = Number(store('ce_level') ?? NaN);
+    this.level = Number.isInteger(saved) && saved >= 0 && saved < LEVELS.length && unlocked(this.personal, saved) ? saved : this.firstOpenLevel();
     this.view.resize();
-    if (this.closed()) {
-      this.mode = 'closed';
-      this.pieces = this.v.me.build ?? [];
-    } else {
-      this.pieces = this.loadBuild();
-      if (!store('ce_seen_tip')) this.say('Drag pieces onto the board, then press Pour', 4500);
-    }
-    this.renderTop();
-    this.renderBar();
-    if (this.mode === 'closed') this.showClosed();
+    this.enter(this.play);
+    if (!store('ce_seen_tip')) this.say('Drag pieces onto the board, then press Pour', 4500);
     this.last = performance.now();
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -80,8 +82,13 @@ export class Game {
   private closed(): boolean {
     return this.v.day.status !== 'OPEN' || this.v.serverNow >= this.v.day.locksAt;
   }
+  private firstOpenLevel(): number {
+    let i = 0;
+    while (i + 1 < LEVELS.length && unlocked(this.personal, i + 1) && starsFor(this.personal[i] ?? 0) === 3) i++;
+    return i;
+  }
   private buildKey(): string {
-    return `ce_build_${this.v.day.dayId}`;
+    return this.play === 'group' ? `ce_build_${this.v.day.dayId}` : `ce_pbuild_${this.level}`;
   }
   private loadBuild(): Piece[] {
     try {
@@ -90,7 +97,31 @@ export class Game {
     } catch {
       /* ignore */
     }
-    return this.v.me.build ? this.v.me.build.map((p) => ({ ...p })) : [];
+    return this.play === 'group' && this.v.me.build ? this.v.me.build.map((p) => ({ ...p })) : [];
+  }
+
+  /** Switch to Personal or Group (or to another level), dropping any pour in progress. */
+  private enter(play: Play, level = this.level): void {
+    this.closeCard();
+    this.pour = null;
+    this.count = null;
+    this.replayOf = null;
+    this.selected = null;
+    this.play = play;
+    this.level = level;
+    store('ce_mode', play);
+    if (play === 'personal') store('ce_level', String(level));
+    this.machine = play === 'group' ? this.v.machine : LEVELS[level]!;
+    if (play === 'group' && this.closed()) {
+      this.mode = 'closed';
+      this.pieces = this.v.me.build ?? [];
+    } else {
+      this.mode = 'build';
+      this.pieces = this.loadBuild();
+    }
+    this.renderTop();
+    this.renderBar();
+    if (this.mode === 'closed') this.showClosed();
   }
   private saveBuild(): void {
     store(this.buildKey(), JSON.stringify(this.pieces));
@@ -108,19 +139,25 @@ export class Game {
 
   // ------------------------------------------------------------------ header and bar
   private renderTop(): void {
-    const me = this.v.me;
-    const best = me.best === null ? '–' : String(me.best);
-    this.top.replaceChildren(
-      h('div', { class: 'chip day' }, `Day ${this.v.day.dayNumber}`),
-      h('div', { class: 'name' }, this.machine.name),
-      h(
+    const tab = (p: Play, label: string): HTMLElement =>
+      h('button', { class: `tab${this.play === p ? ' on' : ''}`, role: 'tab', 'aria-selected': this.play === p ? 'true' : 'false', onclick: () => this.play !== p && this.enter(p) }, label);
+    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('personal', 'Personal'), tab('group', 'Group'));
+    let right: HTMLElement;
+    if (this.play === 'personal') {
+      const best = this.personal[this.level] ?? null;
+      right = h('button', { class: 'chip rank', 'aria-label': `Level ${this.level + 1}. Choose a level`, onclick: () => this.showLevels() }, h('span', { class: 'n' }, `Lv ${this.level + 1}`), starRow(best === null ? 0 : starsFor(best), 'mini'));
+    } else {
+      const me = this.v.me;
+      const best = me.best === null ? '–' : String(me.best);
+      right = h(
         'button',
         { class: 'chip rank', 'aria-label': `Leaderboard. Your best ${best}${me.rank ? `, rank ${me.rank}` : ''}`, onclick: () => this.showBoard() },
         ico('trophy', 'trophy'),
         h('span', { class: 'n' }, best),
         me.rank ? h('span', { class: 'r' }, `#${me.rank}`) : null,
-      ),
-    );
+      );
+    }
+    this.top.replaceChildren(tabs, h('div', { class: 'grow' }), right);
   }
 
   private renderBar(): void {
@@ -363,13 +400,15 @@ export class Game {
   private async finish(n: number): Promise<void> {
     this.mode = 'done';
     this.renderBar();
+    sfx.fanfare(starsFor(n) + (n === BALLS ? 1 : 0));
+    if (n === BALLS || (starsFor(n) === 3 && this.play === 'personal')) this.confetti();
+    if (this.play === 'personal') return this.finishPersonal(n);
     const prev = this.v.me.best;
     const big = h('div', { class: 'big' }, String(n), h('small', {}, `/${BALLS}`));
     const line = h('p', {}, prev !== null && n <= prev ? `Your best today is ${prev}.` : 'Checking…');
     const title = h('h2', {}, n === BALLS ? 'All 100!' : prev === null || n > prev ? 'Nice pour!' : n >= prev - 3 ? 'So close!' : 'Keep tweaking');
-    this.card(title, big, line, h('div', { class: 'row' }, h('button', { class: 'btn b', onclick: () => this.toBuild() }, 'Tweak'), h('button', { class: 'btn g', onclick: () => this.showBoard() }, 'Leaderboard')));
-    sfx.fanfare(n === BALLS ? 3 : n >= 90 ? 2 : n >= 60 ? 1 : 0);
-    if (n === BALLS) this.confetti();
+    const stars = h('div', { class: 'starslot' }, starRow(starsFor(n), 'big'));
+    this.card(title, stars, big, line, h('div', { class: 'row' }, h('button', { class: 'btn b', onclick: () => this.toBuild() }, 'Tweak'), h('button', { class: 'btn g', onclick: () => this.showBoard() }, 'Leaderboard')));
     const r = await api.pour({ postId: this.v.day.postId ?? this.postId, build: this.pieces, claimed: n });
     if (!r.ok) {
       line.textContent = r.error.message;
@@ -377,11 +416,71 @@ export class Game {
     }
     this.applyResult(r.data);
     const d = r.data;
-    if (d.score !== n) big.replaceChildren(String(d.score), h('small', {}, `/${BALLS}`));
+    if (d.score !== n) {
+      big.replaceChildren(String(d.score), h('small', {}, `/${BALLS}`));
+      stars.replaceChildren(starRow(starsFor(d.score), 'big'));
+    }
     if (d.improved) {
       title.textContent = d.score === BALLS ? 'All 100!' : prev === null ? 'On the board!' : 'New best!';
       line.textContent = d.rank ? `You're #${d.rank} today${prev !== null ? `, up from ${prev}` : ''}.` : 'Saved.';
     } else line.textContent = `Your best today is ${d.best}${d.rank ? `, #${d.rank} on the board` : ''}.`;
+  }
+
+  private async finishPersonal(n: number): Promise<void> {
+    const i = this.level;
+    const prev = this.personal[i] ?? null;
+    const wasOpen = unlocked(this.personal, i + 1);
+    if (prev === null || n > prev) this.personal[i] = n;
+    saveLocalPersonal(this.personal);
+    const s = starsFor(n);
+    const opened = !wasOpen && i + 1 < LEVELS.length && unlocked(this.personal, i + 1);
+    const nextOk = i + 1 < LEVELS.length && unlocked(this.personal, i + 1);
+    const title = s === 3 ? 'Incredible!' : s === 2 ? 'Great pour!' : s === 1 ? 'Nice!' : n > 0 ? 'Keep tweaking' : 'All lost!';
+    const line = opened
+      ? `Level ${i + 2} unlocked!`
+      : prev !== null && n <= prev
+        ? `Your best here is ${prev}.${starsFor(prev) < 3 ? ` Next star at ${STARS[starsFor(prev)]}.` : ''}`
+        : s < 3
+          ? `${prev === null ? '' : `New best! `}Next star at ${STARS[s]}.`
+          : prev === null ? 'Three stars first time!' : `New best! Up from ${prev}.`;
+    this.card(
+      h('h2', {}, title),
+      h('div', { class: 'starslot' }, starRow(s, 'big')),
+      h('div', { class: 'big' }, String(n), h('small', {}, `/${BALLS}`)),
+      h('p', {}, line),
+      h(
+        'div',
+        { class: 'row' },
+        h('button', { class: 'btn b', onclick: () => this.toBuild() }, 'Tweak'),
+        nextOk ? h('button', { class: 'btn g', onclick: () => this.enter('personal', i + 1) }, 'Next level') : h('button', { class: 'btn g', onclick: () => this.enter('group') }, 'Play Group'),
+      ),
+    );
+    this.renderTop();
+    const r = await api.personal({ level: i, claimed: n });
+    if (r.ok) {
+      this.personal = mergeBest(r.data.personal, this.personal);
+      saveLocalPersonal(this.personal);
+    }
+  }
+
+  private showLevels(): void {
+    const tiles = LEVELS.map((m, i) => {
+      const open = unlocked(this.personal, i);
+      const best = this.personal[i] ?? null;
+      return h(
+        'button',
+        { class: `lv${open ? '' : ' locked'}${i === this.level ? ' on' : ''}`, 'aria-label': open ? `Level ${i + 1}, ${m.name}` : `Level ${i + 1}, locked`, onclick: () => open && this.enter('personal', i) },
+        h('b', {}, String(i + 1)),
+        open ? starRow(best === null ? 0 : starsFor(best), 'mini') : spr('lock', 'lock'),
+      );
+    });
+    const total = this.personal.reduce<number>((a, b) => a + (b === null ? 0 : starsFor(b)), 0);
+    this.card(
+      h('h2', {}, 'Levels'),
+      h('p', {}, `${total} of ${LEVELS.length * 3} stars. Get a star to open the next level.`),
+      h('div', { class: 'levels' }, ...tiles),
+      h('div', { class: 'row' }, h('button', { class: 'btn b', onclick: () => this.closeCard() }, 'Close')),
+    );
   }
 
   private applyResult(d: PourResult): void {
@@ -481,4 +580,36 @@ function toolIcon(t: Tool): HTMLCanvasElement {
   }
   void INK;
   return c;
+}
+
+/** Three stars, the first `n` lit. */
+function starRow(n: number, size: 'mini' | 'big'): HTMLElement {
+  return h(
+    'span',
+    { class: `stars ${size}`, 'aria-label': `${n} of 3 stars` },
+    ...[0, 1, 2].map((i) => {
+      const s = spr('star', i < n ? '' : 'off');
+      if (size === 'big') s.style.animationDelay = `${150 + i * 170}ms`;
+      return s;
+    }),
+  );
+}
+
+function localPersonal(): (number | null)[] {
+  try {
+    return JSON.parse(store('ce_personal') ?? '[]') as (number | null)[];
+  } catch {
+    return [];
+  }
+}
+function saveLocalPersonal(p: (number | null)[]): void {
+  store('ce_personal', JSON.stringify(p));
+}
+/** Best of two progress lists, level by level. */
+function mergeBest(a: readonly (number | null)[], b: readonly (number | null)[]): (number | null)[] {
+  return LEVELS.map((_, i) => {
+    const x = a[i] ?? null;
+    const y = b[i] ?? null;
+    return x === null ? y : y === null ? x : Math.max(x, y);
+  });
 }

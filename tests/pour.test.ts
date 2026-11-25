@@ -90,3 +90,19 @@ describe('machines', () => {
     expect(machineForDay(PACK.length + 1).seed).not.toBe(machineForDay(1).seed);
   });
 });
+
+describe('stars and levels', () => {
+  it('gives a star at 25, two at 50, three at 75', async () => {
+    const { starsFor, unlocked, LEVELS } = await import('../src/shared/pour/levels');
+    expect([0, 24, 25, 49, 50, 74, 75, 100].map(starsFor)).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+    expect(unlocked([], 0)).toBe(true);
+    expect(unlocked([24], 1)).toBe(false);
+    expect(unlocked([25], 1)).toBe(true);
+    expect(LEVELS.length).toBeGreaterThanOrEqual(6);
+  });
+  it('Personal levels and Group days never share a machine', async () => {
+    const { LEVELS } = await import('../src/shared/pour/levels');
+    const names = new Set(LEVELS.map((m) => m.name));
+    expect(PACK.some((m) => names.has(m.name))).toBe(false);
+  });
+});

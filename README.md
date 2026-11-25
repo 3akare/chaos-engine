@@ -3,26 +3,30 @@
 > **100 balls. One bucket. Catch them all.**
 > A daily physics puzzle for Reddit with a subreddit leaderboard, built on Devvit Web.
 
-Every day your subreddit gets a new machine: a chute at the top, a bucket at the bottom, and ledges, pegs and spinners in between. You get a handful of pieces (ramps, a spring, a bumper, a fan) and you can put them **anywhere**. Press **Pour** and 100 balls tumble through with real physics. Every ball in the bucket counts.
+Each machine has a chute at the top, a bucket at the bottom, and ledges, pegs and spinners in between. You get a handful of pieces (ramps, a spring, a bumper, a fan) and you can put them **anywhere**. Press **Pour** and 100 balls tumble through with real physics. Every ball in the bucket counts: **25 for ★, 50 for ★★, 75 for ★★★.**
 
-- **Today's leaderboard.** Your best pour of the day is your score. Most balls wins; on a tie, whoever got there first. Can anyone catch all 100?
-- **Together.** Every ball anyone catches adds to the subreddit's goal for the day.
-- **Build of the Day.** Builds stay hidden while the day is open. At **02:00 UTC** the board closes, the winning build is revealed (anyone can watch it pour), a results comment goes up, and the next machine opens.
+The post has two buttons:
+
+- **Personal**: levels to beat in order, at your own pace. A star opens the next level. Your stars are saved to your account.
+- **Group**: today's machine, the same for the whole subreddit. Your best pour of the day goes on **today's leaderboard** (most balls wins; on a tie, whoever got there first). Every ball anyone catches adds to the subreddit's goal for the day. At **02:00 UTC** the board closes, the winning build is revealed (anyone can watch it pour), a results comment goes up, and the next machine opens. Builds stay hidden until then.
+
+Once you've played Group, the post shows the leaderboard under the two buttons. You can switch between Personal and Group inside the game too.
 
 <p align="center">
-  <img src="docs/img/card.png" width="380" alt="The post in the feed: the machine, the top three, the shared goal and Play" />
+  <img src="docs/img/card.png" width="380" alt="The post: Personal and Group buttons, and today's leaderboard" />
 </p>
 <p align="center">
-  <img src="docs/img/build.png" width="250" alt="Placing pieces" />
-  <img src="docs/img/pour.png" width="250" alt="100 balls pouring" />
-  <img src="docs/img/board.png" width="250" alt="Today's leaderboard" />
+  <img src="docs/img/build.png" width="190" alt="Placing pieces" />
+  <img src="docs/img/pour.png" width="190" alt="100 balls pouring" />
+  <img src="docs/img/stars.png" width="190" alt="Stars for a Personal level" />
+  <img src="docs/img/board.png" width="190" alt="Today's leaderboard" />
 </p>
 
 ## How to play
 
 1. **Drag a piece** from the bar onto the board. Put it anywhere.
 2. **Tap a placed piece to turn it** (ramps and springs 20° a tap, fans 45°). Drag it off the board to take it back.
-3. **Pour.** Watch, tweak, pour again. Only your best counts.
+3. **Pour.** Watch, tweak, pour again. Only your best counts, for stars and for the leaderboard.
 
 | Piece | What it does |
 |---|---|
@@ -47,7 +51,7 @@ Each machine is generated from a seed and then **poured hundreds of times** befo
 - random builds catch almost nothing (median ≤ 20),
 - a search that keeps improving a build gets most of the way (≥ 72). People beat the search: on the prototype levels, players beat its best by 10–15.
 
-The machines that pass go into `src/shared/pour/pack.json`, in play order. After the pack runs out it repeats mirrored, then with a different chute wobble, so no two days pour the same. A machine is copied into Redis when its day is created and never changes after that.
+The machines that pass are split in two: Personal's levels (`personal.json`, easy to hard, including the three hand-made prototype levels) and Group's daily machines (`pack.json`, in play order). No machine is in both, so Personal never gives away a Group day. After the pack runs out it repeats mirrored, then with a different chute wobble, so no two days pour the same. A machine is copied into Redis when its day is created and never changes after that.
 
 ## The daily loop
 

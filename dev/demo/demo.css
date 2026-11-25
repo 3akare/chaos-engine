@@ -15,14 +15,15 @@ body { margin: 0; min-height: 100vh; color: #353541; font: 800 15px/1.3 'Nunito 
 .post-head { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-bottom: 4px solid #353541; }
 .post-head b { font-weight: 900; font-size: 15px; }
 .post-head span { font-weight: 700; color: #6b7a90; font-size: 12px; }
+.post-head b { order: 2; }
 .post-card { height: 512px; }
 .demo-note { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 100; background: #fff; border: 4px solid #353541; padding: 10px 14px; border-radius: 14px; max-width: 92vw; }
-/* Game screen: two small demo-only keys in the bottom corners, beside the dock. */
-.demo-key { position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); z-index: 20; width: 34px; height: 34px; border-radius: 12px; border: 4px solid #353541; background: #419fdd; box-shadow: inset 0 -4px 0 #366fbf; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; color: #353541; }
-.demo-key:active { transform: translateY(2px); }
-.demo-key img { width: 60%; height: 60%; display: block; pointer-events: none; }
-.demo-key.l { left: 10px; }
-.demo-key.r { right: 10px; }
-/* Playtest strip above the game for the two demo keys. */
-body.demo-game #app { top: 46px; }
-body.demo-game::before { content: 'Playtest'; position: fixed; top: 0; left: 0; right: 0; height: 46px; display: flex; align-items: center; justify-content: center; font: 15px 'Lilita One', system-ui, sans-serif; color: #fff; background: #2f86d6; }
+/* Playtest tools, folded away under the post. */
+.demo-tools { border-radius: 16px; border: 3px dashed rgba(53, 53, 65, 0.5); background: rgba(255, 255, 255, 0.55); padding: 4px 14px; }
+.demo-tools summary { cursor: pointer; font: 15px 'Lilita One', system-ui, sans-serif; padding: 8px 0; color: #4a5066; }
+.demo-tools p { margin: 0 0 10px; font-size: 13px; color: #4a5066; }
+.demo-tools .demo-controls { margin-bottom: 10px; }
+/* In the game: a strip with a back button, standing in for Reddit's own close button. */
+body.demo-game #app { top: 44px; }
+.demo-back { position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 20; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; background: #2f86d6; color: #fff; font: 15px 'Lilita One', system-ui, sans-serif; cursor: pointer; }
+.demo-back img { width: 20px; height: 20px; }

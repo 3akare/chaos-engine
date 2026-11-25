@@ -5,6 +5,7 @@ export type DemoState = {
   offset: number;
   user: string;
   view: { screen: 'feed' | 'game'; postId?: string | undefined };
+  toolsOpen?: boolean;
 };
 
 const KEY = 'ce_demo_v1';

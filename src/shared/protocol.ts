@@ -36,6 +36,8 @@ export type DayView = {
     rank: number | null;
     pours: number;
     stats: UserStats;
+    /** Personal mode: best balls on each level (null = not played). */
+    personal: (number | null)[];
   };
   /** Live top of today's leaderboard. */
   board: Entry[];
@@ -61,3 +63,6 @@ export type PourResult = {
 
 export type ErrorCode = 'LOCKED' | 'NOT_LOGGED_IN' | 'NO_DAY' | 'BUSY' | 'TOO_FAST' | 'BAD_REQUEST';
 export type ApiError = { error: ErrorCode; message: string };
+
+export type PersonalRequest = { level: number; claimed: number };
+export type PersonalResult = { personal: (number | null)[] };

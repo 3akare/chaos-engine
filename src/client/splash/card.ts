@@ -1,11 +1,13 @@
 /**
- * The post in the feed: today's machine pouring live, an arcade scoreboard (today's best, you,
- * the subreddit's goal) and one Play button. After the day closes it pours the winning build.
+ * The post in the feed: the game's name and two big buttons, Personal and Group.
+ * Once you've played Group today, the top of the leaderboard and your rank show under them.
  */
-import type { DayView } from '../../shared/protocol';
-import { icon } from '../assets';
-import { artReady, livePour } from '../pour/draw';
+import { LEVELS, starsFor } from '../../shared/pour/levels';
+import type { DayView, Entry } from '../../shared/protocol';
+import { icon, sprite } from '../assets';
 import './card.css';
+
+export type OpenMode = 'personal' | 'group';
 
 export const el = (tag: string, cls: string, ...kids: Array<Node | string | null>): HTMLElement => {
   const e = document.createElement(tag);
@@ -13,52 +15,75 @@ export const el = (tag: string, cls: string, ...kids: Array<Node | string | null
   for (const k of kids) if (k !== null) e.append(k);
   return e;
 };
+const img = (src: string, cls = ''): HTMLImageElement => {
+  const i = document.createElement('img');
+  i.src = src;
+  i.alt = '';
+  if (cls) i.className = cls;
+  return i;
+};
 const fmt = (n: number): string => n.toLocaleString('en-US');
 
-/** A scoreboard entry: label, big number, a line under it. With no number, the line takes its place. */
-function stat(label: string, value: number | null, sub: string, cls = ''): HTMLElement {
-  return el('div', `stat ${cls}`, el('div', 'k', label), value === null ? el('div', 'none', sub) : el('div', 'v', String(value)), value === null ? null : el('div', 's', sub));
+/** Remember which mode to open; the game screen reads it. */
+export function rememberMode(mode: OpenMode): void {
+  try {
+    localStorage.setItem('ce_mode', mode);
+  } catch {
+    /* private mode */
+  }
 }
 
-export function renderCard(root: HTMLElement, v: DayView, open: (e: Event) => void): void {
+function localPersonal(): (number | null)[] {
+  try {
+    return JSON.parse(localStorage.getItem('ce_personal') ?? '[]') as (number | null)[];
+  } catch {
+    return [];
+  }
+}
+
+function row(e: Entry, me: boolean): HTMLElement {
+  return el('li', me ? 'me' : '', el('b', `rk r${e.rank}`, String(e.rank)), el('span', 'who', `u/${e.username}`), el('b', 'sc', String(e.score)));
+}
+
+export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode: OpenMode) => void): void {
   root.classList.add('ce-card');
   const closed = !!v.result || v.day.status !== 'OPEN';
+
+  // Personal: your progress through the levels.
+  const local = localPersonal();
+  const best = LEVELS.map((_, i) => Math.max(v.me.personal[i] ?? -1, local[i] ?? -1));
+  const totalStars = best.reduce((a, b) => a + (b < 0 ? 0 : starsFor(b)), 0);
+  const played = best.some((b) => b >= 0);
+  const personalSub = played ? el('span', 'subrow', `${totalStars} / ${LEVELS.length * 3}`, img(sprite('star'), 'st')) : `${LEVELS.length} levels to beat`;
+
+  // Group: today's machine and where you stand.
   const list = v.result ? v.result.top : v.board;
-  const lead = list[0] ?? null;
   const totals = v.result?.totals ?? v.totals;
-  const players = totals.players;
+  const groupSub = closed ? `Day ${v.day.dayNumber} is over` : v.me.best !== null ? `Your best ${v.me.best}${v.me.rank ? ` · #${v.me.rank}` : ''}` : totals.players ? `${fmt(totals.players)} playing today` : 'Today’s machine';
 
-  const canvas = document.createElement('canvas');
-  canvas.setAttribute('aria-label', closed ? 'The winning build pouring' : "Today's machine pouring");
-  const screen = el('div', 'screen', canvas, el('div', 'tag', closed && v.result?.winner ? 'Winning build' : 'No pieces yet'));
-  screen.addEventListener('click', open);
-
-  const best = stat(closed ? 'Winner' : "Today's best", lead?.score ?? null, lead ? `u/${lead.username}` : closed ? 'Nobody played' : 'Be the first!', 'hi');
-  const chasers = list.length > 1 ? el('ol', 'chasers', ...list.slice(1, 3).map((e) => el('li', '', el('b', '', String(e.rank)), el('span', '', `u/${e.username}`), el('b', '', String(e.score))))) : null;
-  const you = stat('You', v.me.best, v.me.rank ? `#${v.me.rank} of ${fmt(players)}` : closed ? 'Didn’t play' : 'Not played yet');
-  const pct = Math.min(100, Math.round((totals.balls / Math.max(1, totals.goal)) * 100));
-  const fill = el('div', 'fill');
-  fill.style.width = `${pct}%`;
-  const together = el('div', `stat goal${pct >= 100 ? ' full' : ''}`, el('div', 'k', 'Together'), el('div', 'g', `${fmt(totals.balls)}`, el('span', '', ` / ${fmt(totals.goal)}`)), el('div', 'track', fill));
-  const board = el('div', 'sb', best, chasers, you, together);
-
-  const label = closed ? (v.result?.winner ? 'Watch the winner' : 'See the results') : v.me.best === null ? 'Play' : v.me.best >= 100 ? 'Play again' : 'Beat your best';
-  const img = document.createElement('img');
-  img.src = icon(closed ? 'trophy' : 'right');
-  img.alt = '';
-  const play = el('button', 'play', img, label);
-  play.addEventListener('click', open);
-
-  const head = el('div', 'head', el('div', 'logo', el('b', '', 'Chaos'), el('b', '', 'Engine')), el('div', 'day', el('span', '', `Day ${v.day.dayNumber}`), el('i', '', v.machine.name)));
-  const hook = el('div', 'hook', closed ? 'Final scores' : 'Catch all 100 balls');
-  root.replaceChildren(head, el('div', 'mid', screen, el('div', 'side', hook, board)), play);
-
-  // The screen keeps the board's 3:5 shape, sized from the space it has.
-  const fit = (): void => {
-    const h = screen.parentElement!.clientHeight;
-    screen.style.width = `${Math.min(Math.floor((h * 3) / 5), Math.floor(root.clientWidth * 0.45))}px`;
+  const btn = (mode: OpenMode, label: string, sub: Node | string, ic: string): HTMLElement => {
+    const b = el('button', `mode ${mode}`, img(icon(ic), 'ic'), el('span', 'txt', el('span', 'lbl', label), el('span', 'sub', sub)), img(icon('arrowRight'), 'go'));
+    b.setAttribute('aria-label', `${label}: ${typeof sub === 'string' ? sub : sub.textContent ?? ''}`);
+    b.addEventListener('click', (e) => open(e, mode));
+    return b;
   };
-  fit();
-  new ResizeObserver(fit).observe(root);
-  void artReady().then(() => livePour(canvas, v.machine, closed ? (v.result?.winner?.build ?? []) : []));
+
+  // Under the buttons: the leaderboard once you've played Group (or once the day is over).
+  let below: HTMLElement;
+  if ((v.me.best !== null || closed) && list.length) {
+    const rows = list.slice(0, 3).map((e) => row(e, e.username === v.me.username));
+    if (v.me.rank && v.me.best !== null && v.me.rank > 3) rows.push(row({ rank: v.me.rank, username: v.me.username ?? 'you', score: v.me.best, at: 0 }, true));
+    below = el('div', 'lb', el('div', 'lbh', el('span', '', closed ? `Day ${v.day.dayNumber} final` : "Today's leaderboard"), el('span', '', `${fmt(totals.players)} ${totals.players === 1 ? 'player' : 'players'}`)), el('ol', '', ...rows));
+  } else if (list.length) {
+    below = el('div', 'tease', img(icon('trophy'), 'tr'), el('span', '', `Today's best: `, el('b', '', String(list[0]!.score)), ` by u/${list[0]!.username}`));
+  } else below = el('div', 'tease', img(icon('trophy'), 'tr'), el('span', '', 'Be first on today’s leaderboard'));
+
+  const balls = el('div', 'rain', ...['ball', 'ball_blue', 'ball_green', 'ball_yellow', 'ball_purple', 'ball', 'ball_green', 'ball_blue'].map((b) => img(sprite(b))));
+  root.replaceChildren(
+    balls,
+    el('div', 'logo', el('b', '', 'Chaos'), el('b', '', 'Engine')),
+    el('div', 'tag', '100 balls. One bucket. Catch them all.'),
+    el('div', 'modes', btn('personal', 'Personal', personalSub, 'star'), btn('group', 'Group', groupSub, 'trophy')),
+    below,
+  );
 }

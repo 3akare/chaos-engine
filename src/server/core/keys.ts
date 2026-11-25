@@ -21,5 +21,7 @@ export const K = {
   post: (postId: string) => `ce:post:${postId}`,
   dayByNumber: (n: number) => `ce:daynum:${n}`,
   userStats: (userId: string) => `ce:user:${userId}:stats`,
+  /** Personal mode: hash level index → best balls caught. */
+  personal: (userId: string) => `ce:user:${userId}:personal`,
   sub: 'ce:sub:stats',
 } as const;

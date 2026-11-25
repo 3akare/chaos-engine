@@ -8,7 +8,7 @@ import PACK_JSON from './pack.json';
 import type { Machine, Piece } from './types';
 import { W } from './types';
 
-export const PACK = PACK_JSON as Machine[];
+export const PACK = PACK_JSON as unknown as Machine[];
 
 const mirrorPiece = (p: Piece): Piece => ({ ...p, x: W - p.x, a: p.type === 'fan' ? (540 - p.a) % 360 : (360 - p.a) % 360 });
 

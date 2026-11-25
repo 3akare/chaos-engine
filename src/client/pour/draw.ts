@@ -1,6 +1,6 @@
 /** Drawing the machine, the pieces and the balls on a 2D canvas, sharp at any pixel ratio. */
 import { sprite } from '../assets';
-import { Pour } from '../../shared/pour/sim';
+import type { Pour } from '../../shared/pour/sim';
 import { BALL_R, H, type Machine, type Piece, W } from '../../shared/pour/types';
 
 export const INK = '#353541';
@@ -325,85 +325,4 @@ export function drawStill(canvas: HTMLCanvasElement, machine: Machine, pieces: r
   const v = new View(canvas);
   v.resize();
   v.render({ machine, pieces, pour: null, flashes: new Map(), count: null, pops: [], now: 0 });
-}
-
-/**
- * A machine pouring on a loop (the feed card). Pauses while off screen or hidden, and draws a
- * still frame for people who prefer less motion. Returns a stop function.
- */
-export function livePour(canvas: HTMLCanvasElement, machine: Machine, pieces: readonly Piece[]): () => void {
-  const v = new View(canvas);
-  v.alignBottom = true;
-  const flashes = new Map<unknown, number>();
-  let pops: Scene['pops'] = [];
-  let pour = new Pour(machine, pieces);
-  let restartAt = 0;
-  let last = performance.now();
-  let acc = 0;
-  let visible = true;
-  let raf = 0;
-  const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  const draw = (now: number): void => v.render({ machine, pieces, pour: still ? null : pour, flashes, count: still ? null : pour.caught, pops, now, bare: true });
-  const frame = (now: number): void => {
-    raf = 0;
-    if (!visible || document.hidden) return;
-    const dt = Math.min(100, now - last);
-    last = now;
-    if (pour.done) {
-      if (!restartAt) restartAt = now + 1800;
-      else if (now > restartAt) {
-        pour = new Pour(machine, pieces);
-        restartAt = 0;
-      }
-    } else {
-      acc += dt;
-      let n = 0;
-      while (acc >= 1000 / 60 && !pour.done && n < 4) {
-        pour.step();
-        for (const e of pour.events)
-          if (e.k === 'catch') {
-            flashes.set('count', 1);
-            flashes.set('bucket', 1);
-            pops.push({ x: e.x, y: e.y - 10, t: now });
-          } else if (e.k === 'spring' || e.k === 'bumper') flashes.set(e.piece, 1);
-        pour.events.length = 0;
-        acc -= 1000 / 60;
-        n++;
-      }
-      if (n >= 4) acc = 0;
-    }
-    draw(now);
-    pops = pops.filter((q) => now - q.t < 600);
-    for (const [k, val] of flashes) {
-      if (val - 0.08 <= 0) flashes.delete(k);
-      else flashes.set(k, val - 0.08);
-    }
-    raf = requestAnimationFrame(frame);
-  };
-  const wake = (): void => {
-    if (!raf && visible && !document.hidden && !still) {
-      last = performance.now();
-      raf = requestAnimationFrame(frame);
-    }
-  };
-  const ro = new ResizeObserver(() => {
-    v.resize();
-    draw(performance.now());
-  });
-  ro.observe(canvas);
-  const io = new IntersectionObserver((es) => {
-    visible = es.some((e) => e.isIntersecting);
-    wake();
-  });
-  io.observe(canvas);
-  document.addEventListener('visibilitychange', wake);
-  v.resize();
-  draw(performance.now());
-  wake();
-  return () => {
-    ro.disconnect();
-    io.disconnect();
-    document.removeEventListener('visibilitychange', wake);
-    if (raf) cancelAnimationFrame(raf);
-  };
 }
