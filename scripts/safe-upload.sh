@@ -1,38 +1,36 @@
 #!/bin/sh
-# Upload a new version of Chaos Engine, refusing anything that could create a subreddit.
+# Put Chaos Engine on Reddit in one go: log in, create the app the first time, upload, install.
 #
-# `devvit upload` creates a new app AND a new playtest subreddit when it can't find the app
-# under your account (that is what got the account suspended once). This script only uploads
-# when the existing app is listed under the logged-in account and devvit.json still names the
-# existing test subreddit. It never runs `devvit playtest`, never installs, never posts.
+#   sh scripts/safe-upload.sh r/YourCommunity
 #
-#   sh scripts/safe-upload.sh
+# Uses only Reddit's own devvit tool. It never posts as you. The first upload of a new app makes
+# Reddit's tool create the app and a small playtest subreddit (that is how Devvit works); every
+# later run just uploads a new version and updates the install.
 set -e
 cd "$(dirname "$0")/.."
-APP=chaos-engine-game
-SUB=chaos_engine_game_dev
+SUB=$(printf '%s' "${1:-}" | sed 's#^/*r/##')
+if [ -z "$SUB" ]; then
+  echo "Which community should the game go on?  sh scripts/safe-upload.sh r/YourCommunity"
+  exit 1
+fi
 
 if ! npx devvit whoami >/dev/null 2>&1; then
-  echo "Not logged in. Run:  npx devvit login --copy-paste   then run this again."
-  exit 1
+  echo "Step 1: log in. Open the link below, tap Allow, paste the code here."
+  npx devvit login --copy-paste
 fi
 echo "Logged in as: $(npx devvit whoami 2>&1 | tail -1)"
 
-if ! grep -q "\"subreddit\": \"$SUB\"" devvit.json; then
-  echo "STOP: devvit.json no longer names r/$SUB as the test subreddit. Not uploading."
-  exit 1
+APP=$(node -e "console.log(require('./devvit.json').name)")
+if ! npx devvit list apps 2>&1 | grep -q "$APP"; then
+  echo ""
+  echo "First time: the app doesn't exist yet."
+  echo "Open https://developers.reddit.com/new , name the app (e.g. $APP), copy the code it gives you,"
+  echo "and paste it when asked below. Reddit's tool will also create a small playtest subreddit."
+  printf "Press Enter to continue (Ctrl+C to stop) "
+  read _
 fi
-
-APPS=$(npx devvit list apps 2>&1 || true)
-if ! printf '%s' "$APPS" | grep -q "$APP"; then
-  echo "STOP: the app '$APP' is not listed under this account."
-  echo "Uploading now would create a NEW app and a NEW subreddit. Not uploading."
-  printf '%s\n' "$APPS"
-  exit 1
-fi
-echo "Found '$APP' under this account. Checking the code..."
 
 npm run check
-echo "Uploading a new private version (no subreddit is created, nothing is posted)..."
 npx devvit upload
-echo "Done. To update the test subreddit, install the new version from developers.reddit.com/apps/$APP"
+npx devvit install "$SUB"
+echo "Done: the game is on r/$SUB. Its first post comes from the app's own account within a few minutes."
