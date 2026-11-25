@@ -1,7 +1,7 @@
 /**
  * The post in the feed, top to bottom:
  * - the logo, with Practice as a small pill in the corner;
- * - one big call to action, "Pour today" (on a closed day, "See the solution");
+ * - one big call to action, "Start the chaos" (on a closed day, "See the solution");
  * - the community goal: what everyone's best pours add up to, against the next rating;
  * - the leaderboard: the top 3, and you under them if you're further down.
  * Taps open the game in expanded mode. (In code and storage the two modes are still called
@@ -73,7 +73,7 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode:
       : list[0]
         ? `Top score ${list[0].score} · ${fmt(totals.players)} playing`
         : '100 balls · one bucket · same machine for all';
-  const label = closed ? 'See the solution' : 'Pour today';
+  const label = closed ? 'See the solution' : 'Start the chaos';
   const cta = el('button', 'cta', el('span', 'txt', el('span', 'lbl', label), el('span', 'sub', sub)), el('span', 'play', img(icon('right'))));
   cta.setAttribute('aria-label', `${label}. ${sub}`);
   cta.addEventListener('click', (e) => open(e, 'group'));

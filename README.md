@@ -7,7 +7,7 @@ Each machine has a chute at the top, a bucket at the bottom, and ledges, pegs an
 
 The post, top to bottom:
 
-- **Pour today**: the main button. Today's machine, the same for the whole subreddit. Your best pour of the day goes on **today's leaderboard** (most balls wins; on a tie, whoever got there first) and shows in the top corner of the game. At **02:00 UTC** the board closes, a results comment goes up with the day's rating, and the next machine opens in a new post: one new game a day. Builds stay hidden until then.
+- **Start the chaos**: the main button. Today's machine, the same for the whole subreddit. Your best pour of the day goes on **today's leaderboard** (most balls wins; on a tie, whoever got there first) and shows in the top corner of the game. At **02:00 UTC** the board closes, a results comment goes up with the day's rating, and the next machine opens in a new post: one new game a day. Builds stay hidden until then.
 - **The community goal**: everyone's best pours added up, against the next rating (Good, Great, Super, Extreme), sized to how many played. The bar's colour runs through the ball colours as it fills: red, then yellow at Good, green at Great, blue at Super, purple at Extreme.
 - **Today's leaderboard**: the top 3, and you under them if you're further down.
 - **Practice**, a small pill in the corner: levels that teach the pieces, in order. A star opens the next level. Your stars are saved to your account.
