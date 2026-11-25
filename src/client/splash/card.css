@@ -5,12 +5,12 @@
   --ink: #353541;
   container-type: size;
   position: relative; height: 100%; overflow: hidden;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  padding: 16px 18px;
-  color: var(--ink); font: 800 14px/1.2 'Nunito Variable', 'Nunito', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  padding: 20px 22px;
+  color: var(--ink); font: 800 15px/1.3 'Nunito Variable', 'Nunito', system-ui, sans-serif; -webkit-font-smoothing: antialiased;
   background: url(../assets/bg_clouds.png) repeat-x left bottom / 220px 220px, linear-gradient(180deg, #3d9df2 0%, #6cbcf7 55%, #bfe3ff 100%);
 }
-.ce-card > :not(.rain) { position: relative; width: 100%; max-width: 420px; }
+.ce-card > :not(.rain) { position: relative; width: 100%; max-width: 440px; }
 .ce-card b, .ce-card .lbl, .ce-card .lbh { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; }
 
 /* Balls drifting down behind everything. */
@@ -27,51 +27,61 @@
 @keyframes drop { to { transform: translateY(560px) rotate(540deg); } }
 
 .ce-card .logo { display: flex; flex-direction: column; align-items: center; line-height: 0.85; transform: rotate(-3deg); }
-.ce-card .logo b { font-size: 50px; color: #fff; -webkit-text-stroke: 9px var(--ink); paint-order: stroke fill; }
+.ce-card .logo b { font-size: 56px; color: #fff; -webkit-text-stroke: 10px var(--ink); paint-order: stroke fill; }
 .ce-card .logo b + b { color: #ffc851; }
-.ce-card .tag { text-align: center; color: #fff; font-size: 14px; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
+.ce-card .tag { margin-top: -4px; text-align: center; color: #fff; font-size: 15px; letter-spacing: 0.01em; text-wrap: balance; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
 
 /* Two big buttons. */
-.ce-card .modes { display: flex; flex-direction: column; gap: 10px; }
-.ce-card .mode { display: flex; align-items: center; gap: 12px; width: 100%; height: 72px; padding: 0 14px 0 12px; border-radius: 20px; border: 4px solid var(--ink); color: #fff; text-align: left; cursor: pointer; font: inherit; }
-.ce-card .mode.personal { background: #419fdd; box-shadow: inset 0 -6px 0 #366fbf; }
-.ce-card .mode.group { background: #2ecc71; box-shadow: inset 0 -6px 0 #1aa074; }
+.ce-card .modes { display: flex; flex-direction: column; gap: 12px; }
+.ce-card .mode { display: flex; align-items: center; gap: 14px; width: 100%; height: 80px; padding: 0 18px 0 14px; border-radius: 22px; border: 4px solid var(--ink); color: #fff; text-align: left; cursor: pointer; font: inherit; }
+.ce-card .mode.personal { background: #419fdd; box-shadow: inset 0 -6px 0 #366fbf, 0 8px 18px rgba(18, 52, 104, 0.22); }
+.ce-card .mode.group { background: #2ecc71; box-shadow: inset 0 -6px 0 #1aa074, 0 8px 18px rgba(18, 52, 104, 0.22); }
 .ce-card .mode:active { transform: translateY(2px); }
-.ce-card .mode .ic { width: 40px; height: 40px; flex: none; padding: 6px; border-radius: 12px; background: rgba(0, 0, 0, 0.16); }
-.ce-card .mode .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ce-card .mode .lbl { font-size: 27px; line-height: 1; -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; }
-.ce-card .mode .sub { font-size: 13.5px; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ce-card .mode .go { width: 24px; height: 24px; flex: none; opacity: 0.9; }
+.ce-card .mode .ic { width: 48px; height: 48px; flex: none; padding: 8px; border-radius: 14px; background: rgba(0, 0, 0, 0.16); }
+.ce-card .mode .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ce-card .mode .lbl { font-size: 30px; line-height: 1; letter-spacing: 0.02em; -webkit-text-stroke: 6.5px var(--ink); paint-order: stroke fill; }
+.ce-card .mode .sub { font-size: 14.5px; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ce-card .mode .go { width: 26px; height: 26px; flex: none; opacity: 0.9; }
 .ce-card .subrow { display: inline-flex; align-items: center; gap: 4px; }
-.ce-card .subrow .st { width: 16px; height: 16px; }
+.ce-card .subrow .st { width: 17px; height: 17px; }
 
 /* The leaderboard, once you've played Daily. */
-.ce-card .lb { border-radius: 18px; background: #fff; border: 4px solid var(--ink); box-shadow: inset 0 -5px 0 #dbe5ee; padding: 8px 10px 10px; }
-.ce-card .lbh { display: flex; justify-content: space-between; font-size: 15px; padding: 0 4px 6px; }
-.ce-card .lbh span + span { color: #6b7a90; font-family: 'Nunito Variable', 'Nunito', system-ui, sans-serif; font-weight: 800; font-size: 12.5px; }
-.ce-card ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
-.ce-card li { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px 0 4px; border-radius: 10px; background: #eef4fa; }
+.ce-card .lb { border-radius: 22px; background: #fff; border: 4px solid var(--ink); box-shadow: inset 0 -5px 0 #dbe5ee, 0 8px 18px rgba(18, 52, 104, 0.22); padding: 12px 14px 16px; }
+.ce-card .lbh { display: flex; justify-content: space-between; align-items: baseline; font-size: 17px; padding: 0 4px 10px; }
+.ce-card .lbh span + span { color: #6b7a90; font-family: 'Nunito Variable', 'Nunito', system-ui, sans-serif; font-weight: 800; font-size: 13.5px; }
+.ce-card ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.ce-card li { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 14px 0 6px; border-radius: 12px; background: #eef4fa; }
 .ce-card li.me { background: #fff3cf; box-shadow: inset 0 0 0 3px #ffc851; }
-.ce-card .rk { width: 22px; height: 22px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #6b7a90; flex: none; }
+.ce-card .rk { width: 26px; height: 26px; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #6b7a90; flex: none; }
 .ce-card .rk.r1, .ce-card .rk.r2, .ce-card .rk.r3 { color: #fff; border: 2.5px solid var(--ink); -webkit-text-stroke: 2.5px var(--ink); paint-order: stroke fill; }
 .ce-card .rk.r1 { background: #ffc851; }
 .ce-card .rk.r2 { background: #c9d6e2; }
 .ce-card .rk.r3 { background: #e0915a; }
 .ce-card .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ce-card .sc { font-size: 18px; }
-.ce-card .tease { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 12px; border-radius: 16px; background: rgba(255, 255, 255, 0.92); border: 3px solid var(--ink); text-align: center; }
-.ce-card .tease .tr { width: 26px; height: 26px; padding: 3px; border-radius: 8px; background: #ffc851; flex: none; }
-.ce-card .tease b { font-size: 17px; }
+.ce-card .sc { font-size: 20px; }
+.ce-card .tease { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 16px; border-radius: 18px; background: rgba(255, 255, 255, 0.94); border: 3px solid var(--ink); box-shadow: 0 8px 18px rgba(18, 52, 104, 0.2); text-align: center; text-wrap: balance; }
+.ce-card .tease .tr { width: 30px; height: 30px; padding: 4px; border-radius: 9px; background: #ffc851; flex: none; }
+.ce-card .tease b { font-size: 18px; }
 
 @media (prefers-reduced-motion: reduce) { .ce-card .rain { display: none; } }
 
 /* Regular-height posts (320px): smaller logo, no tagline, the leaderboard shrinks to your row. */
 @container (max-height: 420px) {
-  .ce-card .logo b { font-size: 34px; -webkit-text-stroke: 7px var(--ink); }
+  .ce-card { gap: 8px; padding: 12px 18px; }
+  .ce-card .logo b { font-size: 31px; -webkit-text-stroke: 6px var(--ink); }
   .ce-card .tag { display: none; }
-  .ce-card .mode { height: 58px; }
-  .ce-card .mode .lbl { font-size: 22px; }
-  .ce-card .mode .ic { width: 34px; height: 34px; }
+  .ce-card .modes { gap: 8px; }
+  .ce-card .mode { height: 56px; border-radius: 18px; padding: 0 14px 0 10px; }
+  .ce-card .mode .lbl { font-size: 23px; }
+  .ce-card .mode .sub { font-size: 13px; }
+  .ce-card .mode .txt { gap: 2px; }
+  .ce-card .mode .ic { width: 36px; height: 36px; padding: 6px; border-radius: 12px; }
   .ce-card .lb .lbh, .ce-card .lb li:not(.me):nth-child(n + 2) { display: none; }
-  .ce-card .lb { padding: 5px 7px; }
+  .ce-card .lb { padding: 5px 6px; border-radius: 16px; box-shadow: inset 0 -4px 0 #dbe5ee; }
+  .ce-card ol { gap: 4px; }
+  .ce-card li { height: 30px; }
+  .ce-card .rk { width: 24px; height: 24px; }
+  .ce-card .sc { font-size: 18px; }
+  .ce-card .tease { padding: 8px 12px; }
+  .ce-card .tease .tr { width: 26px; height: 26px; padding: 3px; }
 }

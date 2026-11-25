@@ -74,7 +74,7 @@ export class Game {
     this.level = Number.isInteger(saved) && saved >= 0 && saved < LEVELS.length && unlocked(this.personal, saved) ? saved : this.firstOpenLevel();
     this.view.resize();
     this.enter(this.play);
-    if (!store('ce_seen_tip')) this.say('Drag pieces onto the board, then press Pour', 4500);
+    if (this.mode === 'build' && !store('ce_seen_tip')) this.say('Drag pieces onto the board, then press Pour', 4500);
     this.last = performance.now();
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -192,9 +192,11 @@ export class Game {
       if (this.mode === 'replay') kids.push(h('button', { class: 'wide', onclick: () => this.skip() }, ico('fastForward'), 'Skip to the end'));
       else {
         const sol = this.v.solution;
-        if (sol) kids.push(h('button', { class: 'wide yellow', onclick: () => this.replay(sol.build) }, ico('star'), sol.score === BALLS ? 'Solution: all 100' : 'Best known'));
+        if (sol) kids.push(h('button', { class: 'wide yellow', onclick: () => this.replay(sol.build) }, ico('star'), sol.score === BALLS ? 'Solution' : 'Best known'));
         if (w) kids.push(h('button', { class: 'wide', onclick: () => this.replay(w.build) }, ico('trophy'), 'Winner'));
         if (this.v.me.build) kids.push(h('button', { class: 'wide', onclick: () => this.replay(this.v.me.build!) }, ico('right'), 'Mine'));
+        // Two or three replay buttons share the bar: icon over label, like the tools.
+        if (kids.length > 1) for (const k of kids) k.classList.add('stack');
       }
       const url = this.v.current.url;
       if (url && this.v.current.dayNumber !== this.v.day.dayNumber) kids.push(h('button', { class: 'go', 'aria-label': "Play today's machine", onclick: () => this.nav.navigateTo(url) }, ico('right'), 'Today'));
@@ -520,7 +522,16 @@ export class Game {
     const rows = v.board.map((e) => boardRow(e, e.username === v.me.username));
     if (v.me.rank && v.me.best !== null && !v.board.some((e) => e.username === v.me.username)) rows.push(h('li', { class: 'gap' }, '⋯'), boardRow({ rank: v.me.rank, username: v.me.username ?? 'you', score: v.me.best, at: 0 }, true));
     const list = h('ol', { class: 'board' }, ...rows);
-    requestAnimationFrame(() => list.querySelector('.me')?.scrollIntoView({ block: 'nearest' }));
+    // A long board scrolls; fade whichever edge has more rows behind it.
+    const edges = () => {
+      list.classList.toggle('above', list.scrollTop > 1);
+      list.classList.toggle('below', list.scrollTop + list.clientHeight < list.scrollHeight - 1);
+    };
+    list.addEventListener('scroll', edges, { passive: true });
+    requestAnimationFrame(() => {
+      list.querySelector('.me')?.scrollIntoView({ block: 'nearest' });
+      edges();
+    });
     const closed = this.closed();
     const foot = closed ? (v.result?.winner ? `Build of the Day: u/${v.result.winner.username}` : 'This machine has closed.') : `Builds are revealed when the day closes in ${until(v.day.locksAt - Date.now() - this.skew)}.`;
     this.card(
@@ -547,7 +558,7 @@ export class Game {
       h(
         'div',
         { class: 'row' },
-        sol ? h('button', { class: 'btn y', onclick: () => this.replay(sol.build) }, 'Watch the solution') : w ? h('button', { class: 'btn y', onclick: () => this.replay(w.build) }, 'Watch the winner') : null,
+        sol ? h('button', { class: 'btn y main', onclick: () => this.replay(sol.build) }, ico('right'), 'Watch it') : w ? h('button', { class: 'btn y main', onclick: () => this.replay(w.build) }, ico('right'), 'Watch it') : null,
         h('button', { class: 'btn b', onclick: () => this.closeCard() }, 'Close'),
       ),
     );
@@ -582,12 +593,14 @@ export function meter(t: Totals): HTMLElement {
     m.style.left = `${Math.round((tier.need / Math.max(1, top)) * 100)}%`;
     return m;
   });
-  // Each tier's name sits under its own mark, right-aligned to it.
+  // Each tier's name sits under its own mark, right-aligned to it; the top tier's name sits
+  // at the end of the bar, so it never runs into the one before.
   const names = h(
     'div',
     { class: 'tiers' },
     ...t.tiers.map((tier) => {
-      const s = h('span', { class: t.tier === tier.name ? 'on' : '' }, tier.name);
+      const last = tier === t.tiers[t.tiers.length - 1];
+      const s = h('span', { class: `${t.tier === tier.name ? 'on' : ''}${last ? ' end' : ''}` }, tier.name);
       s.style.left = `${Math.round((tier.need / Math.max(1, top)) * 100)}%`;
       return s;
     }),
@@ -612,10 +625,11 @@ export function meter(t: Totals): HTMLElement {
 function toolIcon(t: Tool): HTMLCanvasElement {
   const c = document.createElement('canvas');
   const s = Math.min(3, window.devicePixelRatio || 1);
-  c.width = 40 * s;
-  c.height = 34 * s;
+  // Drawn at 40 x 34 and shown at 44 x 37, so the canvas is made at the shown size.
+  c.width = Math.round(44 * s);
+  c.height = Math.round(37.4 * s);
   const g = c.getContext('2d')!;
-  g.scale(s, s);
+  g.scale(s * 1.1, s * 1.1);
   g.translate(20, 17);
   if (t === 'ramp') {
     g.rotate(-0.35);
