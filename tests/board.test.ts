@@ -76,7 +76,8 @@ describe('leaderboard', () => {
     expect((await api.as('alice').post('/api/pour', { postId: (await readMeta(env.store, dayId))!.postId, build: BUILD, claimed: 1 })).status).toBe(409);
     const day2 = (await readMeta(env.store, (await env.store.get(K.current))!))!;
     expect(day2.dayNumber).toBe(2);
-    expect(day2.goal).toBeGreaterThanOrEqual(2000);
+    expect(res.totals.players).toBe(1);
+    expect(res.totals.balls).toBe(real);
     const s = await api.as('bob').get('/api/state');
     expect(s.json.yesterday.winner).toBe('alice');
     // Running the tick again changes nothing.
@@ -95,5 +96,45 @@ describe('Personal progress', () => {
     expect((await api.as('bob').get('/api/state')).json.me.personal[0]).toBeNull();
     expect((await api.as('alice').post('/api/personal', { level: 99, claimed: 5 })).status).toBe(400);
     expect((await api.as('').post('/api/personal', { level: 0, claimed: 5 })).status).toBe(401);
+  });
+});
+
+describe('the daily goal', () => {
+  it('counts each player once, with their best pour, however often they pour', async () => {
+    const { env, api } = await setup();
+    const good = runPour(TEST_MACHINE, GOOD);
+    for (let i = 0; i < 4; i++) {
+      await api.as('alice').post('/api/pour', { build: GOOD, claimed: good });
+      env.clock.t += 3000;
+    }
+    await api.as('bob').post('/api/pour', { build: BUILD, claimed: runPour(TEST_MACHINE, BUILD) });
+    const s = await api.as('bob').get('/api/state');
+    expect(s.json.totals.pours).toBe(5);
+    expect(s.json.totals.players).toBe(2);
+    expect(s.json.totals.balls).toBe(good + runPour(TEST_MACHINE, BUILD));
+    expect(s.json.totals.tiers.map((x: { name: string }) => x.name)).toEqual(['Good', 'Great', 'Super', 'Extreme']);
+    expect(s.json.totals.tiers[0].need).toBeLessThanOrEqual(200);
+  });
+});
+
+describe('a closed day shows its solution', () => {
+  const SOLVED = { ...TEST_MACHINE, gen: { version: 1, best: 100, random: 3, par: [{ type: 'ramp' as const, x: 150, y: 250, a: 340 }] } };
+
+  it('never while the day is open, and once it has closed', async () => {
+    const env = makeDeps();
+    const dayId = await installWith(env, SOLVED);
+    const api = client(env);
+    const open = await api.as('bob').get('/api/state');
+    expect(open.json.solution).toBeNull();
+    expect(JSON.stringify(open.json)).not.toContain('"y":250');
+    await env.store.set(K.level(2), JSON.stringify({ ...TEST_MACHINE, name: 'Second' }));
+    await runNow(env.deps);
+    const postId = (await readMeta(env.store, dayId))!.postId!;
+    const closed = await api.as('bob').get(`/api/state?postId=${postId}`);
+    expect(closed.json.day.status).toBe('HANDED_OFF');
+    // The score shown is what the build really catches on that day's machine, poured on the server.
+    expect(closed.json.solution).toEqual({ build: SOLVED.gen.par, score: runPour(SOLVED, SOLVED.gen.par) });
+    // Today's (new) post still hides its own answer.
+    expect((await api.as('bob').get('/api/state')).json.solution).toBeNull();
   });
 });

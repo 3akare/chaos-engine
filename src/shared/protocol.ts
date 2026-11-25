@@ -1,4 +1,5 @@
 /** Wire types shared by client and server. */
+import type { Tier, TierName } from './goal';
 import type { Machine, Piece } from './pour/types';
 
 export type DayStatus = 'CREATING' | 'OPEN' | 'LOCKED' | 'RESOLVED' | 'COMMENTED' | 'HANDED_OFF';
@@ -8,13 +9,18 @@ export type PublicMachine = Omit<Machine, 'gen'>;
 
 export type Entry = { rank: number; username: string; score: number; at: number };
 
-export type Totals = { players: number; pours: number; balls: number; hundreds: number; goal: number };
+/**
+ * The day so far for the whole subreddit. `balls` adds up each player's best pour (at most 100
+ * each); `tiers` are the goals for that many players, and `tier` the highest one reached.
+ */
+export type Totals = { players: number; pours: number; balls: number; hundreds: number; tiers: Tier[]; tier: TierName | null };
 
 export type DayResult = {
   top: Entry[];
   /** Build of the Day: the top build, revealed once the day closes. */
   winner: { username: string; score: number; at: number; build: Piece[] } | null;
   totals: Totals;
+  /** True when the day reached at least the first tier. */
   goalMet: boolean;
   /** Days in a row the subreddit hit its goal, after this one. */
   streak: number;
@@ -36,7 +42,7 @@ export type DayView = {
     rank: number | null;
     pours: number;
     stats: UserStats;
-    /** Personal mode: best balls on each level (null = not played). */
+    /** Solo mode: best balls on each level (null = not played). */
     personal: (number | null)[];
   };
   /** Live top of today's leaderboard. */
@@ -47,6 +53,11 @@ export type DayView = {
   /** The newest Day's post, for "Play today's machine". */
   current: { dayNumber: number; postId: string | null; url: string | null };
   yesterday: { dayNumber: number; winner: string | null; score: number } | null;
+  /**
+   * Once this day has closed: the best build known for its machine, to watch. Never sent while
+   * the day is open.
+   */
+  solution: { build: Piece[]; score: number } | null;
   serverNow: number;
 };
 

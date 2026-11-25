@@ -40,21 +40,14 @@
   "menu": {
     "items": [
       {
-        "label": "Chaos Engine: Run now",
-        "description": "Close today's machine now, post results, open the next one",
-        "location": "subreddit",
-        "forUserType": "moderator",
-        "endpoint": "/internal/menu/run-now"
-      },
-      {
         "label": "Chaos Engine: New post for today",
-        "description": "Recreate today's post if it was deleted",
+        "description": "Only if today's post was deleted: posts today's game again",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/new-post"
       },
       {
-        "label": "Chaos Engine: Remove a score\u2026",
+        "label": "Chaos Engine: Remove a score…",
         "description": "Take a player off today's leaderboard",
         "location": "subreddit",
         "forUserType": "moderator",

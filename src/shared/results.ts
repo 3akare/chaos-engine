@@ -17,9 +17,15 @@ export function resultsComment(dayNumber: number, name: string, r: DayResult): s
     lines.push(r.top.slice(0, 5).map((e, i) => `${MEDAL[i] ?? `${e.rank}.`} u/${e.username} **${e.score}**`).join(' · '), '');
   } else lines.push('Nobody poured today. The next machine is open now.', '');
   const t = r.totals;
-  lines.push(
-    `Together: **${fmt(t.balls)}** balls caught in ${fmt(t.pours)} pours by ${fmt(t.players)} ${t.players === 1 ? 'player' : 'players'}. Goal ${fmt(t.goal)}: ${r.goalMet ? `**done!**${r.streak > 1 ? ` That's ${r.streak} days in a row.` : ''}` : 'not this time.'}`,
-  );
+  if (t.players) {
+    const first = t.tiers[0];
+    const rating = t.tier
+      ? `Today's rating: **${t.tier}!**${r.streak > 1 ? ` That's ${r.streak} days in a row at Good or better.` : ''}`
+      : `No rating today: ${fmt(first?.need ?? 0)} was needed for Good.`;
+    lines.push(
+      `Together: ${fmt(t.players)} ${t.players === 1 ? 'player' : 'players'} caught **${fmt(t.balls)}** between them, counting each player's best pour. ${rating}`,
+    );
+  }
   if (t.hundreds) lines.push('', `${t.hundreds} ${t.hundreds === 1 ? 'player' : 'players'} caught all 100.`);
   lines.push('', 'A new machine is open now. Same 100 balls, new course.');
   return lines.join('\n');

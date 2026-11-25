@@ -41,6 +41,9 @@ export function nextLockAt(fromMs: number, hourUtc: number): number {
   return t;
 }
 
+/** Every daily game post's title starts with this. */
+export const DAY_TITLE_PREFIX = 'Chaos Engine · Day ';
+
 /** Post title with the recovery marker (§2.1, §8). Never change the "Chaos Engine · Day N" prefix. */
 export const dayTitleMarker = (n: number): string => `Chaos Engine · Day ${n}`;
 export const dayTitle = (n: number, name: string): string => `${dayTitleMarker(n)} · ${name}`;

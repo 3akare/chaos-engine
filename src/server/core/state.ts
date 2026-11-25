@@ -2,10 +2,27 @@
 import type { DayResult, DayView } from '../../shared/protocol';
 import type { Deps, RequestCtx } from './deps';
 import { currentDayId, dayIdForPost, readMachine, readMeta, readSubStats, readUserStats } from './day';
-import { bestBuild, rankOf, readBest, readTotals, topEntries } from './board';
+import { bestBuild, ceilingOf, rankOf, readBest, readTotals, topEntries } from './board';
 import { K } from './keys';
 import { publicMachine } from './machines';
 import { readPersonal } from './personal';
+import { runPour } from '../../shared/pour/sim';
+import type { Machine } from '../../shared/pour/types';
+
+/**
+ * The solution for a closed day: the machine's best known build and what it really catches on
+ * that day's machine (later days reuse machines mirrored or with a new wobble, so the stored
+ * number can't be trusted). Poured once, then kept.
+ */
+async function closedSolution(deps: Deps, dayId: string, machine: Machine): Promise<DayView['solution']> {
+  const par = machine.gen?.par;
+  if (!par) return null;
+  const saved = await deps.store.get(K.solution(dayId));
+  if (saved) return JSON.parse(saved) as DayView['solution'];
+  const solution = { build: par, score: runPour(machine, par) };
+  await deps.store.set(K.solution(dayId), JSON.stringify(solution));
+  return solution;
+}
 
 export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | undefined): Promise<DayView | null> {
   const { store } = deps;
@@ -22,7 +39,7 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
     userId ? store.hGet(K.pours(dayId), userId) : Promise.resolve(undefined),
     readUserStats(store, userId ?? '-'),
     topEntries(deps, dayId),
-    readTotals(deps, dayId, meta.goal),
+    readTotals(deps, dayId, ceilingOf(machine)),
     readSubStats(store),
   ]);
   const personal = await readPersonal(deps, userId);
@@ -51,6 +68,8 @@ export async function buildView(deps: Deps, ctx: RequestCtx, postId: string | un
     sub,
     current: { dayNumber: cur?.dayNumber ?? meta.dayNumber, postId: cur?.postId ?? null, url: cur?.postId ? deps.reddit.postUrl(cur.postId) : null },
     yesterday,
+    // The answer only once the day can no longer be played.
+    solution: meta.status !== 'OPEN' && meta.status !== 'CREATING' ? await closedSolution(deps, dayId, machine) : null,
     serverNow: deps.now(),
   };
 }

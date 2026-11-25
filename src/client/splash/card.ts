@@ -1,6 +1,7 @@
 /**
- * The post in the feed: the game's name and two big buttons, Personal and Group.
- * Once you've played Group today, the top of the leaderboard and your rank show under them.
+ * The post in the feed: the game's name and two big buttons, Solo and Daily.
+ * Once you've played Daily today, the top of the leaderboard and your rank show under them.
+ * (In code and storage the two are still called 'personal' and 'group'.)
  */
 import { LEVELS, starsFor } from '../../shared/pour/levels';
 import type { DayView, Entry } from '../../shared/protocol';
@@ -59,7 +60,13 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode:
   // Group: today's machine and where you stand.
   const list = v.result ? v.result.top : v.board;
   const totals = v.result?.totals ?? v.totals;
-  const groupSub = closed ? `Day ${v.day.dayNumber} is over` : v.me.best !== null ? `Your best ${v.me.best}${v.me.rank ? ` · #${v.me.rank}` : ''}` : totals.players ? `${fmt(totals.players)} playing today` : 'Today’s machine';
+  const groupSub = closed
+    ? `Day ${v.day.dayNumber} is closed · see the solution`
+    : v.me.best !== null
+      ? `Your best ${v.me.best}${v.me.rank ? ` · #${v.me.rank}` : ''}`
+      : totals.players
+        ? `${fmt(totals.players)} playing today`
+        : 'Same machine for everyone';
 
   const btn = (mode: OpenMode, label: string, sub: Node | string, ic: string): HTMLElement => {
     const b = el('button', `mode ${mode}`, img(icon(ic), 'ic'), el('span', 'txt', el('span', 'lbl', label), el('span', 'sub', sub)), img(icon('arrowRight'), 'go'));
@@ -68,7 +75,7 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode:
     return b;
   };
 
-  // Under the buttons: the leaderboard once you've played Group (or once the day is over).
+  // Under the buttons: the leaderboard once you've played Daily (or once the day is over).
   let below: HTMLElement;
   if ((v.me.best !== null || closed) && list.length) {
     const rows = list.slice(0, 3).map((e) => row(e, e.username === v.me.username));
@@ -83,7 +90,7 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode:
     balls,
     el('div', 'logo', el('b', '', 'Chaos'), el('b', '', 'Engine')),
     el('div', 'tag', '100 balls. One bucket. Catch them all.'),
-    el('div', 'modes', btn('personal', 'Personal', personalSub, 'star'), btn('group', 'Group', groupSub, 'trophy')),
+    el('div', 'modes', btn('personal', 'Solo', personalSub, 'star'), btn('group', 'Daily', groupSub, 'trophy')),
     below,
   );
 }

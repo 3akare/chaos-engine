@@ -22,10 +22,12 @@ export const K = {
   /** Short cooldown between submitted pours. */
   cool: (dayId: string, userId: string) => `ce2:day:${dayId}:cool:${userId}`,
   result: (dayId: string) => `ce2:day:${dayId}:result`,
+  /** A closed day's solution: the machine's best known build, poured once on that exact machine. */
+  solution: (dayId: string) => `ce2:day:${dayId}:solution`,
   post: (postId: string) => `ce2:post:${postId}`,
   dayByNumber: (n: number) => `ce2:daynum:${n}`,
   userStats: (userId: string) => `ce2:user:${userId}:stats`,
-  /** Personal mode: hash level index → best balls caught. */
+  /** Solo mode: hash level index → best balls caught. */
   personal: (userId: string) => `ce2:user:${userId}:personal`,
   sub: 'ce2:sub:stats',
 } as const;

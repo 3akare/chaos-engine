@@ -7,10 +7,12 @@ Each machine has a chute at the top, a bucket at the bottom, and ledges, pegs an
 
 The post has two buttons:
 
-- **Personal**: levels to beat in order, at your own pace. A star opens the next level. Your stars are saved to your account.
-- **Group**: today's machine, the same for the whole subreddit. Your best pour of the day goes on **today's leaderboard** (most balls wins; on a tie, whoever got there first). Every ball anyone catches adds to the subreddit's goal for the day. At **02:00 UTC** the board closes, the winning build is revealed (anyone can watch it pour), a results comment goes up, and the next machine opens. Builds stay hidden until then.
+- **Solo**: levels to beat on your own, in order, at your own pace. A star opens the next level. Your stars are saved to your account.
+- **Daily**: today's machine, the same for the whole subreddit. Your best pour of the day goes on **today's leaderboard** (most balls wins; on a tie, whoever got there first) and shows in the top corner of the game. Everyone's best pours add up toward the subreddit's goal for the day. At **02:00 UTC** the board closes, a results comment goes up, and the next machine opens in a new post: one new game a day. Builds stay hidden until then.
 
-Once you've played Group, the post shows the leaderboard under the two buttons. You can switch between Personal and Group inside the game too.
+Once you've played Daily, the post shows the leaderboard under the two buttons. You can switch between Solo and Daily inside the game too.
+
+**Yesterday's posts** are closed: you can't pour any more, but you can watch the solution (the best build known for that machine, poured on it), the winner's build and your own.
 
 <p align="center">
   <img src="docs/img/card.png" width="380" alt="The post: Personal and Group buttons, and today's leaderboard" />
@@ -61,13 +63,14 @@ OPEN ──02:00 UTC──▶ LOCKED ──▶ RESOLVED ──▶ COMMENTED ─�
 
 A scheduler job runs every 10 minutes and advances whatever is due. Each stage saves its own state and is safe to repeat, so a crash in the middle just picks up on the next run. Posts and comments are found again by their title marker before anything new is created, so nothing is posted twice.
 
-The daily goal is 10% more than the subreddit caught the day before (at least 2,000 balls). Days in a row with the goal met are the subreddit's streak.
+**The daily goal** counts each player once, with their best pour of the day (so at most 100 each; pouring again and again doesn't pump it). It has four tiers, **Good, Great, Super and Extreme**, sized to how many played that day: each tier is "everyone averages 35% / 55% / 75% / 90% of the best score known for the machine". So one player alone can reach every tier, and a hard machine asks for less. Days in a row at Good or better are the subreddit's streak.
+
+**One new game a day.** The first game is posted when the app is installed, unless the app has already posted a game since the last 02:00 UTC (for example an upgrade from a version that kept its data elsewhere): then it waits for the next 02:00. If the check itself fails, it also waits.
 
 ## Moderator menu
 
 | Item | What it does |
 |---|---|
-| Run now | Close today's machine now, post results, open the next one. |
 | New post for today | Recreate today's post if it was deleted. |
 | Remove a score… | Take a player off today's leaderboard. |
 | How hard is today? | What the generator's own search caught on today's machine. |

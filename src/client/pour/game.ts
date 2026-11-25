@@ -1,7 +1,8 @@
 /**
  * The game screen. Two ways to play:
- * - Personal: levels in order, stars for 25 / 50 / 75 balls, a star opens the next level;
- * - Group: today's machine for the whole subreddit, your best on the leaderboard.
+ * - Solo: levels to beat on your own, in order; stars for 25 / 50 / 75 balls, a star opens the next level;
+ * - Daily: today's machine, the same for the whole subreddit, your best on the leaderboard.
+ * (In code and storage the two are still called 'personal' and 'group'.)
  * Physics runs here at a fixed 1/60 s step with the same code the server uses to check scores.
  */
 import { fitPiece, snap } from '../../shared/pour/build';
@@ -141,19 +142,25 @@ export class Game {
   private renderTop(): void {
     const tab = (p: Play, label: string): HTMLElement =>
       h('button', { class: `tab${this.play === p ? ' on' : ''}`, role: 'tab', 'aria-selected': this.play === p ? 'true' : 'false', onclick: () => this.play !== p && this.enter(p) }, label);
-    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('personal', 'Personal'), tab('group', 'Group'));
+    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('personal', 'Solo'), tab('group', 'Daily'));
     let right: HTMLElement;
     if (this.play === 'personal') {
       const best = this.personal[this.level] ?? null;
-      right = h('button', { class: 'chip rank', 'aria-label': `Level ${this.level + 1}. Choose a level`, onclick: () => this.showLevels() }, h('span', { class: 'n' }, `Lv ${this.level + 1}`), starRow(best === null ? 0 : starsFor(best), 'mini'));
+      right = h(
+        'button',
+        { class: 'chip rank', 'aria-label': `Level ${this.level + 1}. Your best ${best ?? 'none yet'}. Choose a level`, onclick: () => this.showLevels() },
+        h('span', { class: 'n' }, `Lv ${this.level + 1}`),
+        starRow(best === null ? 0 : starsFor(best), 'mini'),
+        h('span', { class: 'best' }, h('small', {}, 'Best'), best === null ? '–' : String(best)),
+      );
     } else {
       const me = this.v.me;
       const best = me.best === null ? '–' : String(me.best);
       right = h(
         'button',
-        { class: 'chip rank', 'aria-label': `Leaderboard. Your best ${best}${me.rank ? `, rank ${me.rank}` : ''}`, onclick: () => this.showBoard() },
-        ico('trophy', 'trophy'),
-        h('span', { class: 'n' }, best),
+        { class: 'chip rank', 'aria-label': `Leaderboard. Your best today ${best}${me.rank ? `, rank ${me.rank}` : ''}`, onclick: () => this.showBoard() },
+        starRow(me.best === null ? 0 : starsFor(me.best), 'mini'),
+        h('span', { class: 'best' }, h('small', {}, 'Best'), best),
         me.rank ? h('span', { class: 'r' }, `#${me.rank}`) : null,
       );
     }
@@ -184,8 +191,10 @@ export class Game {
       const w = this.v.result?.winner;
       if (this.mode === 'replay') kids.push(h('button', { class: 'wide', onclick: () => this.skip() }, ico('fastForward'), 'Skip to the end'));
       else {
-        if (w) kids.push(h('button', { class: 'wide yellow', onclick: () => this.replay(w.build) }, ico('trophy'), 'Watch the winner'));
-        if (this.v.me.build) kids.push(h('button', { class: 'wide', onclick: () => this.replay(this.v.me.build!) }, ico('right'), 'Watch mine'));
+        const sol = this.v.solution;
+        if (sol) kids.push(h('button', { class: 'wide yellow', onclick: () => this.replay(sol.build) }, ico('star'), sol.score === BALLS ? 'Solution: all 100' : 'Best known'));
+        if (w) kids.push(h('button', { class: 'wide', onclick: () => this.replay(w.build) }, ico('trophy'), 'Winner'));
+        if (this.v.me.build) kids.push(h('button', { class: 'wide', onclick: () => this.replay(this.v.me.build!) }, ico('right'), 'Mine'));
       }
       const url = this.v.current.url;
       if (url && this.v.current.dayNumber !== this.v.day.dayNumber) kids.push(h('button', { class: 'go', 'aria-label': "Play today's machine", onclick: () => this.nav.navigateTo(url) }, ico('right'), 'Today'));
@@ -392,7 +401,7 @@ export class Game {
 
   private finishReplay(n: number): void {
     const w = this.v.result?.winner;
-    const whose = this.replayOf === w?.build ? `u/${w.username}` : 'Your best build';
+    const whose = this.replayOf === this.v.solution?.build ? 'The solution' : this.replayOf === w?.build ? `u/${w.username}` : 'Your best build';
     this.endReplay();
     this.card(h('h2', {}, whose), h('div', { class: 'big' }, String(n), h('small', {}, `/${BALLS}`)), h('div', { class: 'row' }, h('button', { class: 'btn b', onclick: () => this.closeCard() }, 'Close')));
   }
@@ -452,7 +461,7 @@ export class Game {
         'div',
         { class: 'row' },
         h('button', { class: 'btn b', onclick: () => this.toBuild() }, 'Tweak'),
-        nextOk ? h('button', { class: 'btn g', onclick: () => this.enter('personal', i + 1) }, 'Next level') : h('button', { class: 'btn g', onclick: () => this.enter('group') }, 'Play Group'),
+        nextOk ? h('button', { class: 'btn g', onclick: () => this.enter('personal', i + 1) }, 'Next level') : h('button', { class: 'btn g', onclick: () => this.enter('group') }, 'Play Daily'),
       ),
     );
     this.renderTop();
@@ -526,12 +535,21 @@ export class Game {
   private showClosed(): void {
     const r = this.v.result;
     const w = r?.winner;
+    const sol = this.v.solution;
     this.card(
-      h('h2', {}, `Day ${this.v.day.dayNumber} is over`),
+      h('h2', {}, `Day ${this.v.day.dayNumber} is closed`),
+      sol
+        ? h('p', {}, sol.score === BALLS ? 'Watch a build that catches all 100 balls.' : `Watch the best build we know: it catches ${sol.score} of 100.`)
+        : null,
       w ? h('div', { class: 'winner' }, ico('trophy'), h('span', {}, `u/${w.username}`), h('b', {}, String(w.score))) : h('p', {}, this.v.day.status === 'OPEN' || this.v.day.status === 'LOCKED' ? 'Counting the scores…' : 'Nobody poured on this one.'),
       this.v.me.best !== null ? h('p', {}, `You caught ${this.v.me.best}${this.v.me.rank ? ` and finished #${this.v.me.rank}` : ''}.`) : null,
       r ? meter(r.totals) : null,
-      h('div', { class: 'row' }, w ? h('button', { class: 'btn y', onclick: () => this.replay(w.build) }, 'Watch it') : null, h('button', { class: 'btn b', onclick: () => this.closeCard() }, 'Close')),
+      h(
+        'div',
+        { class: 'row' },
+        sol ? h('button', { class: 'btn y', onclick: () => this.replay(sol.build) }, 'Watch the solution') : w ? h('button', { class: 'btn y', onclick: () => this.replay(w.build) }, 'Watch the winner') : null,
+        h('button', { class: 'btn b', onclick: () => this.closeCard() }, 'Close'),
+      ),
     );
   }
 
@@ -551,12 +569,43 @@ function boardRow(e: Entry, me: boolean): HTMLElement {
   return h('li', { class: me ? 'me' : '' }, medal, h('span', { class: 'who' }, `u/${e.username}`), h('b', {}, String(e.score)));
 }
 
-/** The subreddit's shared goal for the day. */
+/**
+ * The subreddit's goal for the day: everyone's best pours added up, against four tiers sized
+ * to how many played (Good, Great, Super, Extreme). Marks on the bar show each tier.
+ */
 export function meter(t: Totals): HTMLElement {
-  const pct = Math.min(100, Math.round((t.balls / Math.max(1, t.goal)) * 100));
+  const top = t.tiers[t.tiers.length - 1]?.need ?? 1;
   const bar = h('div', { class: 'fill' });
-  bar.style.width = `${pct}%`;
-  return h('div', { class: `meter${pct >= 100 ? ' full' : ''}` }, h('div', { class: 'lbl' }, h('span', {}, 'Together'), h('b', {}, `${fmt(t.balls)} / ${fmt(t.goal)} balls`)), h('div', { class: 'track' }, bar));
+  bar.style.width = `${Math.min(100, Math.round((t.balls / Math.max(1, top)) * 100))}%`;
+  const marks = t.tiers.map((tier) => {
+    const m = h('span', { class: `mark${t.balls >= tier.need && t.players ? ' hit' : ''}` });
+    m.style.left = `${Math.round((tier.need / Math.max(1, top)) * 100)}%`;
+    return m;
+  });
+  // Each tier's name sits under its own mark, right-aligned to it.
+  const names = h(
+    'div',
+    { class: 'tiers' },
+    ...t.tiers.map((tier) => {
+      const s = h('span', { class: t.tier === tier.name ? 'on' : '' }, tier.name);
+      s.style.left = `${Math.round((tier.need / Math.max(1, top)) * 100)}%`;
+      return s;
+    }),
+  );
+  const next = t.tiers.find((tier) => t.balls < tier.need);
+  const note = !t.players
+    ? 'Every player adds their best pour. Be the first!'
+    : next
+      ? `${fmt(next.need - t.balls)} more for ${next.name}`
+      : 'Extreme! The best a day can be.';
+  return h(
+    'div',
+    { class: `meter${t.tier ? ' full' : ''}` },
+    h('div', { class: 'lbl' }, h('span', {}, `Together · ${fmt(t.players)} ${t.players === 1 ? 'player' : 'players'}`), h('b', {}, t.tier ? `${fmt(t.balls)} · ${t.tier}` : fmt(t.balls))),
+    h('div', { class: 'track' }, bar, ...marks),
+    names,
+    h('div', { class: 'note' }, note),
+  );
 }
 
 /** A tool's picture for the bar, drawn with the board's own routines. */

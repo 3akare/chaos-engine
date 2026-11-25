@@ -1,8 +1,8 @@
 /** LOCKED → RESOLVED: freeze today's board, reveal the Build of the Day, update streaks. */
 import type { DayResult } from '../../shared/protocol';
 import type { Deps } from './deps';
-import { readMeta, readSubStats } from './day';
-import { bestBuild, readBest, readTotals, topEntries } from './board';
+import { readMachine, readMeta, readSubStats } from './day';
+import { bestBuild, ceilingOf, readBest, readTotals, topEntries } from './board';
 import { K } from './keys';
 
 export async function resolveDay(deps: Deps, dayId: string): Promise<boolean> {
@@ -11,10 +11,10 @@ export async function resolveDay(deps: Deps, dayId: string): Promise<boolean> {
   if (!meta || meta.status !== 'LOCKED') return false;
   if (!(await store.get(K.result(dayId)))) {
     const top = await topEntries(deps, dayId, 10);
-    const totals = await readTotals(deps, dayId, meta.goal);
+    const totals = await readTotals(deps, dayId, ceilingOf(await readMachine(store, meta.dayNumber)));
     const lead = await store.zRange(K.board(dayId), 0, 2, { reverse: true });
     const first = lead[0] ? await readBest(deps, dayId, lead[0].member) : null;
-    const goalMet = totals.balls >= totals.goal;
+    const goalMet = totals.tier !== null;
     const sub = await readSubStats(store);
     const streak = goalMet ? sub.streak + 1 : 0;
     const result: DayResult = {
@@ -43,6 +43,3 @@ export async function resolveDay(deps: Deps, dayId: string): Promise<boolean> {
   await store.hSet(K.meta(dayId), { status: 'RESOLVED' });
   return true;
 }
-
-/** The goal for the next day: a bit more than the subreddit caught today, never under 2,000. */
-export const nextGoal = (ballsToday: number): number => Math.max(2000, Math.ceil((ballsToday * 1.1) / 500) * 500);

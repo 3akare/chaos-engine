@@ -4,7 +4,8 @@
  */
 import { buildKey, cleanBuild, parseBuildKey } from '../../shared/pour/build';
 import { runPour } from '../../shared/pour/sim';
-import { BALLS, type Piece } from '../../shared/pour/types';
+import { BALLS, type Machine, type Piece } from '../../shared/pour/types';
+import { DEFAULT_CEILING, tierFor, tiersFor } from '../../shared/goal';
 import type { ApiError, Entry, PourResult, Totals } from '../../shared/protocol';
 import type { Deps } from './deps';
 import { readMachine, readMeta } from './day';
@@ -44,9 +45,17 @@ export async function rankOf(deps: Deps, dayId: string, userId: string): Promise
   return (await deps.store.zCard(K.board(dayId))) - asc;
 }
 
-export async function readTotals(deps: Deps, dayId: string, goal: number): Promise<Totals> {
-  const h = await deps.store.hGetAll(K.totals(dayId));
-  return { players: await deps.store.zCard(K.board(dayId)), pours: Number(h.pours ?? 0), balls: Number(h.balls ?? 0), hundreds: Number(h.hundreds ?? 0), goal };
+/** Best score known for a machine: the goal tiers are measured against it. */
+export const ceilingOf = (m: Machine | null): number => m?.gen?.best ?? DEFAULT_CEILING;
+
+/** The day so far: each player counted once, with their best pour. */
+export async function readTotals(deps: Deps, dayId: string, ceiling: number): Promise<Totals> {
+  const [h, bests] = await Promise.all([deps.store.hGetAll(K.totals(dayId)), deps.store.hGetAll(K.best(dayId))]);
+  const scores = Object.values(bests).map((raw) => (JSON.parse(raw) as BestRec).s);
+  const players = scores.length;
+  const balls = scores.reduce((a, s) => a + s, 0);
+  const tiers = tiersFor(players, ceiling);
+  return { players, pours: Number(h.pours ?? 0), balls, hundreds: Number(h.hundreds ?? 0), tiers, tier: tierFor(balls, players, tiers) };
 }
 
 export async function recordPour(deps: Deps, dayId: string, user: { userId: string; username: string }, rawBuild: unknown, claimed: unknown): Promise<PourResult | ApiError> {
@@ -91,7 +100,7 @@ export async function recordPour(deps: Deps, dayId: string, user: { userId: stri
     improved,
     rank: await rankOf(deps, dayId, user.userId),
     board: await topEntries(deps, dayId),
-    totals: await readTotals(deps, dayId, meta.goal),
+    totals: await readTotals(deps, dayId, ceilingOf(machine)),
   };
 }
 

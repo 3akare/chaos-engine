@@ -106,3 +106,9 @@ describe('stars and levels', () => {
     expect(PACK.some((m) => names.has(m.name))).toBe(false);
   });
 });
+
+describe('the daily pack', () => {
+  it("each machine's stored best build really catches its stored best", () => {
+    for (const m of PACK) expect(runPour(m, m.gen!.par!), m.name).toBe(m.gen!.best);
+  }, 60_000);
+});

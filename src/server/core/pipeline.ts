@@ -3,7 +3,7 @@
  * Every stage commits its own state and is safe to retry. The cron tick, the mod
  * "Run now" action and the install trigger all go through `tick`.
  */
-import { dayId as makeDayId, dayTitle, nextLockAt } from '../../shared/day';
+import { DAY_TITLE_PREFIX, dayId as makeDayId, dayTitle, nextLockAt } from '../../shared/day';
 import type { DayResult } from '../../shared/protocol';
 import type { Machine } from '../../shared/pour/types';
 import { resultsComment } from '../../shared/results';
@@ -12,13 +12,16 @@ import { currentDayId, encodeMeta, newId, readMachine, readMeta, type DayMeta } 
 import { K } from './keys';
 import { ensureAhead, ensureConfig, ensureMachine, readConfig } from './machines';
 import { ensureDayPost, ensureResultsComment } from './posts';
-import { nextGoal, resolveDay } from './summary';
+import { resolveDay } from './summary';
 
 export const LEASE_MS = 5 * 60_000;
-/** A Day opened off-schedule (install, Run now) runs at least this long, so there is one new game a day. */
-export const MIN_DAY_MS = 12 * 3_600_000;
+/**
+ * New games come at 02:00 UTC every day. A first game opened just before 02:00 runs on to the
+ * following 02:00 instead of lasting a few minutes.
+ */
+export const MIN_DAY_MS = 3_600_000;
 
-/** First lock at the daily hour that leaves the Day at least `minMs` long. */
+/** The next lock at the daily hour that leaves the Day at least `minMs` long. */
 export function lockTimeFor(openedAt: number, hourUtc: number, minMs = MIN_DAY_MS): number {
   let t = nextLockAt(openedAt, hourUtc);
   while (t - openedAt < minMs) t += 86_400_000;
@@ -29,7 +32,7 @@ const fallbackText = (m: Machine, n: number): string =>
   `Chaos Engine Day ${n}: "${m.name}". 100 balls, one bucket. Place ramps, springs and fans to catch them all, and top today's leaderboard. Open this post in the Reddit app or on new Reddit to play.`;
 
 /** Create a Day record (status CREATING) if it doesn't exist. Idempotent. */
-export async function createDayRecord(deps: Deps, dayNumber: number, machine: Machine, openedAt: number, goal: number): Promise<string> {
+export async function createDayRecord(deps: Deps, dayNumber: number, machine: Machine, openedAt: number): Promise<string> {
   const { store } = deps;
   const existing = await store.get(K.dayByNumber(dayNumber));
   if (existing) return existing;
@@ -41,7 +44,7 @@ export async function createDayRecord(deps: Deps, dayNumber: number, machine: Ma
     status: 'CREATING',
     openedAt,
     locksAt: lockTimeFor(openedAt, cfg.resolveHourUtc),
-    goal,
+    goal: 0,
     title: dayTitle(dayNumber, machine.name),
   };
   const tx = await store.watch(K.dayByNumber(dayNumber));
@@ -60,6 +63,8 @@ export async function createDayRecord(deps: Deps, dayNumber: number, machine: Ma
 async function openDay(deps: Deps, id: string, prevId: string | null): Promise<boolean> {
   const meta = await readMeta(deps.store, id);
   if (!meta) return false;
+  // A first game held back to the next 02:00 (see install) is not posted before then.
+  if (meta.status === 'CREATING' && deps.now() < meta.openedAt) return false;
   const machine = await readMachine(deps.store, meta.dayNumber);
   if (!machine) return false;
   if (!(await ensureDayPost(deps, id, fallbackText(machine, meta.dayNumber)))) return false;
@@ -104,9 +109,7 @@ async function handoffDay(deps: Deps, id: string): Promise<boolean> {
   let nextId = meta.nextDayId;
   if (!nextId) {
     const machine = await ensureMachine(deps, n);
-    const raw = await deps.store.get(K.result(id));
-    const balls = raw ? (JSON.parse(raw) as DayResult).totals.balls : 0;
-    nextId = await createDayRecord(deps, n, machine, deps.now(), nextGoal(balls));
+    nextId = await createDayRecord(deps, n, machine, deps.now());
     await deps.store.hSet(K.meta(id), { nextDayId: nextId });
   }
   return openDay(deps, nextId, id);
@@ -134,13 +137,42 @@ async function step(deps: Deps, id: string): Promise<boolean> {
 
 export type TickReport = { ran: boolean; reason?: string; stages: string[] };
 
-/** Install: config, Day 1 machine + record + post. Safe to call repeatedly. */
+/**
+ * Has this app already posted a game since the last daily hour? Then a new one now would be a
+ * second game the same day. A failed search counts as "yes": waiting a few hours is safer than
+ * a duplicate post.
+ */
+export async function postedSinceLastReset(deps: Deps, hourUtc: number): Promise<boolean> {
+  const since = nextLockAt(deps.now(), hourUtc) - 86_400_000;
+  try {
+    const app = await deps.reddit.appUsername();
+    const posts = await deps.reddit.newPosts(50);
+    return posts.some((p) => p.authorName === app && p.title.startsWith(DAY_TITLE_PREFIX) && p.createdAt >= since);
+  } catch (e) {
+    deps.log('warn', 'could not check for a game posted earlier today; holding the first game to the next reset', String(e));
+    return true;
+  }
+}
+
+/**
+ * Install (and an upgrade that finds no Day running): config, Day 1 machine and record. Day 1
+ * is posted now, unless this app already posted a game since the last 02:00 UTC (for example an
+ * upgrade from a version that kept its data elsewhere); then it waits for the next 02:00, so
+ * there is never more than one new game a day. Safe to call repeatedly.
+ */
 export async function install(deps: Deps): Promise<string | null> {
-  await ensureConfig(deps);
+  const cfg = await ensureConfig(deps);
   if (await currentDayId(deps.store)) return currentDayId(deps.store);
+  const pending = await deps.store.get(K.dayByNumber(1));
+  if (pending) {
+    await openDay(deps, pending, null);
+    return currentDayId(deps.store);
+  }
   const now = deps.now();
   const machine = await ensureMachine(deps, 1);
-  const id = await createDayRecord(deps, 1, machine, now, nextGoal(0));
+  const opensAt = (await postedSinceLastReset(deps, cfg.resolveHourUtc)) ? nextLockAt(now, cfg.resolveHourUtc) : now;
+  if (opensAt > now) deps.log('info', `a game was already posted today; Day 1 opens at ${new Date(opensAt).toISOString()}`);
+  const id = await createDayRecord(deps, 1, machine, opensAt);
   await openDay(deps, id, null);
   return currentDayId(deps.store);
 }
@@ -188,7 +220,10 @@ export async function tick(deps: Deps): Promise<TickReport> {
   }
 }
 
-/** Mod action "Run now": lock immediately and go through the same tick. */
+/**
+ * Close today's machine now and open the next one. Used by tests to walk a whole day. Not on
+ * the moderator menu: it would post a second game the same day.
+ */
 export async function runNow(deps: Deps): Promise<TickReport> {
   const id = await currentDayId(deps.store);
   if (id) {

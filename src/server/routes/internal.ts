@@ -3,7 +3,7 @@ import type { AppEnv } from '../app';
 import { currentDayId, readMachine, readMeta } from '../core/day';
 import { K } from '../core/keys';
 import { removeFromBoard } from '../core/board';
-import { install, newPostForToday, runNow, tick } from '../core/pipeline';
+import { install, newPostForToday, tick } from '../core/pipeline';
 
 type Ui = { showToast?: string | { text: string; appearance?: 'neutral' | 'success' }; showForm?: unknown; navigateTo?: string };
 
@@ -35,19 +35,6 @@ export function internalRoutes(env: AppEnv): Hono {
   });
 
   // Moderator menu.
-  r.post('/menu/run-now', async (c) =>
-    c.json(
-      await guard(async () => {
-        const rep = await runNow(deps);
-        if (!rep.ran) return toast('Another run is in progress — try again in a minute.', false);
-        const cur = await currentDayId(deps.store);
-        const meta = cur ? await readMeta(deps.store, cur) : null;
-        const ui = toast(rep.stages.length ? `Done: ${rep.stages.join(', ')}. Day ${meta?.dayNumber} is open.` : 'Nothing was due.');
-        if (meta?.postId) ui.navigateTo = deps.reddit.postUrl(meta.postId);
-        return ui;
-      }),
-    ),
-  );
   r.post('/menu/new-post', async (c) => c.json(await guard(async () => toast(await newPostForToday(deps)))));
   r.post('/menu/remove-score', async (c) =>
     c.json({
