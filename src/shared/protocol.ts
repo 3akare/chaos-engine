@@ -42,7 +42,7 @@ export type DayView = {
     rank: number | null;
     pours: number;
     stats: UserStats;
-    /** Solo mode: best balls on each level (null = not played). */
+    /** Practice mode: best balls on each level (null = not played). */
     personal: (number | null)[];
   };
   /** Live top of today's leaderboard. */

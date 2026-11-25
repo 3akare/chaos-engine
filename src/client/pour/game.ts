@@ -1,8 +1,10 @@
 /**
  * The game screen. Two ways to play:
- * - Solo: levels to beat on your own, in order; stars for 25 / 50 / 75 balls, a star opens the next level;
- * - Daily: today's machine, the same for the whole subreddit, your best on the leaderboard.
- * (In code and storage the two are still called 'personal' and 'group'.)
+ * - Daily: today's machine, the same for the whole subreddit. Your best pour ranks you on the
+ *   leaderboard and adds to the community goal, shown in a strip under the top bar;
+ * - Practice: levels that teach the pieces, in order; stars for 25 / 50 / 75 balls, a star opens
+ *   the next level.
+ * (In code and storage the two are still called 'group' and 'personal'.)
  * Physics runs here at a fixed 1/60 s step with the same code the server uses to check scores.
  */
 import { fitPiece, snap } from '../../shared/pour/build';
@@ -11,6 +13,7 @@ import { Pour } from '../../shared/pour/sim';
 import { BALLS, H, type Machine, type Piece, type Tool, TOOL_NAME, TOOLS, TURN, W } from '../../shared/pour/types';
 import type { DayView, Entry, PourResult, Totals } from '../../shared/protocol';
 import { api } from '../lib/api';
+import { goalStrip } from '../lib/goal';
 import * as sfx from './audio';
 import { fmt, h, ico, spr, store, until } from './dom';
 import { artReady, drawBumper, drawPlank, img, INK, View } from './draw';
@@ -101,7 +104,7 @@ export class Game {
     return this.play === 'group' && this.v.me.build ? this.v.me.build.map((p) => ({ ...p })) : [];
   }
 
-  /** Switch to Personal or Group (or to another level), dropping any pour in progress. */
+  /** Switch to Practice or Daily (or to another level), dropping any pour in progress. */
   private enter(play: Play, level = this.level): void {
     this.closeCard();
     this.pour = null;
@@ -142,7 +145,7 @@ export class Game {
   private renderTop(): void {
     const tab = (p: Play, label: string): HTMLElement =>
       h('button', { class: `tab${this.play === p ? ' on' : ''}`, role: 'tab', 'aria-selected': this.play === p ? 'true' : 'false', onclick: () => this.play !== p && this.enter(p) }, label);
-    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('personal', 'Solo'), tab('group', 'Daily'));
+    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('group', 'Daily'), tab('personal', 'Practice'));
     let right: HTMLElement;
     if (this.play === 'personal') {
       const best = this.personal[this.level] ?? null;
@@ -164,7 +167,12 @@ export class Game {
         me.rank ? h('span', { class: 'r' }, `#${me.rank}`) : null,
       );
     }
-    this.top.replaceChildren(tabs, h('div', { class: 'grow' }), right);
+    // Daily: the community goal sits under the tabs, visible before you pour; tap it for the board.
+    const goal =
+      this.play === 'group'
+        ? h('button', { class: 'together', 'aria-label': 'Community goal. Open the leaderboard', onclick: () => this.showBoard() }, goalStrip(this.v.result?.totals ?? this.v.totals, this.v.day.status !== 'OPEN'))
+        : null;
+    this.top.replaceChildren(tabs, h('div', { class: 'grow' }), right, ...(goal ? [goal] : []));
   }
 
   private renderBar(): void {

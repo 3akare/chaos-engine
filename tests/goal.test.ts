@@ -41,3 +41,21 @@ describe('goal ceiling', () => {
     expect(ceilingOf(null)).toBe(DEFAULT_CEILING);
   });
 });
+
+describe('goal strip wording', () => {
+  it('says what the community needs next, and how the day finished once closed', async () => {
+    const { goalText } = await import('../src/client/lib/goal');
+    const t = (players: number, balls: number) => {
+      const tiers = tiersFor(players, 80);
+      return { players, pours: players, balls, hundreds: 0, tiers, tier: tierFor(balls, players, tiers) };
+    };
+    expect(goalText(t(0, 0))).toEqual({ label: 'Together', value: '0', note: 'Everyone’s best pour adds up. Be the first!' });
+    // 10 players on an 80 machine: Good 280, Great 440, Super 600, Extreme 720.
+    expect(goalText(t(10, 300))).toEqual({ label: 'Together · 10 players', value: '300 · Good', note: '140 more for Great' });
+    expect(goalText(t(10, 200)).note).toBe('80 more for Good');
+    expect(goalText(t(10, 800)).note).toBe('Extreme! The best a day can be.');
+    expect(goalText(t(10, 300), true).note).toBe('Finished on Good');
+    expect(goalText(t(10, 200), true).note).toBe('Finished short of Good');
+    expect(goalText(t(1, 30)).label).toBe('Together · 1 player');
+  });
+});

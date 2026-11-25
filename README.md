@@ -5,12 +5,12 @@
 
 Each machine has a chute at the top, a bucket at the bottom, and ledges, pegs and spinners in between. You get a handful of pieces (ramps, a spring, a bumper, a fan) and you can put them **anywhere**. Press **Pour** and 100 balls tumble through with real physics. Every ball in the bucket counts: **25 for ★, 50 for ★★, 75 for ★★★.**
 
-The post has two buttons:
+The post has two buttons, and the community goal under them:
 
-- **Solo**: levels to beat on your own, in order, at your own pace. A star opens the next level. Your stars are saved to your account.
-- **Daily**: today's machine, the same for the whole subreddit. Your best pour of the day goes on **today's leaderboard** (most balls wins; on a tie, whoever got there first) and shows in the top corner of the game. Everyone's best pours add up toward the subreddit's goal for the day. At **02:00 UTC** the board closes, a results comment goes up, and the next machine opens in a new post: one new game a day. Builds stay hidden until then.
+- **Daily**: today's machine, the same for the whole subreddit. Your best pour of the day goes on **today's leaderboard** (most balls wins; on a tie, whoever got there first) and shows in the top corner of the game. It also counts toward **the community goal**: everyone's best pours added up, against four ratings (Good, Great, Super, Extreme) sized to how many played. The goal shows on the post and at the top of the Daily screen, so you see what the subreddit is building toward before you play. At **02:00 UTC** the board closes, a results comment goes up with the day's rating, and the next machine opens in a new post: one new game a day. Builds stay hidden until then.
+- **Practice**: levels that teach the pieces, in order, at your own pace. A star opens the next level. Your stars are saved to your account.
 
-Once you've played Daily, the post shows the leaderboard under the two buttons. You can switch between Solo and Daily inside the game too.
+You can switch between Daily and Practice inside the game too.
 
 **Yesterday's posts** are closed: you can't pour any more, but you can watch the solution (the best build known for that machine, poured on it), the winner's build and your own.
 

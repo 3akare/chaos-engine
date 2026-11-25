@@ -1,4 +1,4 @@
-/** Solo mode progress (called "personal" in code): each player's best on each level, so it follows them between devices. */
+/** Practice mode progress (called "personal" in code): each player's best on each level, so it follows them between devices. */
 import { LEVELS } from '../../shared/pour/levels';
 import { BALLS } from '../../shared/pour/types';
 import type { ApiError, PersonalResult } from '../../shared/protocol';

@@ -1,4 +1,4 @@
-/** Solo mode (called "personal" in code): fixed levels played in order, and the stars every pour can earn. */
+/** Practice mode (called "personal" in code): fixed levels played in order, and the stars every pour can earn. */
 import PERSONAL_JSON from './personal.json';
 import type { Machine } from './types';
 
