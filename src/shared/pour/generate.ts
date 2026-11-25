@@ -7,8 +7,10 @@ import type { Block, Machine, Spinner, Tool } from './types';
 
 export const GEN_VERSION = 1;
 
-const ADJ = ['Wobbly', 'Rusty', 'Sneaky', 'Bouncy', 'Grumpy', 'Lucky', 'Dizzy', 'Crooked', 'Busy', 'Clumsy', 'Jolly', 'Tricky', 'Windy', 'Squeaky', 'Lazy', 'Rowdy'];
-const NOUN = ['Detour', 'Funnel', 'Staircase', 'Switchback', 'Pinball', 'Windmill', 'Gauntlet', 'Zigzag', 'Shortcut', 'Waterfall', 'Maze', 'Drop', 'Ledge', 'Spiral', 'Gutter', 'Chute'];
+export const ADJ = ['Wobbly', 'Rusty', 'Sneaky', 'Bouncy', 'Grumpy', 'Lucky', 'Dizzy', 'Crooked', 'Busy', 'Clumsy', 'Jolly', 'Tricky', 'Windy', 'Squeaky', 'Lazy', 'Rowdy',
+  'Bumpy', 'Cheeky', 'Fizzy', 'Giddy', 'Jumpy', 'Loopy', 'Messy', 'Nifty', 'Peppy', 'Quirky', 'Silly', 'Sleepy', 'Snappy', 'Speedy', 'Wacky', 'Zippy', 'Breezy', 'Rickety', 'Twisty', 'Fickle'];
+export const NOUN = ['Detour', 'Funnel', 'Staircase', 'Switchback', 'Pinball', 'Windmill', 'Gauntlet', 'Zigzag', 'Shortcut', 'Waterfall', 'Maze', 'Drop', 'Ledge', 'Spiral', 'Gutter', 'Chute',
+  'Slide', 'Tumble', 'Cascade', 'Slope', 'Crossing', 'Junction', 'Tunnel', 'Bridge', 'Canyon', 'Corkscrew', 'Hopscotch', 'Rapids', 'Trapdoor', 'Seesaw', 'Ladder', 'Cliff', 'Gully', 'Ramble', 'Tangle', 'Rollway'];
 
 type Box = { x: number; y: number; hw: number; hh: number };
 const boxOf = (b: Block): Box => {
