@@ -42,6 +42,26 @@ function ball(c: Ctx, x: number, y: number, r: number, n: number): void {
   c.drawImage(img(BALLS[n % BALLS.length]!), x - r, y - r, r * 2, r * 2);
 }
 
+/**
+ * Where a ball of radius r rests on a plank drawn by plank(): t runs from -1 (left end) to 1
+ * (right end) along its top surface. Keeps every ball touching the wood, never inside it.
+ */
+function onPlank(x: number, y: number, len: number, deg: number, k: number, t: number, r: number): [number, number] {
+  const a = (deg * Math.PI) / 180;
+  const along = (len / 2) * k * t;
+  const up = 9 * k + r;
+  return [x + Math.cos(a) * along + Math.sin(a) * up, y + Math.sin(a) * along - Math.cos(a) * up];
+}
+
+/** A plank with balls resting along it at the given positions (see onPlank). */
+function loadedPlank(c: Ctx, x: number, y: number, len: number, deg: number, k: number, r: number, at: number[], first: number): void {
+  plank(c, x, y, len, deg, k);
+  at.forEach((t, i) => {
+    const [bx, by] = onPlank(x, y, len, deg, k, t, r);
+    ball(c, bx, by, r, first + i);
+  });
+}
+
 /** A plank from the board, in board units (18 thick), scaled by k. */
 function plank(c: Ctx, x: number, y: number, len: number, deg: number, k: number): void {
   c.save();
@@ -158,9 +178,8 @@ const ICON: Brand = {
     sky(c, w, h, 300);
     // A plank tipping the pour into the bucket: the whole game in one picture. Everything sits
     // inside the circle Reddit crops the icon to.
-    plank(c, 178, 150, 108, 16, 1.9);
-    [[118, 92, 0], [176, 109, 1]].forEach(([x, y, n]) => ball(c, x!, y!, 28, n!));
-    catchScene(c, 262, 384, 2.9, []);
+    loadedPlank(c, 172, 146, 108, 16, 1.9, 24, [-0.55, 0.15], 0);
+    catchScene(c, 272, 392, 2.7, []);
   },
 };
 
@@ -170,15 +189,18 @@ const DESKTOP: Brand = {
   h: 384,
   draw(c, w, h) {
     sky(c, w, h, 240);
-    // Left: the chute and a pour bouncing down planks and a bumper.
-    plank(c, 250, 120, 150, 14, 1.5);
-    plank(c, 470, 238, 140, -12, 1.5);
-    bumper(c, 120, 260, 1.7);
-    [[150, 40], [195, 62], [245, 84], [300, 104], [360, 160], [395, 200], [430, 214], [520, 290], [560, 330]].forEach(([x, y], i) => ball(c, x!, y!, 17, i));
+    // Left: a pour rolling down two planks.
+    bumper(c, 120, 262, 1.7);
+    ball(c, 150, 40, 17, 0);
+    loadedPlank(c, 250, 120, 150, 14, 1.5, 17, [-0.75, -0.3, 0.15, 0.6], 1);
+    [[378, 168], [394, 205]].forEach(([x, y], i) => ball(c, x!, y!, 17, i + 3));
+    loadedPlank(c, 470, 250, 140, 12, 1.5, 17, [-0.35, 0.3], 4);
+    [[596, 300], [612, 346]].forEach(([x, y], i) => ball(c, x!, y!, 17, i + 1));
     // Right: the bucket catching them.
-    plank(c, 1500, 112, 160, 12, 1.5);
-    bumper(c, 1790, 150, 1.7);
-    [[1400, 50], [1450, 72], [1520, 98], [1590, 120], [1640, 150], [1668, 182]].forEach(([x, y], i) => ball(c, x!, y!, 17, i + 2));
+    ball(c, 1400, 40, 17, 2);
+    loadedPlank(c, 1500, 112, 160, 12, 1.5, 17, [-0.6, -0.1, 0.4], 3);
+    [[1640, 160], [1656, 196]].forEach(([x, y], i) => ball(c, x!, y!, 17, i));
+    bumper(c, 1820, 150, 1.7);
     catchScene(c, 1680, 334, 1.9, []);
     logoLine(c, w / 2, 205, 128);
     tagline(c, '100 balls. One bucket. Catch them all.', w / 2, 290, 30);
@@ -191,11 +213,13 @@ const MOBILE: Brand = {
   h: 480,
   draw(c, w, h) {
     sky(c, w, h, 280);
-    plank(c, 230, 150, 150, 14, 1.7);
-    bumper(c, 120, 330, 2);
-    [[110, 50], [160, 76], [215, 102], [280, 128], [345, 190], [370, 250], [380, 310]].forEach(([x, y], i) => ball(c, x!, y!, 20, i));
-    plank(c, 1360, 130, 150, 12, 1.7);
-    [[1250, 60], [1310, 86], [1380, 112], [1450, 140], [1480, 190], [1490, 240]].forEach(([x, y], i) => ball(c, x!, y!, 20, i + 2));
+    ball(c, 110, 50, 20, 0);
+    loadedPlank(c, 230, 150, 150, 14, 1.7, 20, [-0.7, -0.2, 0.3], 1);
+    [[372, 214], [386, 262], [394, 312]].forEach(([x, y], i) => ball(c, x!, y!, 20, i + 4));
+    bumper(c, 140, 340, 2);
+    ball(c, 1250, 56, 20, 2);
+    loadedPlank(c, 1360, 130, 150, 12, 1.7, 20, [-0.65, -0.15, 0.35], 3);
+    [[1500, 196], [1508, 246]].forEach(([x, y], i) => ball(c, x!, y!, 20, i));
     catchScene(c, 1430, 424, 2.1, []);
     logo(c, w / 2, 178, 140);
     tagline(c, '100 balls. One bucket. Catch them all.', w / 2, 410, 34);

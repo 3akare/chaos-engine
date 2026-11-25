@@ -4,6 +4,8 @@ import type { Pour } from '../../shared/pour/sim';
 import { BALL_R, H, type Machine, type Piece, W } from '../../shared/pour/types';
 
 export const INK = '#353541';
+/** Half the size a ball's sprite is drawn at: its visible circle is 114/128 of the image, so this puts the visible edge on the physics edge. */
+const BALL_DRAW = (BALL_R * 128) / 114;
 const BALL_LOOKS = ['ball', 'ball_blue', 'ball_green', 'ball_yellow', 'ball_purple'];
 
 const IMG: Record<string, HTMLImageElement> = {};
@@ -40,11 +42,18 @@ function withRot(c: CanvasRenderingContext2D, x: number, y: number, a: number, f
   c.restore();
 }
 
+/**
+ * Outlines are drawn inside each body's real edge (a 3px line inset by half its width), so a
+ * ball resting on a plank touches the ink instead of sinking into it.
+ */
+const EDGE = 1.5;
+
 /** Grass-topped dirt platform. */
 function drawBlock(c: CanvasRenderingContext2D, b: Machine['blocks'][number]): void {
   withRot(c, b.x, b.y, rad(b.a), () => {
-    const { w, h } = b;
-    roundRect(c, -w / 2, -h / 2, w, h, 6);
+    const w = b.w - EDGE * 2;
+    const h = b.h - EDGE * 2;
+    roundRect(c, -w / 2, -h / 2, w, h, 5);
     c.fillStyle = '#ee9366';
     c.fill();
     c.save();
@@ -64,7 +73,7 @@ function drawBlock(c: CanvasRenderingContext2D, b: Machine['blocks'][number]): v
       c.fillRect(-w / 2, -h / 2, w, 3);
     }
     c.restore();
-    roundRect(c, -w / 2, -h / 2, w, h, 6);
+    roundRect(c, -w / 2, -h / 2, w, h, 5);
     c.lineWidth = 3;
     c.strokeStyle = INK;
     c.stroke();
@@ -73,7 +82,7 @@ function drawBlock(c: CanvasRenderingContext2D, b: Machine['blocks'][number]): v
 
 function drawPeg(c: CanvasRenderingContext2D, x: number, y: number): void {
   c.beginPath();
-  c.arc(x, y, 7, 0, Math.PI * 2);
+  c.arc(x, y, 7 - EDGE, 0, Math.PI * 2);
   c.fillStyle = '#b9c2ca';
   c.fill();
   c.lineWidth = 3;
@@ -85,13 +94,15 @@ function drawPeg(c: CanvasRenderingContext2D, x: number, y: number): void {
   c.fill();
 }
 
-export function drawPlank(c: CanvasRenderingContext2D, len: number, th: number): void {
-  roundRect(c, -len / 2, -th / 2, len, th, 5);
+export function drawPlank(c: CanvasRenderingContext2D, fullLen: number, fullTh: number): void {
+  const len = fullLen - EDGE * 2;
+  const th = fullTh - EDGE * 2;
+  roundRect(c, -len / 2, -th / 2, len, th, 4);
   c.fillStyle = '#c97f4a';
   c.fill();
   c.fillStyle = '#e09a62';
   c.fillRect(-len / 2 + 3, -th / 2 + 2, len - 6, 3);
-  roundRect(c, -len / 2, -th / 2, len, th, 5);
+  roundRect(c, -len / 2, -th / 2, len, th, 4);
   c.lineWidth = 3;
   c.strokeStyle = INK;
   c.stroke();
@@ -99,7 +110,7 @@ export function drawPlank(c: CanvasRenderingContext2D, len: number, th: number):
 
 export function drawBumper(c: CanvasRenderingContext2D, x: number, y: number, flash: number, r = 17): void {
   c.beginPath();
-  c.arc(x, y, r + flash * 4, 0, Math.PI * 2);
+  c.arc(x, y, r - EDGE + flash * 4, 0, Math.PI * 2);
   c.fillStyle = flash > 0 ? '#ffd27a' : '#e54341';
   c.fill();
   c.lineWidth = 3;
@@ -271,7 +282,7 @@ export class View {
     if (s.pour) {
       for (const b of s.pour.balls) {
         const im = img(ballLook(b.n));
-        withRot(c, b.position.x, b.position.y, b.angle, () => c.drawImage(im, -BALL_R - 1, -BALL_R - 1, (BALL_R + 1) * 2, (BALL_R + 1) * 2));
+        withRot(c, b.position.x, b.position.y, b.angle, () => c.drawImage(im, -BALL_DRAW, -BALL_DRAW, BALL_DRAW * 2, BALL_DRAW * 2));
       }
     }
     if (s.drag) {
