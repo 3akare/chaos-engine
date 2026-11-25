@@ -162,7 +162,7 @@ export function drawPiece(c: CanvasRenderingContext2D, p: Piece, t: number, alph
   c.globalAlpha = 1;
 }
 
-function drawBucket(c: CanvasRenderingContext2D, bk: Machine['bucket'], glow: number): void {
+export function drawBucket(c: CanvasRenderingContext2D, bk: Machine['bucket'], glow: number): void {
   const x = bk.x - bk.w / 2 - 8;
   const y = bk.y - 32;
   const w = bk.w + 16;

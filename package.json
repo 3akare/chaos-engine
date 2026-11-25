@@ -14,6 +14,7 @@
     "deploy": "sh scripts/safe-upload.sh",
     "prettier": "prettier --write .",
     "demo:build": "vite build --config dev/demo/vite.demo.config.ts",
+    "brand": "vite build --config dev/brand/vite.config.ts && node dev/brand/render.cjs",
     "check:engines": "npx tsx dev/pour/engines.ts && bun dev/pour/engines.ts",
     "pack": "npx tsx dev/pour/pack.ts 4 dev/pour/pack.jsonl",
     "pack:json": "npx tsx dev/pour/pack-json.ts"
