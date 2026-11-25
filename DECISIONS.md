@@ -159,6 +159,6 @@ From David's playtest:
 
 ## 2026-11-25 · Daily first, the goal in sight, Solo becomes Practice
 - **One daily puzzle, counted twice.** Each player's best pour ranks them on the leaderboard and adds to the community goal. Two separate daily modes (a ranked one and a shared one) would split a small subreddit across two machines and double the daily content, so they stay one.
-- **The goal is visible before anyone plays.** It was only on the leaderboard card after a pour. Now a "Together" strip (`client/lib/goal.ts`) is on the feed card under the buttons and under the game's top bar in Daily, with tier marks and "N more for <tier>". The feed card no longer shows leaderboard rows while the day is open; the top score is in the Daily button's subtitle instead.
+- **The goal is visible before anyone plays.** It was only on the leaderboard card after a pour. Now a "Together" strip (`client/lib/goal.ts`) is on the feed card under the buttons and under the game's top bar in Daily, with tier marks and "N more for <tier>". Once you've played, the post shows today's leaderboard instead (top 3, or top 2 and you), with the community rating in its header, and steps everything down a size so it fits a phone's post (about 440px).
 - **Solo is renamed Practice.** Its fixed levels with "Next level" read like the daily game. Daily is now the first button and the first tab.
 

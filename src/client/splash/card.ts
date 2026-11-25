@@ -1,7 +1,10 @@
 /**
- * The post in the feed: the game's name, two big buttons (Daily first, then Practice) and the
- * community goal, so everyone sees what the subreddit is building towards before they play.
- * Once the day is over, the final leaderboard shows instead.
+ * The post in the feed: the game's name, two big buttons (Daily first, then Practice) and one
+ * panel under them, whichever matters at that moment:
+ * - before you've played today: the community goal, so you see what the subreddit is building
+ *   towards and that your pour adds to it;
+ * - once you've played: today's leaderboard (top 3 and you), with the community rating in its header;
+ * - once the day is over: the final leaderboard.
  * (In code and storage the two modes are still called 'group' and 'personal'.)
  */
 import { LEVELS, starsFor } from '../../shared/pour/levels';
@@ -77,13 +80,21 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode:
     return b;
   };
 
-  // Under the buttons: the community goal while the day is open; the final board once it's over.
+  // Under the buttons: the goal before you play, the leaderboard once you have (or the day is over).
   let below: HTMLElement;
-  if (closed && list.length) {
-    const rows = list.slice(0, 3).map((e) => row(e, e.username === v.me.username));
-    if (v.me.rank && v.me.best !== null && v.me.rank > 3) rows.push(row({ rank: v.me.rank, username: v.me.username ?? 'you', score: v.me.best, at: 0 }, true));
-    below = el('div', 'lb', el('div', 'lbh', el('span', '', `Day ${v.day.dayNumber} final`), el('span', '', totals.tier ? `Together: ${totals.tier}` : `${fmt(totals.players)} ${totals.players === 1 ? 'player' : 'players'}`)), el('ol', '', ...rows));
-  } else below = goalStrip(totals, closed);
+  if ((closed || v.me.best !== null) && list.length) {
+    // Three rows: the top 3, or the top 2 and you when you're further down.
+    const below3 = v.me.rank !== null && v.me.best !== null && v.me.rank > 3;
+    const rows = list.slice(0, below3 ? 2 : 3).map((e) => row(e, e.username === v.me.username));
+    if (below3) rows.push(row({ rank: v.me.rank!, username: v.me.username ?? 'you', score: v.me.best!, at: 0 }, true));
+    const next = totals.tiers.find((t) => totals.balls < t.need);
+    const together = totals.tier ? `Together: ${totals.tier}` : closed || !next ? `${fmt(totals.players)} played` : `Together: ${fmt(next.need - totals.balls)} to ${next.name}`;
+    root.classList.add('played');
+    below = el('div', 'lb', el('div', 'lbh', el('span', '', closed ? `Day ${v.day.dayNumber} final` : "Today's leaderboard"), el('span', '', together)), el('ol', '', ...rows));
+  } else {
+    root.classList.remove('played');
+    below = goalStrip(totals, closed);
+  }
 
   const balls = el('div', 'rain', ...['ball', 'ball_blue', 'ball_green', 'ball_yellow', 'ball_purple', 'ball', 'ball_green', 'ball_blue'].map((b) => img(sprite(b))));
   root.replaceChildren(
