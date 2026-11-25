@@ -46,7 +46,7 @@ export async function rankOf(deps: Deps, dayId: string, userId: string): Promise
 }
 
 /** Best score known for a machine: the goal tiers are measured against it. */
-export const ceilingOf = (m: Machine | null): number => m?.gen?.best ?? DEFAULT_CEILING;
+export const ceilingOf = (m: Machine | null): number => m?.gen?.goal ?? m?.gen?.best ?? DEFAULT_CEILING;
 
 /** The day so far: each player counted once, with their best pour. */
 export async function readTotals(deps: Deps, dayId: string, ceiling: number): Promise<Totals> {

@@ -26,7 +26,15 @@ export type Machine = {
   spinners: Spinner[];
   tools: Partial<Record<Tool, number>>;
   /** Generator notes: best score its own search found, and what random builds get. */
-  gen?: { version: number; best: number; random: number; par?: Piece[] };
+  gen?: {
+    version: number;
+    /** The best score the offline search has found; `par` is that build. */
+    best: number;
+    random: number;
+    par?: Piece[];
+    /** What the Daily goal is sized against. Set once, so a better build found later does not raise the goal. */
+    goal?: number;
+  };
 };
 
 /** How far a tap turns each piece. */

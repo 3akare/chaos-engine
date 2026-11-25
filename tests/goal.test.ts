@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { TIER_SHARE, tierFor, tiersFor } from '../src/shared/goal';
+import { DEFAULT_CEILING, TIER_SHARE, tierFor, tiersFor } from '../src/shared/goal';
+import { ceilingOf } from '../src/server/core/board';
+import { machineForDay, PACK } from '../src/shared/pour/pack';
 
 describe('daily goal tiers', () => {
   it('scale with how many played and how hard the machine is', () => {
@@ -25,5 +27,17 @@ describe('daily goal tiers', () => {
     expect(tierFor(299, 4, tiers)).toBe('Great');
     expect(tierFor(400, 4, tiers)).toBe('Extreme');
     expect(tierFor(0, 0, tiersFor(0, 100))).toBeNull();
+  });
+});
+
+describe('goal ceiling', () => {
+  it('stays on the fixed goal when a better build is found later', () => {
+    for (const m of PACK) {
+      expect(m.gen?.goal).toBeLessThanOrEqual(m.gen?.best ?? 0);
+      expect(ceilingOf(m)).toBe(m.gen?.goal);
+    }
+    // Repeats (mirrored, reseeded) keep the same goal.
+    expect(ceilingOf(machineForDay(PACK.length + 1))).toBe(ceilingOf(machineForDay(1)));
+    expect(ceilingOf(null)).toBe(DEFAULT_CEILING);
   });
 });

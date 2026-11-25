@@ -34,7 +34,8 @@ if (role === 'merge') {
     }
     if (score > m.gen.best) {
       process.stdout.write(`${r.name}: ${m.gen.best} → ${score}\n`);
-      m.gen = { ...m.gen, best: score, par: r.build };
+      // The goal stays sized to the old best: a perfect build is a puzzle answer, not a fair target.
+      m.gen = { ...m.gen, goal: m.gen.goal ?? m.gen.best, best: score, par: r.build };
     } else process.stdout.write(`${r.name}: stays at ${m.gen.best}\n`);
   }
   writeFileSync('src/shared/pour/pack.json', JSON.stringify(pack) + '\n');
