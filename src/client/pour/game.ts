@@ -1,7 +1,7 @@
 /**
  * The game screen. Two ways to play:
- * - Daily: today's machine, the same for the whole subreddit. Your best pour ranks you on the
- *   leaderboard and adds to the community goal, shown in a strip under the top bar;
+ * - Today (Daily): today's machine, the same for the whole subreddit. Your best pour ranks you on
+ *   the leaderboard and adds to the community goal (on the post and in the leaderboard card);
  * - Practice: levels that teach the pieces, in order; stars for 25 / 50 / 75 balls, a star opens
  *   the next level.
  * (In code and storage the two are still called 'group' and 'personal'.)
@@ -11,11 +11,11 @@ import { fitPiece, snap } from '../../shared/pour/build';
 import { LEVELS, STARS, starsFor, unlocked } from '../../shared/pour/levels';
 import { Pour } from '../../shared/pour/sim';
 import { BALLS, H, type Machine, type Piece, type Tool, TOOL_NAME, TOOLS, TURN, W } from '../../shared/pour/types';
-import type { DayView, Entry, PourResult, Totals } from '../../shared/protocol';
+import type { DayView, Entry, PourResult } from '../../shared/protocol';
 import { api } from '../lib/api';
-import { goalStrip } from '../lib/goal';
+import { goalBox } from '../lib/goal';
 import * as sfx from './audio';
-import { fmt, h, ico, spr, store, until } from './dom';
+import { h, ico, spr, store, until } from './dom';
 import { artReady, drawBumper, drawPlank, img, INK, View } from './draw';
 
 const STEP = 1000 / 60;
@@ -145,7 +145,7 @@ export class Game {
   private renderTop(): void {
     const tab = (p: Play, label: string): HTMLElement =>
       h('button', { class: `tab${this.play === p ? ' on' : ''}`, role: 'tab', 'aria-selected': this.play === p ? 'true' : 'false', onclick: () => this.play !== p && this.enter(p) }, label);
-    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('group', 'Daily'), tab('personal', 'Practice'));
+    const tabs = h('div', { class: 'tabs', role: 'tablist' }, tab('group', 'Today'), tab('personal', 'Practice'));
     let right: HTMLElement;
     if (this.play === 'personal') {
       const best = this.personal[this.level] ?? null;
@@ -167,12 +167,7 @@ export class Game {
         me.rank ? h('span', { class: 'r' }, `#${me.rank}`) : null,
       );
     }
-    // Daily: the community goal sits under the tabs, visible before you pour; tap it for the board.
-    const goal =
-      this.play === 'group'
-        ? h('button', { class: 'together', 'aria-label': 'Community goal. Open the leaderboard', onclick: () => this.showBoard() }, goalStrip(this.v.result?.totals ?? this.v.totals, this.v.day.status !== 'OPEN'))
-        : null;
-    this.top.replaceChildren(tabs, h('div', { class: 'grow' }), right, ...(goal ? [goal] : []));
+    this.top.replaceChildren(tabs, h('div', { class: 'grow' }), right);
   }
 
   private renderBar(): void {
@@ -545,7 +540,7 @@ export class Game {
     this.card(
       h('h2', {}, closed ? 'Final board' : "Today's board"),
       rows.length ? list : h('p', {}, 'Nobody has poured yet. Be the first!'),
-      meter(v.result?.totals ?? v.totals),
+      goalBox(v.result?.totals ?? v.totals, !!v.result || v.day.status !== 'OPEN'),
       h('p', { class: 'foot' }, foot),
       h('div', { class: 'row' }, h('button', { class: 'btn b', onclick: () => this.closeCard() }, 'Close')),
     );
@@ -562,7 +557,7 @@ export class Game {
         : null,
       w ? h('div', { class: 'winner' }, ico('trophy'), h('span', {}, `u/${w.username}`), h('b', {}, String(w.score))) : h('p', {}, this.v.day.status === 'OPEN' || this.v.day.status === 'LOCKED' ? 'Counting the scores…' : 'Nobody poured on this one.'),
       this.v.me.best !== null ? h('p', {}, `You caught ${this.v.me.best}${this.v.me.rank ? ` and finished #${this.v.me.rank}` : ''}.`) : null,
-      r ? meter(r.totals) : null,
+      r ? goalBox(r.totals, true) : null,
       h(
         'div',
         { class: 'row' },
@@ -586,47 +581,6 @@ export class Game {
 function boardRow(e: Entry, me: boolean): HTMLElement {
   const medal = e.rank <= 3 ? h('span', { class: `medal m${e.rank}` }, String(e.rank)) : h('span', { class: 'medal' }, String(e.rank));
   return h('li', { class: me ? 'me' : '' }, medal, h('span', { class: 'who' }, `u/${e.username}`), h('b', {}, String(e.score)));
-}
-
-/**
- * The subreddit's goal for the day: everyone's best pours added up, against four tiers sized
- * to how many played (Good, Great, Super, Extreme). Marks on the bar show each tier.
- */
-export function meter(t: Totals): HTMLElement {
-  const top = t.tiers[t.tiers.length - 1]?.need ?? 1;
-  const bar = h('div', { class: 'fill' });
-  bar.style.width = `${Math.min(100, Math.round((t.balls / Math.max(1, top)) * 100))}%`;
-  const marks = t.tiers.map((tier) => {
-    const m = h('span', { class: `mark${t.balls >= tier.need && t.players ? ' hit' : ''}` });
-    m.style.left = `${Math.round((tier.need / Math.max(1, top)) * 100)}%`;
-    return m;
-  });
-  // Each tier's name sits under its own mark, right-aligned to it; the top tier's name sits
-  // at the end of the bar, so it never runs into the one before.
-  const names = h(
-    'div',
-    { class: 'tiers' },
-    ...t.tiers.map((tier) => {
-      const last = tier === t.tiers[t.tiers.length - 1];
-      const s = h('span', { class: `${t.tier === tier.name ? 'on' : ''}${last ? ' end' : ''}` }, tier.name);
-      s.style.left = `${Math.round((tier.need / Math.max(1, top)) * 100)}%`;
-      return s;
-    }),
-  );
-  const next = t.tiers.find((tier) => t.balls < tier.need);
-  const note = !t.players
-    ? 'Every player adds their best pour. Be the first!'
-    : next
-      ? `${fmt(next.need - t.balls)} more for ${next.name}`
-      : 'Extreme! The best a day can be.';
-  return h(
-    'div',
-    { class: `meter${t.tier ? ' full' : ''}` },
-    h('div', { class: 'lbl' }, h('span', {}, `Together · ${fmt(t.players)} ${t.players === 1 ? 'player' : 'players'}`), h('b', {}, t.tier ? `${fmt(t.balls)} · ${t.tier}` : fmt(t.balls))),
-    h('div', { class: 'track' }, bar, ...marks),
-    names,
-    h('div', { class: 'note' }, note),
-  );
 }
 
 /** A tool's picture for the bar, drawn with the board's own routines. */

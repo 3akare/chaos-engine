@@ -42,20 +42,22 @@ describe('goal ceiling', () => {
   });
 });
 
-describe('goal strip wording', () => {
-  it('says what the community needs next, and how the day finished once closed', async () => {
-    const { goalText } = await import('../src/client/lib/goal');
+describe('goal box wording', () => {
+  it('shows the fill against the next rating, and how the day finished once closed', async () => {
+    const { goalText, goalGradient } = await import('../src/client/lib/goal');
     const t = (players: number, balls: number) => {
       const tiers = tiersFor(players, 80);
       return { players, pours: players, balls, hundreds: 0, tiers, tier: tierFor(balls, players, tiers) };
     };
-    expect(goalText(t(0, 0))).toEqual({ label: 'Together', value: '0', note: 'Everyone’s best pour adds up. Be the first!' });
+    expect(goalText(t(0, 0))).toEqual({ fill: '0', target: '', badge: 'Today’s goal', note: 'Everyone’s best pour adds up. Be the first!' });
     // 10 players on an 80 machine: Good 280, Great 440, Super 600, Extreme 720.
-    expect(goalText(t(10, 300))).toEqual({ label: 'Together · 10 players', value: '300 · Good', note: '140 more for Great' });
-    expect(goalText(t(10, 200)).note).toBe('80 more for Good');
-    expect(goalText(t(10, 800)).note).toBe('Extreme! The best a day can be.');
-    expect(goalText(t(10, 300), true).note).toBe('Finished on Good');
-    expect(goalText(t(10, 200), true).note).toBe('Finished short of Good');
-    expect(goalText(t(1, 30)).label).toBe('Together · 1 player');
+    expect(goalText(t(10, 300))).toEqual({ fill: '300', target: '/ 440', badge: 'Good', note: '10 players · 140 more for Great' });
+    expect(goalText(t(10, 200))).toEqual({ fill: '200', target: '/ 280', badge: 'No rating yet', note: '10 players · 80 more for Good' });
+    expect(goalText(t(10, 800))).toMatchObject({ target: '/ 720', badge: 'Extreme', note: '10 players · Extreme! The best a day can be.' });
+    expect(goalText(t(10, 300), true).note).toBe('10 players · finished on Good');
+    expect(goalText(t(10, 200), true)).toMatchObject({ badge: 'No rating', note: '10 players · finished short of Good' });
+    expect(goalText(t(1, 30)).note).toBe('1 player · 14 more for Great');
+    // Each rating's colour sits at its mark: red, then yellow, green, blue, purple.
+    expect(goalGradient(t(10, 0).tiers)).toBe('linear-gradient(90deg, #e54341 0%, #ffc851 39%, #2ecc71 61%, #419fdd 83%, #9b59b6 100%)');
   });
 });

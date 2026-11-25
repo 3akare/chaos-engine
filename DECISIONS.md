@@ -162,3 +162,8 @@ From David's playtest:
 - **The goal is visible before anyone plays.** It was only on the leaderboard card after a pour. Now a "Together" strip (`client/lib/goal.ts`) is on the feed card under the buttons and under the game's top bar in Daily, with tier marks and "N more for <tier>". Once you've played, the post shows today's leaderboard instead (top 3, or top 2 and you), with the community rating in its header, and steps everything down a size so it fits a phone's post (about 440px).
 - **Solo is renamed Practice.** Its fixed levels with "Next level" read like the daily game. Daily is now the first button and the first tab.
 
+## 2026-11-25 · Pour today, the goal and the board on the post
+- **One call to action.** The post leads with "Pour today" (on a closed day, "See the solution"). Practice is a small pill next to the logo: it's a warm-up, not the daily game.
+- **Goal, then leaderboard, always.** Under the button, the goal box (fill / next rating's target, the rating badge, a bar in the ball colours whose colour shows how far the subreddit has got), then the top 3 and you if you're further down. Three post heights get their own sizes (tall, phone around 440px, regular 320px).
+- **No goal strip in the game.** It took height from the board; the goal is in the leaderboard card instead, and the board fills the space again.
+
