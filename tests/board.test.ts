@@ -66,7 +66,7 @@ describe('leaderboard', () => {
     const before = await api.as('bob').get('/api/state');
     expect(before.json.result).toBeNull();
     expect(JSON.stringify(before.json)).not.toContain('"x":220');
-    await env.store.set('ce:level:2', JSON.stringify({ ...TEST_MACHINE, name: 'Second' }));
+    await env.store.set(K.level(2), JSON.stringify({ ...TEST_MACHINE, name: 'Second' }));
     const rep = await runNow(env.deps);
     expect(rep.stages).toEqual(['OPEN→LOCKED', 'LOCKED→RESOLVED', 'RESOLVED→COMMENTED', 'COMMENTED→HANDED_OFF']);
     const res = JSON.parse((await env.store.get(K.result(dayId)))!) as DayResult;
