@@ -8,6 +8,7 @@
  * 'group' and 'personal'.)
  */
 import { LEVELS, starsFor } from '../../shared/pour/levels';
+import { BALLS } from '../../shared/pour/types';
 import type { DayView, Entry } from '../../shared/protocol';
 import { icon, sprite } from '../assets';
 import { goalBox } from '../lib/goal';
@@ -66,14 +67,16 @@ export function renderCard(root: HTMLElement, v: DayView, open: (e: Event, mode:
   practice.addEventListener('click', (e) => open(e, 'personal'));
 
   // The call to action.
+  // Only claim "all of them" when the stored build really catches every ball on this machine.
+  const perfect = !v.solution || v.solution.score === BALLS;
   const sub = closed
-    ? `Day ${v.day.dayNumber} is closed · watch how to catch them all`
+    ? `Day ${v.day.dayNumber} is closed · ${perfect ? 'watch how to catch them all' : `watch a build that catches ${v.solution?.score}`}`
     : v.me.best !== null
       ? `Your best ${v.me.best} · #${v.me.rank ?? '–'} of ${fmt(totals.players)} · beat it`
       : list[0]
         ? `Top score ${list[0].score} · ${fmt(totals.players)} playing`
         : '100 balls · one bucket · same machine for all';
-  const label = closed ? 'See the solution' : 'Start the chaos';
+  const label = closed ? (perfect ? 'See the solution' : 'See the best build') : 'Start the chaos';
   const cta = el('button', 'cta', el('span', 'txt', el('span', 'lbl', label), el('span', 'sub', sub)), el('span', 'play', img(icon('right'))));
   cta.setAttribute('aria-label', `${label}. ${sub}`);
   cta.addEventListener('click', (e) => open(e, 'group'));

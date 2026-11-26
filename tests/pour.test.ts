@@ -110,5 +110,20 @@ describe('stars and levels', () => {
 describe('the daily pack', () => {
   it("each machine's stored best build really catches its stored best", () => {
     for (const m of PACK) expect(runPour(m, m.gen!.par!), m.name).toBe(m.gen!.best);
-  }, 60_000);
+  }, 180_000);
+
+  it('lasts a year before any machine comes back', () => {
+    expect(PACK.length).toBeGreaterThanOrEqual(365);
+    // The first seven were live before the pack grew; their days must not change machine.
+    expect(PACK.slice(0, 7).map((m) => m.name)).toEqual(['Dizzy Ledge', 'Lazy Drop', 'Grumpy Switchback', 'Wobbly Shortcut', 'Bouncy Gauntlet', 'Clumsy Spiral', 'Sneaky Zigzag']);
+  });
+
+  it('gives every machine its own name, layout and a goal no higher than its best', () => {
+    expect(new Set(PACK.map((m) => m.name)).size).toBe(PACK.length);
+    expect(new Set(PACK.map((m) => m.seed)).size).toBe(PACK.length);
+    for (const m of PACK) {
+      expect(m.gen?.goal, m.name).toBeGreaterThanOrEqual(72);
+      expect(m.gen!.goal!, m.name).toBeLessThanOrEqual(m.gen!.best);
+    }
+  });
 });
